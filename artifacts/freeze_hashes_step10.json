@@ -1,0 +1,18 @@
+{
+  "artifacts/manifest_stage1.csv": {
+    "sha1": "d4a93f3079395425ff2123c40963fb95421180c0",
+    "bytes": 12547
+  },
+  "artifacts/stage1_stats.json": {
+    "sha1": "89cb5eb723b36e502ade188bae5fe15fd3438986",
+    "bytes": 272
+  },
+  "artifacts/stage1_validation_report.json": {
+    "sha1": "4a850cbf9dae3fdb99be075a847f71852305cc52",
+    "bytes": 238
+  },
+  "artifacts/step6_report.md": {
+    "sha1": "5cfb5cce62fcc546d9aaffed5f18c4c24e430d9b",
+    "bytes": 372
+  }
+}

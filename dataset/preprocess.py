@@ -150,21 +150,28 @@ def preprocess(
     if len(working_df) == 0:
         working_df = pd.DataFrame(columns=required_cols)
         print("📋 Empty result - preserving schema (0,4)")
+    else:
+        # 5) 재현성을 위한 정렬 (CSV 저장 전 필수)
+        print("🔄 Sorting DataFrame for reproducibility...")
+        working_df = working_df.sort_values(
+            ["code", "image_path", "label_path"]
+        ).reset_index(drop=True)
+        print(f"✅ Sorted by code, image_path, label_path")
     
-    # 5) artifacts_dir 생성
+    # 6) artifacts_dir 생성
     artifacts_path = Path(artifacts_dir)
     artifacts_path.mkdir(parents=True, exist_ok=True)
     
     print(f"📁 Artifacts directory ensured: {artifacts_path}")
     
-    # 6) CSV 저장
+    # 7) CSV 저장 (index=False 고정)
     manifest_path = artifacts_path / cfg.manifest_filename
     working_df.to_csv(manifest_path, index=False)
     
     print(f"💾 Manifest saved: {manifest_path}")
     print(f"📊 Final DataFrame: {len(working_df)} rows")
     
-    # 7) 요약 출력
+    # 8) 요약 출력
     total_removed = initial_count - len(working_df)
     print(f"📈 Preprocessing summary:")
     print(f"   Initial rows: {initial_count}")
