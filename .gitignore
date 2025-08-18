@@ -1,0 +1,72 @@
+# venv / caches
+
+venvs/
+.venv/
+**/__pycache__/**
+*.pyc
+*.pyo
+*.pyd
+.ipynb_checkpoints/
+.cache/
+.dist/
+build/
+dist/
+*.egg-info/
+
+# pytest
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+
+# logs / artifacts
+
+*.log
+logs/
+tb/
+reports/
+exp/
+artifacts/
+*.freeze.txt
+
+# ML specific
+checkpoints/
+wandb/
+mlruns/
+*.onnx
+*.pt
+*.pth
+*.h5
+*.pkl
+
+# data processing temp files
+manifest_*.csv
+*_stats.json
+*_report.json
+*_audit.md
+step*_report.md
+
+# secrets
+
+.env
+.env.local
+.env.*.local
+config.local.yaml
+
+# OS / editor
+
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Jupyter
+*.ipynb_checkpoints/
+
+# temporary files
+tmp/
+temp/
+*.tmp

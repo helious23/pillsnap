@@ -1,0 +1,58 @@
+# Core DL (RTX 5080 + PyTorch 2.5 최적화) - 안전한 최신 버전 조합
+
+# PyTorch stack (정확한 페어링 필수)
+# 설치: pip install torch==2.5.1+cu121 torchvision==0.20.1+cu121 torchaudio==2.5.1+cu121 --index-url https://download.pytorch.org/whl/cu121
+torch==2.5.1
+torchvision==0.20.1
+torchaudio==2.5.1
+
+# Vision & ML frameworks
+timm>=1.0.10           # PyTorch 2.5 관련 변경사항 반영
+ultralytics>=8.3       # torch 2.5 호환, YOLO11 지원
+
+# Computer Vision
+numpy>=1.24,<2.0       # 보수적 유지 (numpy 2.0 호환성 이슈)
+pillow>=10.0,<11.0
+opencv-python-headless>=4.9,<5.0
+albumentations>=1.4,<2.0  # 프레임워크 비종속
+kornia>=0.7,<1.0       # PyTorch 의존성만 있음
+
+# Data & Config
+pyyaml>=6.0,<7.0
+tqdm>=4.66,<5.0
+pandas>=2.0,<3.0
+scikit-learn>=1.4,<2.0
+
+# Logging & Monitoring
+tensorboard>=2.15,<3.0
+wandb>=0.16,<1.0
+matplotlib>=3.8,<4.0
+seaborn>=0.13,<1.0
+
+# API & Service
+fastapi>=0.110,<1.0
+uvicorn[standard]>=0.27,<1.0
+python-multipart>=0.0.9,<1.0
+pydantic>=2.6,<3.0
+pydantic-settings>=2.2,<3.0
+python-dotenv>=1.0,<2.0
+
+# Export & ONNX (GPU 버전으로 통일)
+onnx>=1.16
+onnxruntime-gpu>=1.22  # TensorRT EP 지원, CUDA 12.0-12.8 + TensorRT 10.9 호환
+
+# Memory & Performance (128GB RAM 활용)
+lmdb>=1.4,<2.0
+psutil>=5.9,<6.0
+
+# Version compatibility & fallback support
+pkg_resources          # 버전 체크용
+subprocess-run>=0.1.0  # Git SHA 획득용
+
+# Testing
+httpx>=0.26,<1.0
+pytest>=8.0,<9.0
+pytest-asyncio>=0.23,<1.0
+
+# TensorRT (선택적 설치)
+# tensorrt>=10.9         # ORT 1.22 호환성 매트릭스 기준

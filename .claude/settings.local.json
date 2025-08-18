@@ -1,0 +1,34 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find:*)",
+      "Bash(mkdir:*)",
+      "Bash(tree:*)",
+      "Bash(chmod:*)",
+      "Bash(grep:*)",
+      "Bash(cat:*)",
+      "Bash(kill:*)",
+      "Bash(for filekey in 66096 66097 66098 66099 66100 66101 66102 66103 66104 66106)",
+      "Bash(do)",
+      "Bash(echo \"🚀 Downloading filekey: $filekey\")",
+      "Bash(python:*)",
+      "Bash(echo:*)",
+      "Bash(done)",
+      "Bash(for filekey in 66107 66108 66109 66110 66111)",
+      "Bash(for filekey in 66115 66117 66118 66119 66120)",
+      "Bash(for filekey in 66132 66133 66134 66135 66136 66137 66139 66140 66141 66142 66143 66144 66145 66146 66147 66148 66150 66151)",
+      "Bash(do echo \"🚀 Downloading filekey: $filekey\")",
+      "Bash(for i in {2..8})",
+      "Bash(do echo \"=== TS_$i 비교 ===\")",
+      "Bash(zip_file=\"/mnt/data/AIHub/166.약품식별_인공지능_개발을_위한_경구약제_이미지_데이터/01.데이터/1.Training/원천데이터/경구약제조합_5000종/TS_$i_조합.zip\")",
+      "Bash(combo_dir=\"/mnt/data/pillsnap_dataset/data/train/images/combination/TS_$i_combo\")",
+      "Bash(test:*)",
+      "Bash(.venv/bin/python:*)"
+    ],
+    "deny": [],
+    "ask": [],
+    "additionalDirectories": [
+      "/mnt/data/pillsnap_dataset"
+    ]
+  }
+}

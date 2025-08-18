@@ -1,0 +1,1 @@
+# TODO: Part F에서 edi_code 스키마 구현

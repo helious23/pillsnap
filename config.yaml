@@ -1,0 +1,358 @@
+# 경로 설정 (영문 변환 후)
+paths:
+  exp_dir: "/mnt/data/exp/exp01"
+  data_root: "/mnt/data/pillsnap_dataset"  # 영문 변환된 데이터셋 경로
+  ckpt_dir: null  # exp_dir/checkpoints 자동 생성
+  tb_dir: null    # exp_dir/tb 자동 생성
+  reports_dir: null  # exp_dir/reports 자동 생성
+
+# 데이터셋 구성
+data:
+  # 사용자 선택 기반 Two-Mode (자동 판단 완전 제거)
+  pipeline_mode: "single"  # "single" (기본 권장, 90% 케이스), "combo" (명시적 선택)
+  default_mode: "single"   # API 기본값 (Frontend 선택권 제공)
+  
+  # 데이터 경로 (영문 변환 후 구조)
+  train:
+    single: "/mnt/data/pillsnap_dataset/data/train/single"
+    combination: "/mnt/data/pillsnap_dataset/data/train/combination"
+    labels:
+      single: "/mnt/data/pillsnap_dataset/data/train/labels/single"
+      combination: "/mnt/data/pillsnap_dataset/data/train/labels/combination"
+  val:
+    single: "/mnt/data/pillsnap_dataset/data/val/single" 
+    combination: "/mnt/data/pillsnap_dataset/data/val/combination"
+    labels:
+      single: "/mnt/data/pillsnap_dataset/data/val/labels/single"
+      combination: "/mnt/data/pillsnap_dataset/data/val/labels/combination"
+  
+  # 이미지 크기 (RTX 5080 16GB 최적화)
+  img_size:
+    detection: 640      # YOLOv11x 입력 크기
+    classification: 384 # EfficientNetV2-L 입력 크기 (224→384 성능향상)
+  
+  # 클래스 정보
+  num_classes: 5000  # edi_code 기준 5000 클래스
+  class_names_path: "/mnt/data/pillsnap_dataset/processed/class_names.json"
+  edi_mapping_path: "/mnt/data/pillsnap_dataset/processed/edi_mapping.json"
+  
+  # 점진적 검증 샘플링 (PART_0 전략)
+  progressive_validation:
+    enabled: true
+    current_stage: 1    # 1-4 단계 설정
+    stage_configs:
+      stage_1:
+        max_samples: 1000
+        max_classes: 500
+        target_ratio: {single: 0.7, combination: 0.3}
+        time_limit_hours: 4
+      stage_2: 
+        max_samples: 10000
+        max_classes: 2000
+        target_ratio: {single: 0.7, combination: 0.3}
+        time_limit_hours: 8
+      stage_3:
+        max_samples: 100000
+        max_classes: 4000
+        target_ratio: {single: 0.7, combination: 0.3}  
+        time_limit_hours: 16
+      stage_4:
+        max_samples: null    # 전체 데이터
+        max_classes: 5000
+        target_ratio: {single: 0.7, combination: 0.3}
+        time_limit_hours: 48
+
+  # 샘플링 전략
+  sampling_strategy: "stratified_balanced"  # 계층적 균형 샘플링
+  min_samples_per_class: 2  # train 1장, val 1장 최소 보장
+  seed: 42                  # 재현 가능한 샘플링
+  
+  # OptimizationAdvisor 평가 설정
+  optimization_advisor:
+    enabled: true
+    run_after_training: true    # 학습 완료 시 평가 실행
+    generate_report: true       # JSON 리포트 생성
+    update_tensorboard: true    # TB에 결과 로깅
+    recommend_next_stage: true  # 권장사항 제공 (사용자 선택)
+  
+# 128GB RAM 활용 최적화 (현실적 메모리 사용량 반영)
+  cache_optimization:
+    label_cache: true           # 라벨/메타데이터 메모리 캐시 (7-20GB 예상)
+    compress_metadata: true     # Arrow/Parquet 압축 활용
+    prefetch_samples: 50000     # Stage별 샘플 미리 로드
+  
+  # ZIP 처리 설정 (대용량 I/O 최적화)
+  zip_processing:
+    integrity_level: "quick"    # skip | quick | full
+    shard_size_gb: 8           # 샤드 크기 (GB)
+    max_concurrent_extracts: 2  # 동시 압축해제 수
+    stream_loading: true        # 스트리밍 로딩 활성화
+    sample_ratio: 0.1          # quick 모드 샘플링 비율
+    max_memory_gb: 64          # ZIP 처리 최대 메모리
+  
+  # 증강 (데이터 품질 고려 보수적 설정)
+  augment:
+    train:
+      albumentations: true
+      horizontal_flip: 0.5
+      vertical_flip: 0.0    # 약품 방향성 중요
+      rotate_limit: 15      # 최대 15도 회전
+      brightness_limit: 0.2
+      contrast_limit: 0.2
+      saturation_shift_limit: 0.2
+      hue_shift_limit: 0.1
+      blur_limit: 3
+      noise_limit: 0.1
+      cutout_holes: 8
+      cutout_length: 16
+    val:
+      normalize_only: true
+
+# 검출 모델 설정 (조합 약품용)
+detection:
+  model: "yolov11x"  # RTX 5080 16GB로 감당 가능한 최대 모델
+  pretrained: true
+  conf_threshold: 0.3   # 보수적 임계값
+  iou_threshold: 0.5    # NMS 임계값
+  max_detections: 100
+  augment_inference: false  # 추론 시 TTA 비활성화 (속도 우선)
+
+# 분류 모델 설정 (단일 + 조합 크롭용)
+classification:
+  backbone: "efficientnetv2_l.in21k_ft_in1k"  # timm 모델명 (21k 사전훈련)
+  pretrained: true
+  drop_rate: 0.3        # 과적합 방지
+  drop_path_rate: 0.2   # Stochastic Depth
+  num_classes: 5000     # edi_code 클래스 수
+
+# 손실 함수
+loss:
+  classification:
+    type: "cross_entropy"
+    label_smoothing: 0.1
+    class_weights: "balanced"  # 클래스 불균형 대응
+  detection:
+    cls_loss_weight: 1.0
+    box_loss_weight: 7.5
+    dfl_loss_weight: 1.5
+
+# 학습 설정 (RTX 5080 16GB 최적화)
+train:
+  # 검출 모델 학습 (조합 약품 전용, RTX 5080 16GB 최적화)  
+  detection:
+    epochs: 50              # 현실적 목표
+    batch_size: 96          # RTX 5080 최적화 (AMP 적용)
+    auto_batch_tune: true   # 자동 배치 크기 조정
+    grad_accum_steps: 2     # 효과적 배치 192
+    grad_clip: 10.0         # YOLO 권장값
+    
+    # 옵티마이저 (큰 배치용 설정)
+    optimizer: "adamw"
+    lr: 2e-4               # 큰 배치용 학습률
+    weight_decay: 1e-4
+    momentum: 0.937        # YOLO 권장값
+    
+    # 스케줄러  
+    scheduler: "cosine"
+    warmup_epochs: 3
+    warmup_momentum: 0.8
+    
+    # 조기 종료
+    early_stopping:
+      enabled: true
+      monitor: "mAP@0.5"
+      mode: "max"
+      patience: 10
+      min_delta: 0.001
+  
+  # 분류 모델 학습 (단일 + 조합 크롭, RTX 5080 16GB 최적화)
+  classification:
+    epochs: 30              # EfficientNet 빠른 수렴
+    batch_size: 128         # RTX 5080 최적화 (AMP 적용)
+    auto_batch_tune: true
+    grad_accum_steps: 2     # 효과적 배치 256
+    grad_clip: 1.0
+    
+    # 옵티마이저 (큰 배치용 설정)
+    optimizer: "adamw"  
+    lr: 2e-4               # 큰 배치용 학습률
+    weight_decay: 1e-4
+    
+    # 스케줄러
+    scheduler: "cosine"
+    warmup_epochs: 2
+    
+    # 조기 종료
+    early_stopping:
+      enabled: true
+      monitor: "accuracy"    # Top-1 정확도
+      mode: "max" 
+      patience: 10
+      min_delta: 0.001
+
+  # 공통 설정
+  seed: 42
+  deterministic: false  # 성능 모드
+  resume: null         # 자동 체크포인트 복구
+
+# GPU/메모리 최적화 (RTX 5080 16GB + PyTorch 2.5)
+performance:
+  # Mixed Precision
+  amp: true
+  amp_dtype: "auto"      # bfloat16 > fp16 자동 선택
+  
+  # CUDA 최적화
+  tf32: true
+  channels_last: true
+  
+  # torch.compile 설정 (PyTorch 2.5 최적화)
+  torch_compile:
+    enabled: true
+    training_mode: "reduce-overhead"    # 학습 안정성 우선
+    inference_mode: "max-autotune"      # 추론 성능 우선  
+    export_mode: "default"             # ONNX 호환성 우선
+    fallback_enabled: true             # 자동 폴백 활성화
+    validate_compilation: true         # 컴파일 검증 수행
+  
+  # CUDA Graphs (실험적)
+  use_cuda_graphs: false  # 안정성 우선
+  
+  # 메모리 관리
+  empty_cache_steps: 100  # 주기적 캐시 정리
+  
+  # 프로파일링
+  warmup_steps: 100      # 컴파일 워밍업
+  profile_interval: 500   # 성능 로깅 주기
+
+# 데이터로더 (128GB RAM + 16 스레드 최적화, 현실적 메모리 사용량)
+dataloader:
+  num_workers: 16        # CPU 16스레드 활용
+  autotune_workers: true # 자동 워커 수 조정
+  pin_memory: true
+  pin_memory_device: "cuda"  # RTX 5080 직접 핀
+  prefetch_factor: 4     # 현실적 prefetch (워커당 ~수백MB)
+  persistent_workers: true
+  drop_last: true        # 고정 배치 크기
+  multiprocessing_context: "spawn"  # 안정성
+
+# 로깅 및 모니터링
+logging:
+  # TensorBoard
+  tensorboard: true
+  wandb: false          # 선택적 활성화
+  
+  # 로그 주기
+  step_log_interval: 50
+  epoch_log_interval: 1
+  
+  # 메트릭 저장
+  save_metrics_json: true
+  save_confusion_matrix: true
+  save_roc_curves: true
+  
+  # 체크포인트
+  save_best: true
+  save_last: true 
+  save_top_k: 3
+
+# 추론/서빙 설정 (사용자 선택 기반)
+inference:
+  # 파이프라인 모드별 설정
+  single_confidence_threshold: 0.3  # single 모드 최소 신뢰도
+  immediate_load_models: true      # 즉시 로딩 (128GB RAM 활용)
+  batch_size: 1                   # 실시간 서빙
+  
+  # 성능 목표  
+  target_latency_ms: 100          # RTX 5080 목표 지연시간
+  
+# ONNX 내보내기 (PyTorch 2.5 + 호환성 정책)
+export:
+  # 기본 설정
+  opset: 17                    # 우선 시도할 opset 버전
+  dynamic_axes:
+    detection: {"images": {0: "batch"}}
+    classification: {"input": {0: "batch"}}
+  
+  # opset 폴백 정책 (Ultralytics 호환성)
+  opset_fallback:
+    enabled: true              # 자동 폴백 활성화
+    priority: [null, 17, 16, 15, 14]  # null = 자동선택
+    retry_on_failure: true
+  
+  # ONNX Runtime Provider 설정
+  onnx_providers:
+    auto_detect: true          # 자동 감지 및 검증
+    priority: ["TensorrtExecutionProvider", "CUDAExecutionProvider", "CPUExecutionProvider"]
+    tensorrt:
+      enabled: true
+      engine_cache_enable: true
+      engine_cache_path: "/mnt/data/exp/exp01/trt_cache"
+      fp16_enable: true
+      max_workspace_size_gb: 8
+    cuda:
+      cudnn_conv_use_max_workspace: 1
+  
+  # 검증 설정 (실용적 허용치)
+  compare:
+    enabled: true
+    # 표준 허용치 (fp32 환경)
+    tolerance:
+      mse_mean: 1e-4           # MSE 평균 허용치
+      mse_p99: 5e-4            # MSE P99 허용치  
+      top1_mismatch: 0.01      # Top-1 불일치율 (1%)
+      detection_map: 0.01      # mAP 차이 허용값
+      detection_iou: 0.01      # IoU 차이 허용값
+    # fp16 환경 완화된 허용치
+    tolerance_fp16:
+      mse_mean: 5e-4           # 완화된 MSE 평균
+      mse_p99: 1e-3            # 완화된 MSE P99
+      top1_mismatch: 0.02      # 완화된 불일치율 (2%)
+    sample_count: 100          # 검증 샘플 수
+
+# API 서빙
+api:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 1            # GPU 모델 로딩으로 단일 워커
+  timeout: 60
+  cors_allow_origins: 
+    - "http://localhost:3000"
+    - "https://pillsnap.co.kr" 
+    - "https://api.pillsnap.co.kr"
+  require_api_key: true
+  max_request_size: 20971520  # 20MB
+
+# 버전 호환성 및 폴백 정책
+compatibility:
+  # PyTorch 스택 호환성
+  pytorch:
+    min_version: "2.5.0"       # 최소 요구 버전
+    preferred_version: "2.5.1" # 권장 버전
+    torch_compile_required: true
+    validate_versions: true     # 시작 시 버전 검증
+  
+  # ONNX Runtime 호환성
+  onnxruntime:
+    min_version: "1.20.0"      # 최소 요구 버전  
+    preferred_version: "1.22.0" # 권장 버전 (TensorRT EP 지원)
+    require_gpu_build: true    # GPU 빌드 필수
+    validate_providers: true   # Provider 검증
+  
+  # 자동 폴백 정책
+  fallback_policies:
+    torch_compile:
+      enabled: true
+      strict_mode: false       # 실패 시 vanilla 모델로 폴백
+    onnx_export:
+      enabled: true  
+      opset_fallback: true     # opset 폴백 활성화
+    ort_providers:
+      enabled: true
+      fallback_to_cpu: true    # 최종적으로 CPU로 폴백
+  
+  # 환경 검증 설정
+  validation:
+    check_cuda: true           # CUDA 환경 검증
+    check_tensorrt: false      # TensorRT는 선택적
+    check_git: true           # Git 정보 수집
+    warn_only: false          # 검증 실패 시 경고만 (false=중단)
