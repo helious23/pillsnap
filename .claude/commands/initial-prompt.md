@@ -195,6 +195,27 @@ VENV_PYTHON="$HOME/pillsnap/.venv/bin/python"
 - **실행 결과**: 391개 이미지 중복, 13,722개 라벨 중복 basename 발견
 - **테스트 추가**: 경고 문자열 검사 포함, pytest 15/15 통과
 
+### 9. Stage 1 엔트리포인트 구현 (E0-E4)
+- **E0: 경로 가드**: 중복 'pillsnap' 폴더 생성 방지 정책 적용
+- **E1: 엔트리포인트 구현**:
+  - `pillsnap/stage1/verify.py` - 빠른 스모크 테스트 (1-2분, 샘플링)
+  - `pillsnap/stage1/run.py` - 전체 파이프라인 실행 (모든 아티팩트 생성)
+  - Rich UI 통합으로 사용자 친화적 출력
+- **E2: 포괄적 테스트**: `tests/test_entrypoints.py` 구현
+  - 6개 테스트 메서드로 import, 실행, 환경변수, 스키마 검증
+  - 모든 테스트 통과 확인
+- **E3: 실행 가이드**: README.md 업데이트
+- **E4: 자체 검증**: 로그 생성 및 성공 확인
+
+### 10. Step 9: Stage 1 Freeze & 재현성 보장
+- **환경 스냅샷**: Python 3.11.13, torch 2.5.1+cu121, WSL 환경 정보 저장
+- **패키지 고정**: `artifacts/requirements.lock.txt` 생성
+- **무결성 보장**: 핵심 산출물 SHA1 체크섬 생성
+  - `artifacts/freeze_hashes_step9.json` - 기존 산출물
+  - `artifacts/freeze_hashes_step9_freeze50.json` - 재현성 테스트 결과
+- **재현성 검증**: 50개 샘플로 verify/run 엔트리포인트 재실행 성공
+- **Git 커밋**: 모든 freeze 파일 버전 관리 적용
+
 ---
 
 ## 현재 상태
@@ -207,6 +228,12 @@ VENV_PYTHON="$HOME/pillsnap/.venv/bin/python"
   - Step 6: E2E 검증 및 리포트 생성 완료
   - Step 6.apply: 환경 설정 최적화 완료
   - Step 5.x: 경고 출력 개선 완료
+- **Stage 1 엔트리포인트 & CLI** ✅ **완료**
+  - E0-E4: 사용자 친화적 CLI 인터페이스 구현
+  - Rich UI, 에러 핸들링, 포괄적 테스트 포함
+- **Stage 1 Freeze & 재현성** ✅ **완료**
+  - 환경 스냅샷, 패키지 고정, 체크섬 검증
+  - 재현성 테스트 통과, Git 버전 관리 적용
 
 ---
 
@@ -216,14 +243,90 @@ VENV_PYTHON="$HOME/pillsnap/.venv/bin/python"
 3. **데이터 스캔**: `dataset/scan.py` - 260만+ 파일 스트리밍 처리
 4. **데이터 전처리**: `dataset/preprocess.py` - CSV 매니페스트 정규화
 5. **데이터 검증**: `dataset/validate.py` - 품질 게이트 및 리포팅
-6. **테스트 스위트**: 총 43개 테스트 (scan:15, preprocess:12, validate:17)
+6. **테스트 스위트**: 총 49개 테스트 (scan:15, preprocess:12, validate:17, entrypoints:6)
 7. **환경 최적화**: 가상환경 경로, 데이터 루트, PNG 지원
+8. **CLI 엔트리포인트**: `pillsnap.stage1.verify` / `pillsnap.stage1.run`
+9. **재현성 보장**: 환경 스냅샷, 패키지 고정, 체크섬 검증
+
+---
+
+## 생성된 주요 파일 및 아티팩트
+
+### 코드 구조
+```
+pillsnap/
+├── __init__.py
+├── stage1/
+│   ├── __init__.py
+│   ├── verify.py      # 빠른 검증 (1-2분)
+│   └── run.py         # 전체 파이프라인
+src/
+├── data.py            # 데이터셋 클래스 (구현됨)
+├── train.py           # 학습 루프 (구현됨) 
+├── models/            # 모델 정의 (구현됨)
+├── utils/
+│   └── oom_guard.py   # OOM 가드 (구현됨)
+dataset/
+├── scan.py            # 스트리밍 스캔
+├── preprocess.py      # 매니페스트 정규화
+└── validate.py        # 품질 검증
+tests/
+├── test_*.py          # 포괄적 테스트 스위트
+```
+
+### 아티팩트 (재현성 보장)
+```
+artifacts/
+├── env_snapshot.json           # 환경 스냅샷
+├── env_snapshot.md            # 환경 요약 (markdown)
+├── requirements.lock.txt      # 패키지 버전 고정
+├── freeze_hashes_step9.json   # 체크섬 (주요 산출물)
+├── freeze_hashes_step9_freeze50.json  # 체크섬 (재현성 테스트)
+├── manifest_stage1.csv        # 최종 매니페스트
+├── manifest_freeze50.csv      # 재현성 테스트 매니페스트
+├── stage1_stats.json          # 스캔 통계
+├── stage1_validation_report.json  # 검증 리포트
+└── step6_report.md           # 사람이 읽기 쉬운 리포트
+```
+
+### 실행 명령어 (재현성 보장됨)
+```bash
+# 가상환경 활성화
+source $HOME/pillsnap/.venv/bin/activate
+
+# 환경변수 설정
+export PILLSNAP_DATA_ROOT="/mnt/data/pillsnap_dataset/data"
+
+# 빠른 검증 (1-2분)
+python -m pillsnap.stage1.verify --sample-limit 200 --max-seconds 120
+
+# 전체 파이프라인 (제한된 샘플)
+python -m pillsnap.stage1.run --limit 400 --manifest artifacts/manifest_stage1.csv
+
+# 테스트 실행
+pytest tests/test_entrypoints.py -v  # 엔트리포인트 테스트
+pytest tests/ -v                     # 전체 테스트 스위트
+```
+
+---
+
+## Stage 1 완료 체크리스트 ✅
+- [x] **데이터 파이프라인**: scan → preprocess → validate 완전 구현
+- [x] **CLI 인터페이스**: 사용자 친화적 verify/run 엔트리포인트
+- [x] **테스트 커버리지**: 49개 테스트 모두 통과
+- [x] **재현성 보장**: 환경 고정, 체크섬 검증, Git 버전 관리
+- [x] **문서화**: 실행 가이드, 진행상황 요약 완료
+- [x] **환경 최적화**: WSL 경로, 가상환경, 데이터 루트 확정
 
 ---
 
 ## 다음 단계 준비사항
-- Stage 2: 모델 파이프라인 (detection → classification)
-- Stage 3: API 서비스 (FastAPI + Streamlit)
-- Stage 4: 배포 및 성능 최적화
+- **Stage 2: 모델 파이프라인** 
+  - 이미 구현된 코드: `src/data.py`, `src/train.py`, `src/models/`, `src/utils/oom_guard.py`
+  - 데이터 로더 및 학습 루프 검증 필요
+- **Stage 3: API 서비스** (FastAPI + Streamlit)
+- **Stage 4: 배포 및 성능 최적화**
+
+**재현성 보장**: 새로운 세션에서는 `/.claude/commands/initial-prompt.md`를 실행하여 전체 컨텍스트를 로드할 수 있습니다.
 
 ---

@@ -23,7 +23,9 @@
       "Bash(zip_file=\"/mnt/data/AIHub/166.약품식별_인공지능_개발을_위한_경구약제_이미지_데이터/01.데이터/1.Training/원천데이터/경구약제조합_5000종/TS_$i_조합.zip\")",
       "Bash(combo_dir=\"/mnt/data/pillsnap_dataset/data/train/images/combination/TS_$i_combo\")",
       "Bash(test:*)",
-      "Bash(.venv/bin/python:*)"
+      "Bash(.venv/bin/python:*)",
+      "Bash(export PILLSNAP_DATA_ROOT=\"/mnt/data/pillsnap_dataset/data\")",
+      "Bash(/home/max16/pillsnap/.venv/bin/python -m pillsnap.stage1.verify:*)"
     ],
     "deny": [],
     "ask": [],
