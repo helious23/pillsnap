@@ -1,6 +1,6 @@
 # /initial-prompt — 세션 초기화 스크립트
 
-당신은 **Claude Code**입니다. 이 세션에서 수행할 초기화 절차를 다음과 같이 고정합니다.  
+당신은 **Claude Code**입니다. 이 세션에서 수행할 초기화 절차를 다음과 같이 고정합니다.
 **모든 응답은 한국어로 작성**합니다. 모호하면 가장 단순한 해법을 우선합니다.
 
 ---
@@ -20,15 +20,16 @@ VENV_PYTHON="$HOME/pillsnap/.venv/bin/python"
 ---
 
 ## 1) 수집 대상(읽기 순서 고정)
-1. **Prompt 사양**:  
+1. **Prompt 사양**:
    - `/Prompt/PART_0.md` … `/Prompt/PART_H.md` (존재하는 모든 PART_*.md)
-2. **문서(docs)**:  
+2. **문서(docs)**:
    - `docs/*.md` 전부 (예: `docs/read_audit.md`, `docs/implementation_guide.md`, `docs/session_workflow_guide.md`)
-3. **핵심 코드(core)**: 아래 경로를 **순차 폴백**으로 스캔  
-   - 우선: `core/*.py`  
-   - 대안: `src/core/*.py`  
-   - 최후: `/mnt/data/*.py` (특히 아래 파일명은 우선 인덱싱)  
-     - `pipeline_mode.py`, `detector_manager.py`, `oom_handler.py`,  
+   - `.claude/session_continuity.md` (세션 연속성 가이드)
+3. **핵심 코드(core)**: 아래 경로를 **순차 폴백**으로 스캔
+   - 우선: `core/*.py`
+   - 대안: `src/core/*.py`
+   - 최후: `/mnt/data/*.py` (특히 아래 파일명은 우선 인덱싱)
+     - `pipeline_mode.py`, `detector_manager.py`, `oom_handler.py`,
        `memory_policy.py`, `onnx_export.py`, `path_policy.py`
 
 > 파일이 없거나 읽기 실패 시, 어떤 경로가 비어있는지 **명시적으로 경고**하고 계속 진행합니다.
@@ -48,23 +49,23 @@ VENV_PYTHON="$HOME/pillsnap/.venv/bin/python"
 - 누락/오류: 경로·사유 요약
 
 ### 코드 스캔 결과(핵심 모듈 API 요약)
-- 각 모듈별 **공개 API 시그니처**와 **주의사항**(1~3줄)  
-  - `pipeline_mode.py`: `resolve_pipeline_mode(request_mode, default_mode, ...) -> (mode_used, reason, recommendation)`  
-  - `detector_manager.py`: `get()`, `maybe_unload()`, **락/TTL/히스테리시스** 규칙  
-  - `oom_handler.py`: **유한 상태머신**(empty→fp16→accum→batch½) + **가드레일**(`max_retries`, `max_grad_accum`, `min_batch`)  
-  - `memory_policy.py`: Stage 1 **캐시/배치 오버라이드 금지** 규칙  
-  - `onnx_export.py`: **단일 SOT** tolerances + **export_report.schema.json** 연계  
+- 각 모듈별 **공개 API 시그니처**와 **주의사항**(1~3줄)
+  - `pipeline_mode.py`: `resolve_pipeline_mode(request_mode, default_mode, ...) -> (mode_used, reason, recommendation)`
+  - `detector_manager.py`: `get()`, `maybe_unload()`, **락/TTL/히스테리시스** 규칙
+  - `oom_handler.py`: **유한 상태머신**(empty→fp16→accum→batch½) + **가드레일**(`max_retries`, `max_grad_accum`, `min_batch`)
+  - `memory_policy.py`: Stage 1 **캐시/배치 오버라이드 금지** 규칙
+  - `onnx_export.py`: **단일 SOT** tolerances + **export_report.schema.json** 연계
   - `path_policy.py`: **WSL에서 Windows 경로 금지**(C:\, \\) 검증
 
 ### 컨텍스트 스냅샷(필수 규칙·결정 요약)
-1) **모드 단일 진실원(SOT)**: HTTP `?mode=single|combo` → 내부 `pipeline_mode`로 **한 함수에서만 최종 결정**,  
+1) **모드 단일 진실원(SOT)**: HTTP `?mode=single|combo` → 내부 `pipeline_mode`로 **한 함수에서만 최종 결정**,
    우선순위 = 사용자 > 기본값, 자동 추천은 메시지로만(자동 전환 없음), **안전 폴백**(model_unavailable/oom_predicted/sla_breach)에서만 `combo→single`.
 2) **검출기 지연 로딩**: **단일 Manager + 락**, 첫 요청 1회 로드, **(옵션) TTL 언로드 + 히스테리시스**, 중복 로드 방지.
-3) **OOM 상태머신(유한)**: empty_cache(1회) → fp16 강제(1회) → grad_accum×2(상한) → batch½(하한) → 실패.  
+3) **OOM 상태머신(유한)**: empty_cache(1회) → fp16 강제(1회) → grad_accum×2(상한) → batch½(하한) → 실패.
    글로벌 배치 변경 시 **LR 선형 스케일**·**by-samples 스케줄러**, BN freeze/GN 권장.
-4) **메모리 정책 잠금**: Stage 1(평가 전용)은 **캐시/배치 축소 금지**, 기본은 `labels_only` 또는 협의된 `hotset` 하나만 사용(중첩 금지).  
+4) **메모리 정책 잠금**: Stage 1(평가 전용)은 **캐시/배치 축소 금지**, 기본은 `labels_only` 또는 협의된 `hotset` 하나만 사용(중첩 금지).
    병목 감지 시 **한 기법씩** 단계적 확장.
-5) **ONNX 검증 SOT**: tolerances(분류 `mse_mean/mse_p99/top1_mismatch_rate`, 검출 `mAPΔ/p95 IoUΔ`)는 **하나의 설정**에서만 읽기.  
+5) **ONNX 검증 SOT**: tolerances(분류 `mse_mean/mse_p99/top1_mismatch_rate`, 검출 `mAPΔ/p95 IoUΔ`)는 **하나의 설정**에서만 읽기.
    `export_report.json`은 **schema**로 검증.
 6) **경로·터널 정책**: 리눅스 서버는 `/home`/`/mnt`만 사용, Windows 경로 감지 시 즉시 실패. Cloudflared는 Windows에서만.
 
@@ -92,45 +93,45 @@ VENV_PYTHON="$HOME/pillsnap/.venv/bin/python"
 ---
 
 ## 4) 실패 처리
-- 필수 파일 누락/파싱 실패 시, **누락 목록·원인**을 먼저 출력하고,  
+- 필수 파일 누락/파싱 실패 시, **누락 목록·원인**을 먼저 출력하고,
   대체 경로(위 폴백 순서)로 재시도 지시 후 **중단**합니다. 임의 추측으로 채우지 않습니다.
 
 ---
 
 ## 5) 주의
-- 이 프롬프트는 **초기화 작업만** 수행합니다(코드 수정/생성은 다음 단계).  
+- 이 프롬프트는 **초기화 작업만** 수행합니다(코드 수정/생성은 다음 단계).
 - 출력 섹션 헤더·형식을 변경하지 마세요. 비교/자동화가 이를 전제로 합니다.
 
 # PillSnap 프로젝트 진행상황 요약 (Claude Code 초기 세션용 Prompt)
 
-프로젝트명: **PillSnap**  
-목적: 경구약제 이미지 기반 의약품 식별 서비스 구축  
-환경: WSL2 (Ubuntu), Python, pytest, Streamlit, FastAPI  
+프로젝트명: **PillSnap**
+목적: 경구약제 이미지 기반 의약품 식별 서비스 구축
+환경: WSL2 (Ubuntu), Python, pytest, Streamlit, FastAPI
 
 ---
 
 ## 현재까지 진행된 작업
 
 ### 1. 경로 유틸리티 (Stage 1)
-- `pillsnap/paths.py` 구현 완료  
-  - `is_wsl()` → WSL 환경 감지 (현재 True로 확인됨)  
-  - `get_data_root()` → 데이터 루트 경로 반환  
+- `pillsnap/paths.py` 구현 완료
+  - `is_wsl()` → WSL 환경 감지 (현재 True로 확인됨)
+  - `get_data_root()` → 데이터 루트 경로 반환
     - 우선순위: **환경변수 > WSL 기본값(/mnt/data/AIHub) > 일반 기본값(./data)**
-    - `path_policy.PathPolicyValidator` 검증 통합 완료  
-  - `norm(p)` → 경로 정규화 및 절대경로 변환  
-- 테스트 (`tests/test_paths.py`)  
-  - ✅ 13개 테스트 전부 통과  
-  - ✅ 실제 WSL 환경 및 환경변수 기반 동작 확인  
+    - `path_policy.PathPolicyValidator` 검증 통합 완료
+  - `norm(p)` → 경로 정규화 및 절대경로 변환
+- 테스트 (`tests/test_paths.py`)
+  - ✅ 13개 테스트 전부 통과
+  - ✅ 실제 WSL 환경 및 환경변수 기반 동작 확인
 
 ### 2. 설정 로딩 (Stage 2)
-- `config.py` 모듈 테스트 (`tests/test_config.py`) 작성 및 실행  
+- `config.py` 모듈 테스트 (`tests/test_config.py`) 작성 및 실행
 - 검증된 동작:
-  - 기본값 파싱 (config.yaml 비어있거나 없음 → 기본값 적용)  
-  - 잘못된 YAML → 폴백 정상 작동  
-  - 부분 설정 → 덮어쓰기 + 나머지는 기본값 유지  
-  - 환경변수 vs config.yaml vs `paths.get_data_root()` 우선순위 검증  
-  - Pydantic 유무 관계없이 정상 동작 확인  
-- Step2 주요 테스트 통과 결과:  
+  - 기본값 파싱 (config.yaml 비어있거나 없음 → 기본값 적용)
+  - 잘못된 YAML → 폴백 정상 작동
+  - 부분 설정 → 덮어쓰기 + 나머지는 기본값 유지
+  - 환경변수 vs config.yaml vs `paths.get_data_root()` 우선순위 검증
+  - Pydantic 유무 관계없이 정상 동작 확인
+- Step2 주요 테스트 통과 결과:
   - `config.yaml > 환경변수 > paths.get_data_root() > "./data"`
 
 ### 3. 데이터셋 구조 및 검증 (Stage 3)
@@ -158,13 +159,13 @@ VENV_PYTHON="$HOME/pillsnap/.venv/bin/python"
   - 이미지-라벨 basename 매칭 및 통계 생성
   - DataFrame 출력: `["image_path", "label_path", "code", "is_pair"]`
   - 테스트: 14개 통과
-  
+
 - **Step 4: 전처리 모듈 (`dataset/preprocess.py`)** 구현 완료
   - 스캔 결과 → CSV 매니페스트 정규화
   - 파일 존재성 재검증, 중복 코드 제거
   - 스키마 보존 (빈 결과도 (0,4) 구조 유지)
   - 테스트: 12개 통과
-  
+
 - **Step 5: 검증 모듈 (`dataset/validate.py`)** 구현 완료
   - 품질 게이트 및 ValidationReport 생성
   - 검증 규칙 R0-R5: 컬럼 존재, 중복 코드, 파일 존재성, pair rate, 라벨 크기, 각도 규칙
@@ -173,7 +174,7 @@ VENV_PYTHON="$HOME/pillsnap/.venv/bin/python"
 
 ### 6. Step 6: 매니페스트 최종 무결성 & 리포트 생성
 - **E2E 파이프라인 검증**: scan → preprocess → validate 전체 플로우 확인
-- **실행 결과**: 
+- **실행 결과**:
   - 데이터셋 스캔: 260만개 이미지/라벨 발견
   - 샘플 처리: 400개 → 398-399개 유효 (1-2개 라벨 누락 제거)
   - 검증 통과: 100% pair rate, 모든 파일 존재 확인
@@ -183,7 +184,7 @@ VENV_PYTHON="$HOME/pillsnap/.venv/bin/python"
   - `artifacts/step6_report.md` - 사람이 읽기 쉬운 리포트
 
 ### 7. Step 6.apply: 중요 발견사항 반영
-- **데이터 루트 고정**: `/mnt/data/pillsnap_dataset/data` 
+- **데이터 루트 고정**: `/mnt/data/pillsnap_dataset/data`
 - **PNG 확장자 지원**: config.yaml에 ".png" 포함 확인
 - **가상환경 Python 강제**: `$HOME/pillsnap/.venv/bin/python` 경로 고정
 - 모든 설정 반영 및 스모크 테스트 통과
@@ -219,10 +220,10 @@ VENV_PYTHON="$HOME/pillsnap/.venv/bin/python"
 ---
 
 ## 현재 상태
-- Stage 1 (경로 유틸리티) ✅ 완료  
-- Stage 2 (config 로딩 및 data.root 우선순위) ✅ 통과 확인  
-- Stage 3 (데이터셋 구조 및 검증) ✅ 완료  
-- Stage 4 (데이터 루트 및 Path Policy 확인) ✅ 통과 확인  
+- Stage 1 (경로 유틸리티) ✅ 완료
+- Stage 2 (config 로딩 및 data.root 우선순위) ✅ 통과 확인
+- Stage 3 (데이터셋 구조 및 검증) ✅ 완료
+- Stage 4 (데이터 루트 및 Path Policy 확인) ✅ 통과 확인
 - **Stage 1 데이터 파이프라인 (scan→preprocess→validate)** ✅ **완료**
   - Step 3-5: 핵심 모듈 구현 및 테스트 (총 43개 테스트 통과)
   - Step 6: E2E 검증 및 리포트 생성 완료
@@ -239,7 +240,7 @@ VENV_PYTHON="$HOME/pillsnap/.venv/bin/python"
 
 ## 완료된 핵심 구성 요소
 1. **설정 관리**: `config.py` + 환경변수 우선순위
-2. **경로 정책**: `paths.py` + WSL 경로 검증  
+2. **경로 정책**: `paths.py` + WSL 경로 검증
 3. **데이터 스캔**: `dataset/scan.py` - 260만+ 파일 스트리밍 처리
 4. **데이터 전처리**: `dataset/preprocess.py` - CSV 매니페스트 정규화
 5. **데이터 검증**: `dataset/validate.py` - 품질 게이트 및 리포팅
@@ -262,7 +263,7 @@ pillsnap/
 │   └── run.py         # 전체 파이프라인
 src/
 ├── data.py            # 데이터셋 클래스 (구현됨)
-├── train.py           # 학습 루프 (구현됨) 
+├── train.py           # 학습 루프 (구현됨)
 ├── models/            # 모델 정의 (구현됨)
 ├── utils/
 │   └── oom_guard.py   # OOM 가드 (구현됨)
@@ -321,7 +322,7 @@ pytest tests/ -v                     # 전체 테스트 스위트
 ---
 
 ## 다음 단계 준비사항
-- **Stage 2: 모델 파이프라인** 
+- **Stage 2: 모델 파이프라인**
   - 이미 구현된 코드: `src/data.py`, `src/train.py`, `src/models/`, `src/utils/oom_guard.py`
   - 데이터 로더 및 학습 루프 검증 필요
 - **Stage 3: API 서비스** (FastAPI + Streamlit)

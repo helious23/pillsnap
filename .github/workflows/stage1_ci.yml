@@ -1,0 +1,61 @@
+name: Stage1 CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  stage1:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install deps
+        run: |
+          python -m pip install --upgrade pip
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          pip install pandas numpy pillow pyyaml pydantic tqdm rich pytest
+
+      - name: Freeze integrity check
+        run: |
+          python - <<'PY'
+import json, hashlib, os, sys
+from pathlib import Path
+def sha1_of(fp: Path) -> str:
+    h = hashlib.sha1()
+    with fp.open('rb', 'rb') as f:
+        for chunk in iter(lambda: f.read(1<<20), b''):
+            h.update(chunk)
+    return h.hexdigest()
+def verify(fp):
+    freeze = json.load(open(fp, encoding='utf-8'))
+    ok=True
+    for rel, meta in freeze.items():
+        p=Path(rel)
+        if not p.exists():
+            print(f"❌ missing: {rel}"); ok=False; continue
+        cur_sha=sha1_of(p); cur_sz=p.stat().st_size
+        if cur_sha!=meta["sha1"] or cur_sz!=meta["bytes"]:
+            print(f"❌ mismatch: {rel} expected={meta} current={{'sha1':cur_sha,'bytes':cur_sz}}")
+            ok=False
+        else:
+            print(f"✅ ok: {rel}")
+    sys.exit(0 if ok else 2)
+verify("artifacts/freeze_hashes_step9.json")
+verify("artifacts/freeze_hashes_step9_freeze50.json")
+print("🎉 Freeze integrity check (CI): PASSED")
+PY
+
+      - name: Smoke tests (entrypoints)
+        env:
+          PILLSNAP_DATA_ROOT: /mnt/data/pillsnap_dataset/data
+        run: |
+          # 데이터 마운트가 없는 CI 환경을 고려해서 limit=0일 수도.
+          # 테스트는 헤더/스키마만 체크하도록 설계되어 있어야 합니다.
+          pytest -q tests/test_entrypoints.py
