@@ -25,7 +25,12 @@
       "Bash(test:*)",
       "Bash(.venv/bin/python:*)",
       "Bash(export PILLSNAP_DATA_ROOT=\"/mnt/data/pillsnap_dataset/data\")",
-      "Bash(/home/max16/pillsnap/.venv/bin/python -m pillsnap.stage1.verify:*)"
+      "Bash(/home/max16/pillsnap/.venv/bin/python -m pillsnap.stage1.verify:*)",
+      "Bash(source:*)",
+      "Bash($HOME/pillsnap/.venv/bin/python -m pillsnap.stage1.run:*)",
+      "Bash($HOME/pillsnap/.venv/bin/python -m pytest tests/test_json_enrichment.py -v)",
+      "Bash($HOME/pillsnap/.venv/bin/python -m pytest tests/test_json_enrichment.py::test_empty_dataframe_schema -v)",
+      "Bash(PYTHONPATH=/home/max16/pillsnap $HOME/pillsnap/.venv/bin/python -m pillsnap.stage2.train_cls --manifest artifacts/manifest_enriched.csv --classes artifacts/classes_step11.json --epochs 1 --batch-size 8 --limit 32 --amp --outdir artifacts/cls_train_smoke)"
     ],
     "deny": [],
     "ask": [],

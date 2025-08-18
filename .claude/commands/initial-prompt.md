@@ -24,7 +24,7 @@ VENV_PYTHON="$HOME/pillsnap/.venv/bin/python"
    - `/Prompt/PART_0.md` … `/Prompt/PART_H.md` (존재하는 모든 PART_*.md)
 2. **문서(docs)**:
    - `docs/*.md` 전부 (예: `docs/read_audit.md`, `docs/implementation_guide.md`, `docs/session_workflow_guide.md`)
-   - `.claude/session_continuity.md` (세션 연속성 가이드)
+   - `.claude/session_continuity.md` (세션 연속성 가이드) **← 최신 상태 반영 중요**
 3. **핵심 코드(core)**: 아래 경로를 **순차 폴백**으로 스캔
    - 우선: `core/*.py`
    - 대안: `src/core/*.py`
@@ -321,10 +321,50 @@ pytest tests/ -v                     # 전체 테스트 스위트
 
 ---
 
-## 다음 단계 준비사항
-- **Stage 2: 모델 파이프라인**
-  - 이미 구현된 코드: `src/data.py`, `src/train.py`, `src/models/`, `src/utils/oom_guard.py`
-  - 데이터 로더 및 학습 루프 검증 필요
+## 최신 상태 업데이트 (2025-08-18)
+
+### ✅ Step 11 Hotfix: JSON EDI 추출 완료
+**핵심 문제 해결**: `code` 컬럼(파일 basename) ≠ `edi_code` (실제 EDI)
+
+1. **preprocess.py 강화**:
+   - JSON 파싱하여 EDI 코드 및 메타데이터 추출
+   - 새 컬럼: `mapping_code`, `edi_code`, `json_ok` + 의약품 메타데이터
+   - 빈 DataFrame 스키마 보존 및 EDI 누락률 경고
+
+2. **클래스 맵 생성**: `pillsnap/stage1/utils.py`
+   - `build_edi_classes()`: EDI → class_id 매핑 자동 생성
+   - `validate_class_map()`: 클래스 맵 무결성 검증
+
+3. **테스트 추가**: `tests/test_json_enrichment.py` (5개 테스트 통과)
+
+4. **현재 산출물**:
+   - `artifacts/manifest_enriched.csv`: 풍부화된 매니페스트 (20개 샘플)
+   - `artifacts/classes_step11.json`: EDI → class_id 매핑 (19개 클래스)
+
+### ✅ Stage 2 학습 파이프라인 구현 완료 (Step 11-1)
+**목적**: Stage 1 산출물 기반 EfficientNetV2-L 분류 학습
+
+1. **패키지 구조**: `pillsnap/stage2/`
+   - `dataset_cls.py`: EDI 기반 PillsnapClsDataset 클래스
+   - `models.py`: EfficientNetV2-L 모델 팩토리 (timm → torchvision 폴백)
+   - `train_cls.py`: 완전한 학습 스크립트 (AMP, 검증, 체크포인트)
+
+2. **주요 특징**:
+   - 117M 파라미터 EfficientNetV2-L (447.3MB)
+   - 19개 EDI 클래스 분류
+   - train/val 자동 분할, AMP 지원
+   - CPU/GPU 자동 감지
+
+3. **현재 이슈**: RTX 5080 CUDA 호환성 (sm_120 vs PyTorch sm_90)
+
+### 🔄 즉시 다음 작업
+1. **Stage 2 스모크 테스트 완료** (CPU 기반)
+2. **CUDA 호환성 해결** 또는 CPU 개발 환경 구축
+3. **평가 스크립트 구현** 및 추론 파이프라인 연동
+
+---
+
+## 기존 다음 단계
 - **Stage 3: API 서비스** (FastAPI + Streamlit)
 - **Stage 4: 배포 및 성능 최적화**
 

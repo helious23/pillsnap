@@ -3,12 +3,12 @@
   "errors": [],
   "warnings": [],
   "stats": {
-    "rows": 20,
-    "pairs": 20,
+    "rows": 50,
+    "pairs": 50,
     "pair_rate": 1.0,
     "missing_image": 0,
     "missing_label": 0,
     "duplicate_codes": 0
   },
-  "timestamp": "2025-08-18 16:47:20"
+  "timestamp": "2025-08-18 17:01:30"
 }
