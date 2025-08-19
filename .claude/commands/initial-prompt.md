@@ -97,12 +97,12 @@ ppip install numpy        # pip 실행
 - `CLAUDE.md`: 세션 초기화 지침 + 프로젝트 가이드
 
 ### 코드 스캔 결과 (PART_C~F 구현 상태)
-- `src/data.py`: Two-Stage 데이터 파이프라인 (구현 상태)
-- `src/models/detector.py`: YOLOv11m 래퍼 (구현 상태) 
-- `src/models/classifier.py`: EfficientNetV2-S (구현 상태)
-- `src/models/pipeline.py`: 조건부 파이프라인 (구현 상태)
-- `src/train.py`: Interleaved 학습 루프 (구현 상태)
-- `src/api/main.py`: FastAPI 서빙 (구현 상태)
+- `src/data/sampling.py`: Progressive Validation 샘플링 시스템 (✅ 구현 완료)
+- `src/models/detector.py`: YOLOv11m 래퍼 (✅ 구현 완료) 
+- `src/models/classifier.py`: EfficientNetV2-S (✅ 구현 완료)
+- `src/models/pipeline.py`: 조건부 파이프라인 (✅ 구현 완료)
+- `src/train.py`: Interleaved 학습 루프 (❌ 미구현)
+- `src/api/main.py`: FastAPI 서빙 (⚠️ 기본 구조만)
 
 ### 환경 검증 시스템 상태 
 - `tests/stage_1_evaluator.py`: OptimizationAdvisor + GPU 환경 테스트 완료
@@ -111,11 +111,19 @@ ppip install numpy        # pip 실행
 
 ### 컨텍스트 스냅샷 (핵심 설계 원칙)
 1) **Two-Stage Conditional Pipeline**: 사용자 제어 모드 (single/combo), 자동 판단 완전 제거
+   - Single 모드 (기본): EfficientNetV2-S 직접 분류 (384px)
+   - Combo 모드 (명시적): YOLOv11m 검출(640px) → 크롭 → 분류(384px)
 2) **Progressive Validation Strategy**: Stage 1-4 (5K→25K→100K→500K), **Stage 1 완료**
+   - Train 데이터만 사용 (247만개), Val은 최종 테스트 전용
+   - 실제 클래스 수: 4,523개 (목표 5,000개에서 수정)
 3) **OptimizationAdvisor**: 반자동화 평가 시스템, 사용자 선택권 제공 (PART_0 철학)  
-4) **RTX 5080 최적화**: Mixed Precision, torch.compile, channels_last, 16 workers
+4) **RTX 5080 최적화**: 
+   - Mixed Precision (TF32), torch.compile 준비
+   - channels_last (분류기만, YOLO는 호환성 문제로 제외)
+   - 16 dataloader workers, batch prefetch
 5) **메모리 최적화**: 128GB RAM 활용, hotset 캐싱, LMDB, prefetch
 6) **경로 정책**: WSL 절대 경로만 사용 (/mnt/data/pillsnap_dataset)
+7) **Python 실행**: scripts/python_safe.sh 통한 가상환경 강제
 
 ### DoD (Definition of Done)
 - [x] PART_0~H 프롬프트 전체 읽기 완료
@@ -162,6 +170,22 @@ ppip install numpy        # pip 실행
 - 이 프롬프트는 **세션 초기화 전용**입니다 (코드 수정/생성은 다음 단계)
 - 출력 섹션 헤더·형식을 변경하지 마세요
 - PART_0~H 프롬프트 읽기는 **필수**입니다
+
+## 🚀 Quick Start (새 세션 시작 시)
+
+```bash
+# 1. 세션 초기화 (필수)
+/.claude/commands/initial-prompt.md
+
+# 2. 환경 확인
+./scripts/python_safe.sh -c "import torch; print(f'CUDA: {torch.cuda.is_available()}, PyTorch: {torch.__version__}')"
+
+# 3. Stage 1 파이프라인 테스트
+./scripts/python_safe.sh tests/test_stage1_real_image.py
+
+# 4. 단위 테스트 확인
+./scripts/python_safe.sh -m pytest tests/unit/ -v --tb=short
+```
 
 # PillSnap ML 프로젝트 현재 상황 (세션 연속성용)
 
@@ -269,8 +293,10 @@ ppip install numpy        # pip 실행
 3. **OptimizationAdvisor 준비**: PART_0 평가 시스템 환경 테스트 준비
 4. **config.yaml**: Two-Stage Pipeline + 128GB RAM 최적화 설정
 5. **환경 검증**: GPU 스모크 테스트를 통한 기본 환경 확인
-6. **PART_C 데이터 파이프라인**: Two-Stage 데이터 처리 완전 구현 (신규)
-7. **최적화된 전처리**: 976x1280 고정 해상도 특화 (76% 성능 향상, 신규)
+6. **PART_C 데이터 파이프라인**: Two-Stage 데이터 처리 완전 구현
+7. **최적화된 전처리**: 976x1280 고정 해상도 특화 (76% 성능 향상)
+8. **PART_D~F 모델 아키텍처**: YOLOv11m + EfficientNetV2-S + Pipeline 완전 구현
+9. **Stage 1 검증**: 5K 샘플, 50 클래스, 실제 이미지 테스트 성공
 
 ## 🚧 다음 구현 예정 (4단계: 학습 시스템)
 1. **Interleaved 학습 루프** (`src/train.py`)
@@ -339,58 +365,78 @@ ppip install numpy        # pip 실행
 
 ## 🛠️ 다음 실행 단계 (즉시 시작 가능)
 
-### 1단계: YOLOv11m 검출 모델 구현
+### 핵심 구현 명령어 모음
+
+#### 모델 테스트 및 검증
 ```bash
-# PART_D 문서 기반 구현
+# YOLOv11m 검출기 단독 테스트
+./scripts/python_safe.sh -m src.models.detector
+
+# EfficientNetV2-S 분류기 단독 테스트  
+./scripts/python_safe.sh -m src.models.classifier
+
+# Two-Stage Pipeline 통합 테스트
+./scripts/python_safe.sh -m src.models.pipeline
+
+# 전체 단위 테스트 실행 (80개)
+./scripts/python_safe.sh -m pytest tests/unit/ -v --tb=short
+```
+
+#### Stage 1 검증 명령어
+```bash
+# Stage 1 샘플 생성 (5K 이미지, 50 클래스)
+./scripts/python_safe.sh -m src.data.sampling
+
+# 실제 이미지로 파이프라인 테스트
+./scripts/python_safe.sh tests/test_stage1_real_image.py
+
+# 성능 벤치마크
 ./scripts/python_safe.sh -c "
+from src.models.pipeline import create_pillsnap_pipeline
 import torch
-from ultralytics import YOLO
-print('Ultralytics YOLO 환경 검증:', torch.cuda.is_available())
+pipeline = create_pillsnap_pipeline(device='cuda', num_classes=50)
+x = torch.randn(1, 3, 384, 384, device='cuda')
+%timeit pipeline.predict(x, mode='single')
 "
-
-# src/models/detector.py 구현 시작
-# - YOLOv11m 래퍼 클래스
-# - RTX 5080 최적화 (Mixed Precision)
-# - Combination 약품 검출용 설정
-```
-
-### 2단계: EfficientNetV2-S 분류 모델 구현  
-```bash
-# PART_E 문서 기반 구현
-./scripts/python_safe.sh -c "
-import timm
-model = timm.create_model('efficientnetv2_s', num_classes=4523)
-print('timm EfficientNetV2-S 모델 생성 성공')
-"
-
-# src/models/classifier.py 구현
-# - 4,523개 클래스 분류기
-# - Pre-trained weights 활용
-# - Single 약품 직접 분류용
-```
-
-### 3단계: Two-Stage 파이프라인 통합
-```bash
-# src/models/pipeline.py 구현
-# - 사용자 선택 기반 모드 전환
-# - Single 모드: 직접 분류  
-# - Combo 모드: 검출 → 크롭 → 분류
 ```
 
 ### 4단계: Stage 1 실제 실행
 ```bash
-# Progressive Validation Stage 1 샘플링 및 테스트
+# Progressive Validation Stage 1 샘플링
 ./scripts/python_safe.sh -m src.data.sampling
-./scripts/python_safe.sh -m tests.stage_1_evaluator
+
+# Stage 1 실제 이미지 테스트
+./scripts/python_safe.sh tests/test_stage1_real_image.py
+
+# 단위 테스트 실행 (80개 테스트)
+./scripts/python_safe.sh -m pytest tests/unit/ -v
 ```
 
-### 완료된 데이터 파이프라인 (2단계) ✅
-- ✅ Stage 1 데이터 샘플링 (`src/data/stage1_sampler.py`)
+### 완료된 구현 목록 ✅
+
+#### 2단계: 데이터 파이프라인
+- ✅ Progressive Validation 샘플링 (`src/data/sampling.py`)
+  - Stage1SamplingStrategy: 5K 이미지, 50 클래스, 100개/클래스
+  - ProgressiveValidationSampler: 자동 스캔 및 품질 검증
 - ✅ 이미지 전처리 파이프라인 (`src/data/image_preprocessing.py`)
 - ✅ 최적화된 전처리 (76% 성능 향상, `src/data/optimized_preprocessing.py`)
 - ✅ COCO → YOLO 포맷 변환 (`src/data/format_converter.py`)
 - ✅ Single/Combo 데이터 로더 (`src/data/dataloaders.py`)
 - ✅ K-코드 매핑 관리자 (`src/data/metadata_manager.py`)
+
+#### 3단계: 모델 아키텍처  
+- ✅ YOLOv11m 검출기 (`src/models/detector.py`)
+  - PillSnapYOLODetector: Ultralytics YOLO 래퍼
+  - YOLOConfig: 640px 입력, conf=0.25, iou=0.45
+  - RTX 5080 최적화: Mixed Precision 지원
+- ✅ EfficientNetV2-S 분류기 (`src/models/classifier.py`)
+  - PillSnapClassifier: timm 백본 활용
+  - ClassifierConfig: 384px 입력, temperature scaling
+  - Top-K 예측, 특징 추출, 배치 처리
+- ✅ Two-Stage Pipeline (`src/models/pipeline.py`)
+  - PillSnapPipeline: 사용자 제어 모드 선택
+  - Single 모드: 직접 분류 (기본)
+  - Combo 모드: 검출 → 크롭 → 분류
 
 ---
 
@@ -423,10 +469,11 @@ export PILLSNAP_DATA_ROOT="/mnt/data/pillsnap_dataset"
 - ✅ 데이터 파이프라인 핵심 구현 완료 (이미지 전처리 76% 성능 향상)
 - ✅ 고정 해상도 (976x1280) 특화 최적화 완료
 - ✅ **3단계 모델 아키텍처 구현 완료**:
-  - YOLOv11m 검출기 + 단위 테스트 (22개 통과)
-  - EfficientNetV2-S 분류기 + 단위 테스트 (31개 통과)  
-  - Two-Stage Pipeline 통합 + 단위 테스트 (27개 통과)
-  - Stage 1 실제 이미지 테스트 성공 (5K 샘플, 50 클래스)
+  - YOLOv11m 검출기 (`src/models/detector.py`) + 단위 테스트 22개 통과
+  - EfficientNetV2-S 분류기 (`src/models/classifier.py`) + 단위 테스트 31개 통과  
+  - Two-Stage Pipeline (`src/models/pipeline.py`) + 단위 테스트 27개 통과
+  - Stage 1 실제 이미지 테스트 성공 (`tests/test_stage1_real_image.py`)
+  - 테스트 결과: Single 254ms, Combo 273ms, 배치 처리 13.6ms/image
 
 **재현성 보장**: 새로운 세션에서는 `/.claude/commands/initial-prompt.md`를 실행하여 전체 컨텍스트를 복원할 수 있습니다.
 
