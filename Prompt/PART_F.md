@@ -24,7 +24,7 @@
 1. src/api/main.py # FastAPI 앱, 라우팅, 미들웨어, 수명 훅(startup/shutdown)
 2. src/api/security.py # .env 로드(Settings), X-API-Key 인증 데코레이터, CORS, 업로드/확장자 정책, (간이) rate-limit
 3. src/api/schemas.py # Pydantic v2 스키마: HealthResp, VersionResp, PredictReq/Resp, BatchReq/Resp, ErrorResp
-4. src/api/service.py # SingleFirstModelManager 싱글톤: 분류 모델(주력)+검출 모델(선택적) 로드/캐시/워밍업/predict/reload, 약품 메타데이터 매핑
+4. src/api/service.py # SingleFirstModelManager 싱글톤: detector_yolo11m.py + classifier_efficientnetv2_s.py 로드/캐시/워밍업/predict/reload, 약품 메타데이터 매핑
 5. src/infer.py # (재사용) preprocess(), infer_torch(), infer_onnx() — Part E에서 정의한 것 사용 (전처리 단일화 필수)
 6. scripts/run_api.sh # uvicorn 실행 스크립트(--tmux | --no-tmux), 로그 리다이렉트
 

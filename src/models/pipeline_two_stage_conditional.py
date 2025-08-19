@@ -18,8 +18,8 @@ import time
 from PIL import Image
 import numpy as np
 
-from .detector import PillSnapYOLODetector, YOLOConfig, DetectionResult
-from .classifier import PillSnapClassifier, ClassifierConfig, ClassificationResult
+from .detector_yolo11m import PillSnapYOLODetector, create_pillsnap_detector
+from .classifier_efficientnetv2 import PillSnapClassifier, create_pillsnap_classifier
 from ..utils.core import PillSnapLogger, load_config
 
 

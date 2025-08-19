@@ -44,6 +44,7 @@ onnxruntime-gpu>=1.20.0  # CUDA 12.8 호환, TensorRT EP 지원
 # Memory & Performance (128GB RAM 활용)
 lmdb>=1.4,<2.0
 psutil>=6.0,<8.0
+gputil>=1.4,<2.0      # GPU 모니터링 (가벼운 psutil 호환 라이브러리)
 
 # Version compatibility & fallback support
 pkg_resources          # 버전 체크용

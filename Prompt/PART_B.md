@@ -49,37 +49,72 @@
 │  ├─ cf_start.ps1
 │  ├─ cf_stop.ps1
 │  └─ cf_status.ps1
-├─ src/
+├─ src/                        # 핵심 구현 모듈 (45개 Python 파일)
 │  ├─ __init__.py
-│  ├─ data.py                 # 단일/조합 구분 데이터로더
-│  ├─ models/
+│  ├─ utils/                  # 유틸리티 모듈
 │  │  ├─ __init__.py
-│  │  ├─ detector.py          # YOLOv11m for 조합약품
-│  │  ├─ classifier.py        # EfficientNetV2-S for 5000 classes
-│  │  └─ pipeline.py          # Two-Stage 조건부 파이프라인
-│  ├─ train.py               # 단일/조합 분리 학습
-│  ├─ evaluate.py            # 성능 평가 (단일 accuracy, 조합 mAP)
-│  ├─ infer.py               # 추론 파이프라인
-│  ├─ utils.py               # 128GB RAM 최적화 유틸
-│  └─ api/
+│  │  ├─ core.py             # ConfigLoader, PillSnapLogger ✅
+│  │  └─ oom_guard.py        # OOM 방지 기능
+│  ├─ data/                  # Two-Stage 데이터 파이프라인 ✅
+│  │  ├─ __init__.py
+│  │  ├─ progressive_validation_sampler.py     # Progressive Validation 샘플러
+│  │  ├─ pharmaceutical_code_registry.py       # K-code → EDI-code 매핑
+│  │  ├─ image_preprocessing_factory.py        # 이미지 전처리 (일반)
+│  │  ├─ optimized_preprocessing.py            # 최적화된 전처리 (76% 향상)
+│  │  ├─ format_converter_coco_to_yolo.py      # COCO → YOLO 변환
+│  │  ├─ dataloaders.py                        # Single/Combo 데이터 로더 (기존)
+│  │  ├─ dataloader_single_pill_training.py   # 단일 약품 전용 데이터로더 ✅
+│  │  └─ dataloader_combination_pill_training.py # 조합 약품 전용 데이터로더 ✅
+│  ├─ models/                # AI 모델 구현 ✅
+│  │  ├─ __init__.py
+│  │  ├─ detector_yolo11m.py          # YOLOv11m 래퍼 ✅
+│  │  ├─ classifier_efficientnetv2.py # EfficientNetV2-S ✅
+│  │  └─ pipeline_two_stage_conditional.py # 조건부 파이프라인 ✅
+│  ├─ training/              # 상업용 학습 시스템 ✅ (신규)
+│  │  ├─ __init__.py
+│  │  ├─ train_classification_stage.py   # 분류 Stage 전용 학습기
+│  │  ├─ train_detection_stage.py        # 검출 Stage 전용 학습기
+│  │  ├─ batch_size_auto_tuner.py        # RTX 5080 배치 크기 자동 조정
+│  │  ├─ training_state_manager.py       # 체크포인트, 배포용 모델 패키징
+│  │  ├─ memory_monitor_gpu_usage.py     # GPU 메모리 모니터링
+│  │  └─ train_interleaved_pipeline.py   # Interleaved 학습 루프
+│  ├─ evaluation/            # 상업용 평가 시스템 ✅ (신규)
+│  │  ├─ __init__.py
+│  │  ├─ evaluate_detection_metrics.py     # 검출 성능 평가, Stage별 목표 검증
+│  │  ├─ evaluate_classification_metrics.py # 분류 성능 평가
+│  │  ├─ evaluate_pipeline_end_to_end.py   # 상업적 준비도 평가
+│  │  └─ evaluate_stage1_targets.py        # Stage 1 완전 검증
+│  ├─ infrastructure/        # 인프라 컴포넌트
+│  ├─ train.py              # Training 시스템 런처 ✅
+│  ├─ evaluate.py           # Evaluation 시스템 런처 ✅
+│  └─ api/                  # FastAPI 서빙
 │     ├─ __init__.py
-│     ├─ main.py             # FastAPI 앱
-│     ├─ schemas.py          # edi_code 스키마
-│     ├─ service.py          # Two-Stage 서비스
-│     └─ security.py         # API 키 인증
-└─ tests/
-   ├─ test_smoke_detection.py  # YOLO 검출 테스트
-   ├─ test_smoke_classification.py  # 분류 테스트
-   ├─ test_pipeline.py         # Two-Stage 파이프라인 테스트
-   ├─ test_export_compare.py   # ONNX 변환 테스트
-   ├─ test_api_min.py          # API 테스트
-   ├─ stage_evaluator.py       # 점진적 검증 권장 평가
-   ├─ stage_1_evaluator.py     # Stage 1 전용 평가 (파이프라인 검증)
-   ├─ stage_2_evaluator.py     # Stage 2 전용 평가 (성능 기준선)
-   ├─ stage_3_evaluator.py     # Stage 3 전용 평가 (프로덕션 준비)
-   ├─ stage_4_evaluator.py     # Stage 4 전용 평가 (최종 프로덕션)
-   ├─ stage_progress_tracker.py # 전체 Stage 진행 상황 추적
-   └─ evaluate_stage.sh        # Stage별 평가 실행 스크립트
+│     ├─ main.py            # FastAPI 앱
+│     ├─ schemas.py         # edi_code 스키마
+│     ├─ service.py         # Two-Stage 서비스
+│     └─ security.py        # API 키 인증
+└─ tests/                      # 테스트 시스템 (강화됨)
+   ├─ unit/                    # 단위 테스트 (80+ 테스트)
+   │  ├─ test_classifier.py    # 분류기 단위 테스트
+   │  ├─ test_detector.py      # 검출기 단위 테스트
+   │  ├─ test_pipeline.py      # 파이프라인 단위 테스트
+   │  └─ ...                   # 기타 단위 테스트들
+   ├─ integration/             # 통합 테스트 ✅
+   │  ├─ test_new_architecture_components.py # 22개 통합 테스트 (기본+엄격한) ✅
+   │  ├─ test_pipeline.py      # Two-Stage 파이프라인 통합 테스트
+   │  ├─ test_api_min.py       # API 통합 테스트
+   │  └─ test_entrypoints.py   # 진입점 테스트
+   ├─ smoke/                   # 스모크 테스트
+   │  ├─ test_smoke_detection.py    # YOLO 검출 스모크 테스트
+   │  ├─ test_smoke_classification.py # 분류 스모크 테스트
+   │  └─ gpu_smoke/            # GPU 스모크 테스트
+   └─ performance/             # 성능 테스트 ✅
+      ├─ stage_1_evaluator.py  # Stage 1 전용 평가 (파이프라인 검증)
+      ├─ stage_2_evaluator.py  # Stage 2 전용 평가 (성능 기준선)
+      ├─ stage_3_evaluator.py  # Stage 3 전용 평가 (프로덕션 준비)
+      ├─ stage_4_evaluator.py  # Stage 4 전용 평가 (최종 프로덕션)
+      ├─ stage_progress_tracker.py # 전체 Stage 진행 상황 추적
+      └─ evaluate_stage.sh     # Stage별 평가 실행 스크립트
 ```
 
 B-1. 메타 파일들(.gitignore / .gitattributes / .editorconfig / README 프롤로그)

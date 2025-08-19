@@ -9,11 +9,12 @@
 - **RAM 활용**: 라벨 캐시, 배치 프리페치, 이미지 메타데이터 캐시, 워커 메모리 공유
 - **핵심**: 사용자 제어 Two-Stage (pipeline_strategy: "user_controlled")
 - **모델**: YOLOv11m (검출, 640px) + EfficientNetV2-S (분류, 384px, 5000클래스)
+- **모델 파일**: `detector_yolo11m.py`, `classifier_efficientnetv2_s.py`
 - **최적화**: AMP auto, TF32, channels_last, torch.compile, 배치크기 자동조정
 
-[이 파트에서 구현/수정할 파일]
+[이 파트에서 구현/수정할 파일] (현재 구조 반영)
 
-1. src/utils.py
+1. src/utils/core.py  # ✅ 구현 완료 (ConfigLoader, PillSnapLogger)
 
    - load_config(cfg_path: str) -> DictConfig|dict
    - set_seed(seed: int, deterministic: bool) -> None
@@ -842,6 +843,7 @@ $ python -m src.train --cfg config.yaml train.batch_size=128 dataloader.num_work
 - **단일 약품**: EfficientNetV2-S 직접 분류 (384px, 5000클래스)
 - **조합 약품**: YOLOv11m 검출 → 크롭 → EfficientNetV2-S 분류  
 - **조건부 전환**: 사용자 선택 기반 파이프라인 분기
+- **Commercial 아키텍처**: 함수 기반 새 컴포넌트 추가 완료
 
 ### ✅ **RTX 5080 16GB 최적화**
 - **Auto Batch**: OOM 감지 → 자동 배치 크기 조정 (검출 16, 분류 64)

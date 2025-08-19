@@ -29,7 +29,7 @@
 [이 파트에서 구현/수정할 파일]
 
 1. scripts/export_onnx.sh # Two-Stage 원클릭 export + 비교 리포트
-2. src/model.py # export_detection_onnx(), export_classification_onnx(), build_detection_model(), build_classification_model(), count_params(), prepare_version_tag()
+2. src/models/detector_yolo11m.py + src/models/classifier_efficientnetv2_s.py # export_detection_onnx(), export_classification_onnx(), build_detection_model(), build_classification_model(), count_params(), prepare_version_tag()
 3. src/infer.py # 통합 추론 파이프라인; detection → crop → classification → edi_code 매핑; Torch/ONNX 런처(select_onnx_providers 포함)
 4. src/utils.py # utc_timestamp(), get_git_sha(), save_json(), ensure_dir(), list_checkpoints(), find_best_checkpoint()
 5. tests/test_export_compare.py # 동등성 검증 테스트(detection: mAP, classification: MSE/Top-1)

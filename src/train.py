@@ -1,16 +1,33 @@
 """
-조건부 Two-Stage 학습 루프 (PART_D)
-- Interleaved 검출/분류 모델 학습
-- RTX 5080 16GB 최적화 (AMP/TF32/compile)
-- AutoBatch/Worker Autotune  
-- 128GB RAM 활용 최적화
-- OptimizationAdvisor 통합
+PillSnap ML Stage 1 Training Launcher
+Stage 1 학습 시스템 런처
+
+새로운 구조:
+- src/training/train_interleaved_pipeline.py 호출
+- 상업용 수준의 체계적 학습 관리
+- 완전한 목표 검증 시스템
 """
 
-# TODO: PART_D에서 구현
-# - Interleaved Two-Stage 학습
-# - OOM 폴백 상태머신
-# - Progressive Validation 통합
+import sys
+from pathlib import Path
+
+# 프로젝트 루트 경로 추가
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from src.training.train_interleaved_pipeline import main as training_main
+
 
 if __name__ == "__main__":
-    print("TODO: Implement PART_D training pipeline")
+    print("🚀 PillSnap ML Stage 1 Training System")
+    print("상세한 학습 파이프라인 시작...")
+    print("=" * 60)
+    
+    try:
+        # 새로운 체계적 학습 시스템 실행
+        training_main()
+    except KeyboardInterrupt:
+        print("\n❌ 사용자에 의해 학습이 중단되었습니다.")
+    except Exception as e:
+        print(f"\n❌ 학습 시스템 오류: {e}")
+        import traceback
+        traceback.print_exc()

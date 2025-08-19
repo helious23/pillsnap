@@ -7,7 +7,7 @@ Two-Stage Conditional Pipeline을 위한 데이터 처리 시스템:
 - Combination 약품: YOLOv11m 검출 → 크롭 → 분류 (640px → 384px)
 """
 
-from .sampling import (
+from .progressive_validation_sampler import (
     ProgressiveValidationSampler,
     Stage1SamplingStrategy,
     validate_sample_distribution
