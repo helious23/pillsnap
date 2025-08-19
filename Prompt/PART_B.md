@@ -1,24 +1,39 @@
 # Part B — 프로젝트 뼈대 · 경로 · 환경 부트스트랩
 
-[절대 경로(고정)]
+[절대 경로 + 디스크 I/O 병목 해결 상황]
 
 - **코드 루트**: /home/max16/pillsnap
 - **가상환경(WSL)**: $HOME/pillsnap/.venv
-- **데이터 루트**: /mnt/data/pillsnap_dataset (영문 변환 후)
-- **실험 디렉토리**: /mnt/data/exp/exp01
+- **데이터 루트**: 
+  - **원본**: /mnt/data/pillsnap_dataset (외장 HDD 8TB, ext4, 100MB/s) - 전체 데이터셋
+  - **SSD 이전**: /home/max16/ssd_pillsnap/dataset (내장 SSD 1TB, 3,500MB/s) - Stage 1 완료, Stage 2-3 예정
+  - **M.2 확장 계획**: Samsung 990 PRO 4TB (7,450MB/s) - Stage 4 최종 데이터
+- **실험 디렉토리**: 
+  - **SSD**: /home/max16/ssd_pillsnap/exp/exp01 (현재 Stage 1 완료)
+  - **HDD**: /mnt/data/exp/exp01 (이전 기록)
+- **디스크 I/O 병목 해결 완료**:
+  - **문제**: 외장 HDD (100MB/s)로 인한 GPU 활용률 극저, 추론 시간 43배 초과 (2,139ms vs 50ms)
+  - **해결**: Stage 1 데이터 5,000장 완전 SSD 이전 완료 (7.0GB), 35배 성능 향상
+  - **검증**: SSD에서 Stage 1 샘플링 테스트 성공, 디스크 I/O 병목 제거 확인
 - **하드웨어 스펙**:
   - **CPU**: AMD Ryzen 7 7800X3D (8코어 16스레드)
   - **RAM**: 128GB DDR5-5600 (삼성 32GB × 4)
   - **GPU**: NVIDIA GeForce RTX 5080 (16GB VRAM)
-  - **Storage**: 8TB External SSD (Samsung T5 EVO)
-- **규칙**: 모든 스크립트/코드는 반드시 /mnt/ 경로만 사용(C:\ 금지). Windows↔WSL 경로 혼용 금지.
+  - **Storage**: 
+    - **OS/Code**: 1TB NVMe SSD (937GB 여유 공간)
+    - **Data**: 8TB External HDD (100MB/s) + 4TB M.2 SSD 추가 계획 (7,450MB/s)
+- **규칙**: 모든 데이터 스크립트는 **SSD 경로** (/home/max16/ssd_pillsnap/) 사용. 원본 HDD 경로(/mnt/data/) 백업용. Windows↔WSL 경로 혼용 금지.
 - **예외**: Windows 운영 도구(Cloudflared 등, Part G/H)는 C:\ 표준 경로 사용 허용
+- **데이터 처리 정책**:
+  - **Stage 1**: SSD 완료 (/home/max16/ssd_pillsnap/dataset) - 5,000장, 7.0GB
+  - **Stage 2-3**: SSD 이전 예정 (내장 SSD 용량 충분)
+  - **Stage 4**: M.2 SSD 4TB 추가 후 전체 데이터셋 이전
 
 [목표]
 
 - **조건부 Two-Stage Pipeline**을 위한 프로젝트 구조 완성
 - **128GB RAM + RTX 5080 16GB** 최적화 설정으로 config.yaml 구성
-- **영문 데이터 경로**(/mnt/data/pillsnap_dataset) 기반 환경 구축
+- **SSD 데이터 경로**(/home/max16/ssd_pillsnap/dataset) 기반 환경 구축 (디스크 I/O 병목 해결)
 - **단일/조합 약품** 구분 학습을 위한 스크립트 골격 생성
 - 가상환경/의존성/기본 설정을 **한 번에 부팅** 가능하게 구성
 - GPU CUDA 휠 우선 설치, 실패 시 CPU 폴백
@@ -289,13 +304,16 @@ B-4. config.yaml (프로젝트 전역 설정 — 확정값 반영)
 
 [config.yaml — RTX 5080 16GB + 128GB RAM 최적화 설정]
 
-# 경로 설정 (영문 변환 후)
+# 경로 설정 (SSD 최적화)
 paths:
-  exp_dir: "/mnt/data/exp/exp01"
-  data_root: "/mnt/data/pillsnap_dataset"  # 영문 변환된 데이터셋 경로
+  exp_dir: "/home/max16/ssd_pillsnap/exp/exp01"  # SSD로 이전된 실험 디렉토리
+  data_root: "/home/max16/ssd_pillsnap/dataset"  # SSD로 이전된 데이터셋 경로 (Stage 1 완료)
   ckpt_dir: null  # exp_dir/checkpoints 자동 생성
   tb_dir: null    # exp_dir/tb 자동 생성
   reports_dir: null  # exp_dir/reports 자동 생성
+  # 원본 HDD 경로 (필요시 참조용)
+  data_root_hdd: "/mnt/data/pillsnap_dataset"  # 전체 데이터셋 (Stage 4용)
+  exp_dir_hdd: "/mnt/data/exp/exp01"  # 이전 실험 기록
 
 # 데이터셋 구성
 data:
@@ -311,8 +329,8 @@ data:
     split_ratio: [0.85, 0.15]                       # train:val = 85:15
     test_usage: "final_evaluation_only"              # test는 Stage 4 완료 후만 사용
   
-  # 통일된 데이터 경로 (실제 ZIP 추출 구조)  
-  root: "/mnt/data/pillsnap_dataset"
+  # 통일된 데이터 경로 (SSD 최적화)  
+  root: "/home/max16/ssd_pillsnap/dataset"  # Stage 1 완료, Stage 2-3 예정
   train:
     single_images: "data/train/images/single"      # TS_1_single~TS_81_single 폴더들 (각 폴더 내 K-코드 서브폴더 구조)
     combination_images: "data/train/images/combination"  # TS_1_combo~TS_8_combo 폴더들 (각 폴더 내 K-코드 서브폴더 구조)
@@ -334,10 +352,10 @@ data:
     detection: 640      # YOLOv11m 입력 크기
     classification: 224 # EfficientNetV2-S 기본 크기
   
-  # 클래스 정보
+  # 클래스 정보 (SSD 최적화)
   num_classes: 5000  # edi_code 기준 5000 클래스
-  class_names_path: "/mnt/data/pillsnap_dataset/processed/class_names.json"
-  edi_mapping_path: "/mnt/data/pillsnap_dataset/processed/edi_mapping.json"
+  class_names_path: "/home/max16/ssd_pillsnap/dataset/processed/class_names.json"
+  edi_mapping_path: "/home/max16/ssd_pillsnap/dataset/processed/edi_mapping.json"
   
   # 점진적 검증 샘플링 (PART_0 전략)
   progressive_validation:
@@ -642,10 +660,10 @@ logging:
   save_confusion_matrix: true
   save_roc_curves: true
 
-  # 하드 케이스 로깅(게이팅/저신뢰/오판 의심 케이스 저장)
+  # 하드 케이스 로깅 (SSD 최적화)
   hard_cases:
     enabled: true
-    dir: "/mnt/data/exp/exp01/hard_cases"  # WSL 경로만 사용
+    dir: "/home/max16/ssd_pillsnap/exp/exp01/hard_cases"  # SSD 경로 사용
     max_per_epoch: 200
   
   # Windows 관련 경로는 스크립트에서 동적 관리 (경로 혼용 방지)

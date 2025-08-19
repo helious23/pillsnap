@@ -366,7 +366,7 @@ if __name__ == "__main__":
     from src.utils.core import load_config
     
     config = load_config()
-    data_root = config.data.root
+    data_root = config['paths']['data_root']
     
     strategy = Stage1SamplingStrategy()
     sampler = ProgressiveValidationSampler(data_root, strategy)

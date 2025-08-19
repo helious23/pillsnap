@@ -6,7 +6,7 @@
 
 - 코드 루트(WSL): /home/max16/pillsnap
 - venv(WSL): $HOME/pillsnap/.venv
-- 실험 디렉토리: /mnt/data/exp/exp01
+- 실험 디렉토리: **/home/max16/ssd_pillsnap/exp/exp01** (SSD 이전 완룼)
 - API 포트: 8000 (uvicorn, Part F)
 - Cloudflared(Windows): C:\ProgramData\Cloudflare\cloudflared\ (Part G)
 
@@ -32,7 +32,7 @@ H-1) 로깅·보존·로테이션 정책
 
 [WSL/API 로그]
 
-- 위치: {exp_dir}/logs/
+- 위치: **/home/max16/ssd_pillsnap/exp/exp01/logs/** (SSD 저장)
   • train.out|err, api.out|err, export.out|err, perf_bench.json 등
 - 보존: 7일↑ gzip 압축 → logs/archive/ 로 이동, 30일↑ 삭제(필요 시 변경)
 

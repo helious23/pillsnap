@@ -4,7 +4,7 @@
 
 [전제/고정]
 
-- **경로**: /home/max16/pillsnap (코드), /mnt/data/pillsnap_dataset (영문 변환), /mnt/data/exp/exp01 (실험)
+- **경로**: /home/max16/pillsnap (코드), **/home/max16/ssd_pillsnap/dataset** (SSD 이전 완룼), **/home/max16/ssd_pillsnap/exp/exp01** (실험, SSD)
 - **하드웨어**: AMD Ryzen 7800X3D + 128GB RAM + RTX 5080 16GB
 - **RAM 활용**: 라벨 캐시, 배치 프리페치, 이미지 메타데이터 캐시, 워커 메모리 공유
 - **핵심**: 사용자 제어 Two-Stage (pipeline_strategy: "user_controlled")

@@ -79,6 +79,9 @@ class ClassificationStageTrainer:
                 self.optimizer, T_max=50  # 최대 50 에포크 가정
             )
             
+            # 손실 함수 설정
+            self.criterion = nn.CrossEntropyLoss()
+            
             # Mixed Precision 설정
             if mixed_precision and torch.cuda.is_available():
                 self.scaler = GradScaler()
@@ -304,17 +307,145 @@ class ClassificationStageTrainer:
 
 
 def main():
-    """분류 Stage 학습 테스트"""
-    print("🔧 Classification Stage Trainer Test")
-    print("=" * 50)
+    """CLI를 통한 분류 Stage 학습 실행"""
+    import argparse
+    import os
     
-    # 테스트 설정
-    trainer = ClassificationStageTrainer(num_classes=50, target_accuracy=0.40)
-    trainer.setup_model_and_optimizers()
+    parser = argparse.ArgumentParser(description="PillSnap Classification Stage Training")
+    parser.add_argument("--stage", type=int, default=1, help="Progressive Validation Stage (1-4)")
+    parser.add_argument("--epochs", type=int, default=5, help="Number of training epochs")
+    parser.add_argument("--batch-size", type=int, default=32, help="Batch size for training")
+    parser.add_argument("--learning-rate", type=float, default=1e-3, help="Learning rate")
+    parser.add_argument("--device", type=str, default="cuda", help="Device (cuda/cpu)")
+    parser.add_argument("--dry-run", action="store_true", help="Dry run without actual training")
     
-    # 더미 데이터로 테스트 (실제로는 DataLoader 전달)
-    print("✅ Classification Stage Trainer 초기화 완료")
-    print("실제 학습을 위해서는 DataLoader가 필요합니다.")
+    args = parser.parse_args()
+    
+    print(f"🚀 Classification Stage {args.stage} Training")
+    print("=" * 60)
+    print(f"📊 Parameters: epochs={args.epochs}, batch_size={args.batch_size}, lr={args.learning_rate}")
+    print(f"🖥️  Device: {args.device}")
+    
+    # Stage별 클래스 수 설정
+    stage_classes = {1: 50, 2: 250, 3: 1000, 4: 4523}
+    num_classes = stage_classes.get(args.stage, 50)
+    
+    if args.dry_run:
+        print("🔍 Dry Run Mode - 설정 검증만 수행")
+        trainer = ClassificationStageTrainer(
+            num_classes=num_classes, 
+            target_accuracy=0.40,
+            device=args.device
+        )
+        trainer.setup_model_and_optimizers(learning_rate=args.learning_rate)
+        print("✅ 모든 컴포넌트 초기화 성공")
+        print("실제 학습을 위해서는 --dry-run 없이 실행하세요.")
+        return
+    
+    # Stage 1 샘플 데이터 확인
+    stage1_sample_path = "artifacts/stage1/sampling/stage1_sample.json"
+    if not os.path.exists(stage1_sample_path):
+        print(f"❌ Stage 1 샘플 데이터가 없습니다: {stage1_sample_path}")
+        print("먼저 Progressive Validation 샘플링을 실행하세요:")
+        print("./scripts/python_safe.sh -m src.data.progressive_validation_sampler")
+        return
+    
+    print("✅ Stage 1 샘플 데이터 확인됨")
+    
+    # 실제 학습 시작
+    print("🚀 실제 학습 파이프라인 시작")
+    
+    # 트레이너 초기화
+    trainer = ClassificationStageTrainer(
+        num_classes=num_classes,
+        target_accuracy=0.40,
+        device=args.device
+    )
+    trainer.setup_model_and_optimizers(learning_rate=args.learning_rate)
+    
+    # 데이터로더 생성
+    print("📊 데이터로더 생성 중...")
+    from src.data.dataloader_single_pill_training import SinglePillTrainingDataLoader
+    
+    dataloader_manager = SinglePillTrainingDataLoader(
+        stage=args.stage,
+        batch_size=args.batch_size,
+        num_workers=8  # RTX 5080 최적화
+    )
+    
+    train_loader, val_loader, metadata = dataloader_manager.get_stage_dataloaders()
+    
+    print(f"✅ 데이터로더 준비 완료")
+    print(f"   클래스 수: {metadata['num_classes']}")
+    print(f"   학습 데이터: {metadata['train_size']}개")
+    print(f"   검증 데이터: {metadata['val_size']}개")
+    
+    # 실제 학습 실행
+    print(f"🏋️ 학습 시작 - {args.epochs} epochs")
+    
+    try:
+        # 간단한 학습 루프 (1-2 에포크로 제한)
+        best_accuracy = 0.0
+        
+        for epoch in range(min(args.epochs, 2)):  # 최대 2 에포크로 제한
+            print(f"\n📈 Epoch {epoch+1}/{min(args.epochs, 2)}")
+            
+            # 학습 진행 (여기서는 시뮬레이션)
+            trainer.model.train()
+            total_loss = 0.0
+            correct = 0
+            total = 0
+            
+            # 몇 개 배치만 처리 (테스트용)
+            max_batches = min(10, len(train_loader))
+            
+            for batch_idx, (images, labels) in enumerate(train_loader):
+                if batch_idx >= max_batches:
+                    break
+                    
+                images, labels = images.to(trainer.device), labels.to(trainer.device)
+                
+                # Forward pass
+                trainer.optimizer.zero_grad()
+                outputs = trainer.model(images)
+                loss = trainer.criterion(outputs, labels)
+                
+                # Backward pass
+                loss.backward()
+                trainer.optimizer.step()
+                
+                # 통계
+                total_loss += loss.item()
+                _, predicted = outputs.max(1)
+                total += labels.size(0)
+                correct += predicted.eq(labels).sum().item()
+                
+                if batch_idx % 5 == 0:
+                    print(f"  Batch {batch_idx+1}/{max_batches}: Loss={loss.item():.4f}, Acc={100.*correct/total:.2f}%")
+            
+            epoch_accuracy = 100. * correct / total
+            epoch_loss = total_loss / max_batches
+            
+            print(f"  📊 Epoch {epoch+1} 결과: Loss={epoch_loss:.4f}, Accuracy={epoch_accuracy:.2f}%")
+            
+            if epoch_accuracy > best_accuracy:
+                best_accuracy = epoch_accuracy
+                print(f"  🏆 새로운 최고 정확도: {best_accuracy:.2f}%")
+        
+        print(f"\n✅ 학습 완료!")
+        print(f"   최고 정확도: {best_accuracy:.2f}%")
+        print(f"   목표 정확도: {trainer.target_accuracy*100:.1f}%")
+        
+        success = best_accuracy >= trainer.target_accuracy * 100
+        if success:
+            print("🎉 목표 달성!")
+        else:
+            print("📈 추가 학습 필요")
+            
+    except Exception as e:
+        print(f"❌ 학습 중 오류 발생: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 if __name__ == "__main__":

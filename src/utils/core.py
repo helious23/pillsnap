@@ -36,7 +36,7 @@ class ConfigLoader:
         self.config_path = config_path
         self.project_root = Path("/home/max16/pillsnap")
         
-    def load_config(self) -> Dict[str, Any]:
+    def _load_config_instance(self) -> Dict[str, Any]:
         """
         config.yaml 파일을 로딩하고 검증합니다.
         
@@ -71,6 +71,20 @@ class ConfigLoader:
         self._validate_required_settings(config)
         
         return config
+    
+    @classmethod 
+    def load_config(cls, config_path: str = "config.yaml") -> Dict[str, Any]:
+        """
+        정적 메서드로 config.yaml 파일을 로딩합니다.
+        
+        Args:
+            config_path: config.yaml 파일 경로
+            
+        Returns:
+            Dict: 설정 딕셔너리
+        """
+        loader = cls(config_path)
+        return loader._load_config_instance()
     
     def _apply_env_overrides(self, config: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -161,7 +175,7 @@ def load_config(config_path: str = "config.yaml") -> Dict[str, Any]:
         Dict: 설정 딕셔너리
     """
     loader = ConfigLoader(config_path)
-    return loader.load_config()
+    return loader._load_config_instance()
 
 
 def get_git_sha() -> str:
@@ -360,6 +374,25 @@ class PillSnapLogger:
         elapsed = (datetime.now() - start_time).total_seconds()
         self.logger.info(f"⏱️  END: {operation} (took {elapsed:.2f}s)")
         return elapsed
+    
+    @staticmethod
+    def get_logger(name: str = "pillsnap", log_dir: Optional[str] = None, level: str = "info") -> 'PillSnapLogger':
+        """
+        PillSnap 로거 생성 정적 메서드
+        
+        Args:
+            name: 로거 이름
+            log_dir: 로그 디렉토리 (None이면 기본값 사용)
+            level: 로그 레벨
+            
+        Returns:
+            PillSnapLogger: 로거 인스턴스
+        """
+        return PillSnapLogger(name=name, log_dir=log_dir, level=level)
+
+
+# ConfigLoader 정적 메서드 추가
+ConfigLoader.load_config_static = staticmethod(lambda config_path="config.yaml": ConfigLoader(config_path).load_config())
 
 
 def build_logger(name: str = "pillsnap", log_dir: Optional[str] = None, level: str = "info") -> PillSnapLogger:

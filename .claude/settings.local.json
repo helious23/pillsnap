@@ -40,7 +40,9 @@
       "Bash(/home/max16/pillsnap/.venv_gpu/bin/python -c \"import torch; print(f''PyTorch: {torch.__version__}''); print(f''CUDA available: {torch.cuda.is_available()}'')\")",
       "Bash(./scripts/python_safe.sh:*)",
       "Bash(cp:*)",
-      "Bash(true)"
+      "Bash(true)",
+      "Bash(sudo mkdir:*)",
+      "Bash(sudo chown:*)"
     ],
     "deny": [],
     "ask": [],

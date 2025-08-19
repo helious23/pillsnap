@@ -122,7 +122,10 @@ ppip install numpy        # pip 실행
    - channels_last (분류기만, YOLO는 호환성 문제로 제외)
    - 16 dataloader workers, batch prefetch
 5) **메모리 최적화**: 128GB RAM 활용, hotset 캐싱, LMDB, prefetch
-6) **경로 정책**: WSL 절대 경로만 사용 (/mnt/data/pillsnap_dataset)
+6) **경로 정책**: **SSD 기반 절대 경로** (/home/max16/ssd_pillsnap/dataset)
+   - **Stage 1-2**: 내장 SSD (3,500MB/s, 35배 향상)
+   - **Stage 3-4**: M.2 SSD 4TB 확장 예정 (7,450MB/s, 75배 향상)
+   - **디스크 I/O 병목 해결 완료**: HDD(100MB/s) → SSD(3,500MB/s)
 7) **Python 실행**: scripts/python_safe.sh 통한 가상환경 강제
 
 ### DoD (Definition of Done)
@@ -425,6 +428,58 @@ ppip install numpy        # pip 실행
 
 ## 🛠️ 다음 실행 단계 (즉시 시작 가능)
 
+### 🚨 필수 워크플로우 (모든 Stage 공통)
+
+#### 1. Stage 최종 검증 전 필수 단계
+**모든 Stage 마지막 검증 시에는 반드시 다음 순서를 준수:**
+
+```bash
+# 1단계: BatchSizeAutoTuner 최적 설정 탐색 (필수)
+./scripts/python_safe.sh -m src.training.batch_size_auto_tuner --stage [1-4]
+
+# 2단계: 최적 설정으로 학습률, epoch 수 계산
+# - RTX 5080 최적 배치 크기 적용
+# - 2시간(Stage1), 8시간(Stage2) 등 시간 제한 내 목표 달성 계산
+```
+
+#### 2. Stage 코드 완료 후 필수 검증 절차
+**모든 Stage 코드가 완료된 다음에는 반드시 다음 순서로 검증:**
+
+```bash
+# 1단계: 모든 테스트 코드 실행 (필수)
+./scripts/python_safe.sh -m pytest tests/unit/ -v --tb=short
+./scripts/python_safe.sh -m pytest tests/integration/ -v --tb=short
+
+# 2단계: 1 epoch 학습 실행으로 파이프라인 검증 (필수)
+./scripts/python_safe.sh -m src.training.train_classification_stage --stage [1-4] --epochs 1 --dry-run
+./scripts/python_safe.sh -m src.training.train_classification_stage --stage [1-4] --epochs 1
+
+# 3단계: 파이프라인 정상 작동 확인 후 본격 학습 진행
+```
+
+#### 3. 적절한 Epoch 수 판단 및 학습 전략
+**시간 제한보다 학습 품질 우선 원칙:**
+
+- **Early Stopping 활용**: ValidationLoss 개선 없으면 자동 중단 (patience=5)
+- **목표 달성 우선**: 목표 정확도 달성 시 즉시 완료
+- **시간 제한은 참고용**: PART_0.md의 시간은 대략적 예상치, 품질 우선
+- **충분한 max_epochs 설정**: 50+ epochs로 설정하되 Early Stopping으로 자동 중단
+
+```bash
+# 올바른 학습 전략 예시
+./scripts/python_safe.sh -m src.training.train_classification_stage \
+  --stage 1 \
+  --epochs 50 \                    # 충분히 큰 수 설정  
+  --batch-size 112 \               # BatchSizeAutoTuner 결과
+  --early-stopping-patience 5     # 5 epoch 개선 없으면 중단
+```
+
+#### 4. 워크플로우 준수 이유
+- **BatchSizeAutoTuner**: RTX 5080 하드웨어 특성에 맞는 최적 설정 보장
+- **테스트 우선**: 코드 안정성 확보 후 학습 진행  
+- **1 epoch 검증**: 긴 학습 전 파이프라인 오류 조기 발견
+- **Early Stopping**: 과적합 방지 및 최적 수렴점 자동 탐지
+
 ### 핵심 구현 명령어 모음
 
 #### 모델 테스트 및 검증
@@ -513,8 +568,8 @@ source scripts/setup_aliases.sh
 pp --version               # Python 실행
 ptest tests/ -v           # pytest 실행
 
-# 데이터 루트 설정 (자동)
-export PILLSNAP_DATA_ROOT="/mnt/data/pillsnap_dataset"
+# 데이터 루트 설정 (SSD 이전 완료)
+export PILLSNAP_DATA_ROOT="/home/max16/ssd_pillsnap/dataset"
 
 # GPU 호환성 확인
 ./scripts/python_safe.sh -c "import torch; print(torch.cuda.is_available(), torch.__version__)"

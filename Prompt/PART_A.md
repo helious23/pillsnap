@@ -1,21 +1,36 @@
 # Part A — 역할·출력 원칙·품질 기준 + GPU 최대 활용 설계 규칙
 
-[프로젝트 메타/경로(절대 변경 금지)]
+[프로젝트 메타/경로 + 디스크 I/O 최적화 상황]
 
 - **코드 루트**: /home/max16/pillsnap
 - **가상환경(WSL)**: $HOME/pillsnap/.venv
-- **데이터 루트(외장 SSD, ext4)**: /mnt/data/pillsnap_dataset (영문 변환 후)
-- **실험 디렉터리**: /mnt/data/exp/exp01
+- **데이터 루트**: 
+  - **원본**: /mnt/data/pillsnap_dataset (외장 HDD 8TB, ext4, 100MB/s) - Stage 4 전체 데이터
+  - **SSD 이전**: /home/max16/ssd_pillsnap/dataset (내장 SSD 1TB, 3,500MB/s) - Stage 1 완료, Stage 2-3 예정
+  - **M.2 확장 계획**: Samsung 990 PRO 4TB (7,450MB/s) - Stage 4 최종 운영 데이터용
+- **실험 디렉터리**: 
+  - **SSD**: /home/max16/ssd_pillsnap/exp/exp01 (현재 Stage 1 완료)
+  - **HDD**: /mnt/data/exp/exp01 (이전 실험 기록)
+- **디스크 I/O 병목 해결 완료**:
+  - **문제**: Stage 1 학습에서 GPU 활용률 극저 (데이터 대기), 추론 시간 2,139ms (목표: 50ms, 43배 초과)
+  - **해결**: Stage 1 데이터 5,000장 완전 SSD 이전 완료 (7.0GB), HDD→SSD 35배 속도 향상
+  - **검증**: SSD에서 Stage 1 샘플링 테스트 성공
 - **하드웨어 스펙**:
   - **CPU**: AMD Ryzen 7 7800X3D (8코어 16스레드, 최대 5.0GHz)
   - **RAM**: 128GB DDR5-5600 (삼성 32GB × 4)
   - **GPU**: NVIDIA GeForce RTX 5080 (16GB VRAM)
-  - **Storage**: OS/Code 1TB NVMe + Data 8TB External SSD
+  - **Storage**: 
+    - **OS/Code**: 1TB NVMe SSD (937GB 여유 공간)
+    - **Data**: 8TB External HDD (100MB/s) + 4TB M.2 SSD 추가 계획 (7,450MB/s)
 - **규칙**: 모든 스크립트/코드는 **항상 /mnt/** 경로만 사용(C:\ 경로 금지). Windows↔WSL 혼용 금지.
 - **예외**: Windows 운영 도구(Cloudflared 등, Part G/H)는 C:\ 표준 경로 사용 허용
 - **편집 도구/위치**는 자유(맥·윈도우·원격). **실행은 WSL 기준**이며, 모든 경로 표기는 /mnt/** 로 통일.
-- **체크포인트/로그/산출물**은 **/mnt/data**(WSL 디스크)에 저장(속도/안정성).
+- **체크포인트/로그/산출물**은 **SSD**(WSL 디스크)에 저장(속도/안정성).
 - **128GB RAM 활용**: 라벨 캐시, LMDB 변환, 배치 프리페치 최적화
+- **데이터 처리 정책**:
+  - **Stage 1**: SSD 완료 (/home/max16/ssd_pillsnap/dataset)
+  - **Stage 2-3**: SSD 이전 예정 (내장 SSD 용량 충분)
+  - **Stage 4**: M.2 SSD 4TB 추가 후 전체 데이터셋 이전
 
 [너의 역할]
 

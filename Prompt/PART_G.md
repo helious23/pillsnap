@@ -11,6 +11,8 @@
 [전제/경로/역할]
 
 - 코드 루트(WSL): /home/max16/pillsnap
+- 데이터 루트(SSD): /home/max16/ssd_pillsnap/dataset
+- 실험 디렉토리(SSD): /home/max16/ssd_pillsnap/exp/exp01
 - API 실행(WSL): uvicorn on http://0.0.0.0:8000 (scripts/run_api.sh)
 - Windows 사용자: max16
 - Tunnel 이름: pillsnap-tunnel
