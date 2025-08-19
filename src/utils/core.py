@@ -97,7 +97,7 @@ class ConfigLoader:
         return config
     
     def _validate_and_normalize_paths(self, config: Dict[str, Any]) -> Dict[str, Any]:
-        """
+        r"""
         경로 설정 검증 및 정규화
         - WSL 절대 경로만 허용 (/mnt/...)
         - Windows 경로 (C:\) 금지
@@ -112,7 +112,7 @@ class ConfigLoader:
                 path = config[section][key]
                 
                 # Windows 경로 금지
-                if isinstance(path, str) and (path.startswith("C:") or "\\" in path):
+                if isinstance(path, str) and (path.startswith("C:") or "\\\\" in path):
                     raise ValueError(f"Windows 경로는 사용할 수 없습니다: {section}.{key} = {path}")
                 
                 # WSL 절대 경로 강제
@@ -290,6 +290,8 @@ class PillSnapLogger:
         logger.addHandler(console_handler)
         
         # 2) 파일 핸들러 (상세한 포맷)
+        # 로그 디렉토리가 없으면 생성
+        self.log_dir.mkdir(parents=True, exist_ok=True)
         log_file = self.log_dir / f"{self.name}_{datetime.now().strftime('%Y%m%d')}.log"
         file_handler = logging.FileHandler(log_file, encoding='utf-8')
         file_handler.setLevel(logging.DEBUG)  # 파일에는 모든 레벨 저장
