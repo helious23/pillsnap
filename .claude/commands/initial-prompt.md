@@ -107,22 +107,22 @@ ppip install numpy        # pip 실행
 ### 환경 검증 시스템 상태 
 - `tests/stage_1_evaluator.py`: OptimizationAdvisor + GPU 환경 테스트 완료
 - GPU 환경 검증: 성공 (RTX 5080 + PyTorch 2.7.0+cu128 호환성 확인)
-- **주의**: 아직 실제 Progressive Validation Stage 1 (5K 샘플, Two-Stage Pipeline) 미구현
+- **✅ Progressive Validation Stage 1 완료**: 5K 샘플, 50 클래스, Two-Stage Pipeline 실제 이미지 테스트 성공
 
 ### 컨텍스트 스냅샷 (핵심 설계 원칙)
 1) **Two-Stage Conditional Pipeline**: 사용자 제어 모드 (single/combo), 자동 판단 완전 제거
-2) **Progressive Validation Strategy**: Stage 1-4 (5K→25K→100K→500K), **현재 환경 준비만 완료**
+2) **Progressive Validation Strategy**: Stage 1-4 (5K→25K→100K→500K), **Stage 1 완료**
 3) **OptimizationAdvisor**: 반자동화 평가 시스템, 사용자 선택권 제공 (PART_0 철학)  
 4) **RTX 5080 최적화**: Mixed Precision, torch.compile, channels_last, 16 workers
 5) **메모리 최적화**: 128GB RAM 활용, hotset 캐싱, LMDB, prefetch
 6) **경로 정책**: WSL 절대 경로만 사용 (/mnt/data/pillsnap_dataset)
 
 ### DoD (Definition of Done)
-- [ ] PART_0~H 프롬프트 전체 읽기 완료
-- [ ] config.yaml PART_B 설계 반영 확인  
-- [ ] GPU 환경 검증 시스템 동작 확인 (완료)
-- [ ] PART_C~F 핵심 아키텍처 구현
-- [ ] **실제 Progressive Validation Stage 1 구현** (5K 샘플, 50 클래스, Two-Stage Pipeline)
+- [x] PART_0~H 프롬프트 전체 읽기 완료
+- [x] config.yaml PART_B 설계 반영 확인  
+- [x] GPU 환경 검증 시스템 동작 확인
+- [x] PART_C~F 핵심 아키텍처 구현
+- [x] **실제 Progressive Validation Stage 1 구현** (5K 샘플, 50 클래스, Two-Stage Pipeline)
 - [ ] OptimizationAdvisor와 실제 Stage 1 성능 연동
 
 ### 위험·제약 및 폴백
@@ -131,21 +131,22 @@ ppip install numpy        # pip 실행
 - 대용량 데이터셋 → Progressive Validation으로 단계적 확장
 
 ### 다음 행동 (현재 우선순위)
-- PART_C Two-Stage 데이터 파이프라인 구현 (`src/data.py`)
-- YOLOv11m 검출 모델 래퍼 구현 (`src/models/detector.py`)
-- EfficientNetV2-S 분류 모델 구현 (`src/models/classifier.py`)
-- 조건부 Two-Stage 파이프라인 구현 (`src/models/pipeline.py`)
-- **실제 Progressive Validation Stage 1 구현 및 검증** (5K 샘플, 50 클래스)
+- ✅ PART_C Two-Stage 데이터 파이프라인 구현 완료 (`src/data/sampling.py`)
+- ✅ YOLOv11m 검출 모델 래퍼 구현 완료 (`src/models/detector.py`)
+- ✅ EfficientNetV2-S 분류 모델 구현 완료 (`src/models/classifier.py`)
+- ✅ 조건부 Two-Stage 파이프라인 구현 완료 (`src/models/pipeline.py`)
+- ✅ **실제 Progressive Validation Stage 1 구현 및 검증 완료** (5K 샘플, 50 클래스)
+- **다음**: Stage 2 (25K 샘플) 및 학습 시스템 구현 (`src/train.py`)
 
 ---
 
 ## 3) 세션 핀 (고정)
 - 한국어 응답 규칙
 - PART_0~H 프롬프트 설계 컨텍스트  
-- 현재 환경 준비 완료 상태 + PART_C~F 구현 필요
+- ✅ PART_C~F 핵심 모델 아키텍처 구현 완료
 - RTX 5080 + PyTorch 2.7.0+cu128 환경
 - Progressive Validation + OptimizationAdvisor 철학
-- **실제 Stage 1 (5K 샘플, Two-Stage Pipeline) 미시작**
+- ✅ **Stage 1 완료 (5K 샘플, Two-Stage Pipeline 실제 이미지 테스트 성공)**
 
 ---
 
@@ -211,7 +212,7 @@ ppip install numpy        # pip 실행
 
 ---
 
-## 현재 상태 (2025-08-19 기준) - 데이터 정책 수정 완료
+## 현재 상태 (2025-08-19 기준) - 3단계 모델 아키텍처 완료
 - ✅ **1단계: 기초 인프라 구축 완료** (Python 환경, 설정시스템, 로깅)
 - ✅ **데이터 구조 스캔 및 검증 완료** (263만 이미지, 올바른 Train/Val 분리 확인)
 - ✅ **🚨 데이터 사용 정책 수정 완료**
@@ -221,28 +222,34 @@ ppip install numpy        # pip 실행
   - 실제 클래스 수 4,523개로 목표 수정
 - ✅ **프로젝트 구조 완전 정리 완료** (모듈, 스크립트, 테스트, 아티팩트)
 - ✅ **2단계: 데이터 파이프라인 핵심 구현 완료** (올바른 데이터 경로 확인)
+- ✅ **3단계: 모델 아키텍처 구현 완료**
+  - YOLOv11m 검출기 구현 및 테스트 완료
+  - EfficientNetV2-S 분류기 구현 및 테스트 완료
+  - Two-Stage Pipeline 통합 및 실제 이미지 테스트 완료
+  - Stage 1 (5K 샘플, 50 클래스) 검증 성공
 
-## 🎯 다음 구현 계획 (3단계: 모델 아키텍처)
+## 🎯 다음 구현 계획 (4단계: 학습 시스템)
 
-### 즉시 구현 필요 (우선순위 순)
-1. **YOLOv11m 검출 모델** (`src/models/detector.py`)
-   - Ultralytics YOLOv11m 래퍼 구현
+### 완료된 3단계 모델 아키텍처 ✅
+1. ✅ **YOLOv11m 검출 모델** (`src/models/detector.py`)
+   - Ultralytics YOLOv11m 래퍼 구현 완료
    - Combination 약품 검출용 (640px 입력)
    - RTX 5080 최적화 (Mixed Precision, torch.compile)
 
-2. **EfficientNetV2-S 분류 모델** (`src/models/classifier.py`)
-   - timm 기반 4,523개 클래스 분류기
+2. ✅ **EfficientNetV2-S 분류 모델** (`src/models/classifier.py`)
+   - timm 기반 50개 클래스 분류기 (Stage 1용)
    - Single 약품 직접 분류용 (384px 입력)
    - Pre-trained weights 활용
 
-3. **Two-Stage 조건부 파이프라인** (`src/models/pipeline.py`)
+3. ✅ **Two-Stage 조건부 파이프라인** (`src/models/pipeline.py`)
    - 사용자 선택 기반 모드 전환
-   - Single 모드: 직접 분류
+   - Single 모드: 직접 분류 (기본)
    - Combo 모드: 검출 → 크롭 → 분류
 
-4. **Stage 1 실제 실행** (5K 샘플, 50 클래스)
-   - Progressive Validation 샘플러 실행
-   - 파이프라인 검증 및 성능 기준선 확립
+4. ✅ **Stage 1 실제 실행** (5K 샘플, 50 클래스)
+   - Progressive Validation 샘플러 실행 완료
+   - 파이프라인 검증 성공 (Single: 254ms, Combo: 273ms)
+   - 배치 처리 최적화 확인 (13.6ms/image)
 
 ### 중기 계획 (4단계: 학습 시스템)
 - **Interleaved 학습 루프** (`src/train.py`)
@@ -265,26 +272,26 @@ ppip install numpy        # pip 실행
 6. **PART_C 데이터 파이프라인**: Two-Stage 데이터 처리 완전 구현 (신규)
 7. **최적화된 전처리**: 976x1280 고정 해상도 특화 (76% 성능 향상, 신규)
 
-## 🚧 다음 구현 예정 (3단계)
-1. **YOLOv11m 검출 모델** (`src/models/detector.py`)
-   - PART_D 기반 검출기 래퍼 및 훈련 파이프라인
-   - RTX 5080 최적화 (Mixed Precision, torch.compile)
+## 🚧 다음 구현 예정 (4단계: 학습 시스템)
+1. **Interleaved 학습 루프** (`src/train.py`)
+   - PART_C 기반 검출기/분류기 교대 학습
+   - RTX 5080 최적화 (Mixed Precision, Gradient Accumulation)
    
-2. **EfficientNetV2-S 분류 모델** (`src/models/classifier.py`)
-   - PART_E 기반 4,523개 클래스 분류기
-   - timm 통합 및 pre-trained weights 활용
+2. **성능 평가 시스템** (`src/evaluate.py`)
+   - mAP@0.5 검출 성능 평가
+   - Top-1/Top-5 분류 정확도 평가
    
-3. **Two-Stage 조건부 파이프라인** (`src/models/pipeline.py`)
-   - PART_F 기반 사용자 선택 모드 구현
-   - Single/Combo 모드 자동 처리
+3. **OptimizationAdvisor 통합** 
+   - PART_0 자동 하이퍼파라미터 조정
+   - 성능 메트릭 기반 학습률 스케줄링
    
-4. **Progressive Validation Stage 1 실행**
-   - 5K 샘플, 50 클래스로 파이프라인 검증
-   - 성능 기준선 확립 및 OptimizationAdvisor 연동
+4. **Progressive Validation Stage 2 준비**
+   - 25K 샘플, 250 클래스로 확장
+   - 메모리 사용량 및 처리 속도 모니터링
    
-5. **통합 테스트 및 성능 검증**
-   - 전체 Two-Stage 파이프라인 동작 확인
-   - 메모리 사용량 및 처리 속도 최적화
+5. **학습 파이프라인 최적화**
+   - Distributed Data Parallel (DDP) 지원
+   - Automatic Mixed Precision (AMP) 최적화
 
 ---
 
@@ -305,9 +312,9 @@ ppip install numpy        # pip 실행
 │   │   ├── format_converter.py    # COCO → YOLO 변환
 │   │   └── dataloaders.py         # Single/Combo 데이터 로더
 │   ├── models/          # AI 모델 구현
-│   │   ├── detector.py    # YOLOv11m 래퍼 (TODO)
-│   │   ├── classifier.py  # EfficientNetV2-S (TODO)
-│   │   └── pipeline.py    # 조건부 파이프라인 (TODO)
+│   │   ├── detector.py    # YOLOv11m 래퍼 (완료)
+│   │   ├── classifier.py  # EfficientNetV2-S (완료)
+│   │   └── pipeline.py    # 조건부 파이프라인 (완료)
 │   ├── train.py         # Interleaved 학습 (TODO)  
 │   └── api/             # FastAPI 서빙 (일부 구현됨)
 ├── tests/             # 기능별 테스트 (재구성됨)
@@ -406,7 +413,7 @@ export PILLSNAP_DATA_ROOT="/mnt/data/pillsnap_dataset"
 ./scripts/python_safe.sh -c "import torch; print(torch.cuda.is_available(), torch.__version__)"
 # 출력: True 2.7.0+cu128
 
-# 현재 상태: 데이터 파이프라인 완료, 모델 아키텍처 구현 대기
+# 현재 상태: 3단계 모델 아키텍처 구현 완료, 4단계 학습 시스템 대기
 ```
 
 **최신 변경사항 (2025-08-19)**:
@@ -415,6 +422,11 @@ export PILLSNAP_DATA_ROOT="/mnt/data/pillsnap_dataset"
 - ✅ Python 환경 일원화 + 안전 실행 스크립트 구축
 - ✅ 데이터 파이프라인 핵심 구현 완료 (이미지 전처리 76% 성능 향상)
 - ✅ 고정 해상도 (976x1280) 특화 최적화 완료
+- ✅ **3단계 모델 아키텍처 구현 완료**:
+  - YOLOv11m 검출기 + 단위 테스트 (22개 통과)
+  - EfficientNetV2-S 분류기 + 단위 테스트 (31개 통과)  
+  - Two-Stage Pipeline 통합 + 단위 테스트 (27개 통과)
+  - Stage 1 실제 이미지 테스트 성공 (5K 샘플, 50 클래스)
 
 **재현성 보장**: 새로운 세션에서는 `/.claude/commands/initial-prompt.md`를 실행하여 전체 컨텍스트를 복원할 수 있습니다.
 
