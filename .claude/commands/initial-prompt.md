@@ -181,12 +181,14 @@ ppip install numpy        # pip 실행
 - **로깅 시스템**: 콘솔+파일 로깅, 메트릭, 타이머, 진행상황 추적
 
 ### 2. 데이터 구조 스캔 및 검증 완료 ✅
-- **실제 데이터 분석**: 263만개 이미지 (Single: 261만, Combo: 1.8만)
+- **실제 데이터 분석**: 263만개 이미지 (Train: 247만, Val: 16만)
+- **🚨 중요: 데이터 사용 정책 확인**
+  - **Train 데이터**: 학습/검증 분할용 (train:val = 85:15)
+  - **Val 데이터**: 최종 test 전용 (학습에 절대 사용 금지)
 - **데이터 분포**: Single 99.3%, Combo 0.7% (매우 불균형한 분포)
-- **이미지 해상도 분석**: 100% 동일한 976x1280 해상도 확인 (신규 발견)
-- **K-코드 매핑**: EDI 코드 연결, 약품 메타데이터 추출
-- **Progressive Validation**: Stage 1 요구사항 (5K 이미지, 50 클래스) 확인
-- **데이터 무결성**: 이미지-라벨 매칭 검증 완료
+- **실제 클래스 수**: 4,523개 (기존 목표 5,000개보다 적음)
+- **이미지 해상도**: 100% 동일한 976x1280 해상도 확인 (신규 발견)
+- **Progressive Validation**: Train 데이터만 사용하여 Stage 1-4 진행
 
 ### 3. 프로젝트 구조 완전 정리 ✅
 - **모듈 구조 정리**: `src/utils.py` → `src/utils/core.py` 기능별 분류
@@ -209,14 +211,48 @@ ppip install numpy        # pip 실행
 
 ---
 
-## 현재 상태 (2025-08-19 기준)
+## 현재 상태 (2025-08-19 기준) - 데이터 정책 수정 완료
 - ✅ **1단계: 기초 인프라 구축 완료** (Python 환경, 설정시스템, 로깅)
-- ✅ **데이터 구조 스캔 및 검증 완료** (263만 이미지, Single:Combo=143.6:1)
+- ✅ **데이터 구조 스캔 및 검증 완료** (263만 이미지, 올바른 Train/Val 분리 확인)
+- ✅ **🚨 데이터 사용 정책 수정 완료**
+  - Train 데이터만 학습/검증 분할 (247만개)
+  - Val 데이터는 최종 test 전용 (16만개, 학습 금지)
+  - Progressive Validation Stage 1-4는 Train 데이터만 사용
+  - 실제 클래스 수 4,523개로 목표 수정
 - ✅ **프로젝트 구조 완전 정리 완료** (모듈, 스크립트, 테스트, 아티팩트)
-- ✅ **2단계: 데이터 파이프라인 핵심 구현 완료** (신규)
-- ❌ **PART_D~F 모델 아키텍처 미구현** (YOLOv11m, EfficientNetV2-S, 통합 파이프라인)
-- ❌ **실제 Progressive Validation Stage 1 미시작** (5K 샘플, 50 클래스)
-- 🎯 **다음: 모델 아키텍처 구현 → Stage 1 통합 테스트**
+- ✅ **2단계: 데이터 파이프라인 핵심 구현 완료** (올바른 데이터 경로 확인)
+
+## 🎯 다음 구현 계획 (3단계: 모델 아키텍처)
+
+### 즉시 구현 필요 (우선순위 순)
+1. **YOLOv11m 검출 모델** (`src/models/detector.py`)
+   - Ultralytics YOLOv11m 래퍼 구현
+   - Combination 약품 검출용 (640px 입력)
+   - RTX 5080 최적화 (Mixed Precision, torch.compile)
+
+2. **EfficientNetV2-S 분류 모델** (`src/models/classifier.py`)
+   - timm 기반 4,523개 클래스 분류기
+   - Single 약품 직접 분류용 (384px 입력)
+   - Pre-trained weights 활용
+
+3. **Two-Stage 조건부 파이프라인** (`src/models/pipeline.py`)
+   - 사용자 선택 기반 모드 전환
+   - Single 모드: 직접 분류
+   - Combo 모드: 검출 → 크롭 → 분류
+
+4. **Stage 1 실제 실행** (5K 샘플, 50 클래스)
+   - Progressive Validation 샘플러 실행
+   - 파이프라인 검증 및 성능 기준선 확립
+
+### 중기 계획 (4단계: 학습 시스템)
+- **Interleaved 학습 루프** (`src/train.py`)
+- **성능 평가 시스템** (`src/evaluate.py`)
+- **OptimizationAdvisor 통합** (PART_0 평가 시스템)
+
+### 장기 계획 (5-6단계: 서빙 및 배포)
+- **FastAPI 서빙** (`src/api/main.py`)
+- **ONNX 모델 내보내기** (`src/export.py`)
+- **프로덕션 배포 준비**
 
 ---
 
@@ -229,12 +265,26 @@ ppip install numpy        # pip 실행
 6. **PART_C 데이터 파이프라인**: Two-Stage 데이터 처리 완전 구현 (신규)
 7. **최적화된 전처리**: 976x1280 고정 해상도 특화 (76% 성능 향상, 신규)
 
-## 미완료 핵심 구성 요소
-1. **PART_D YOLOv11m 검출 모델**: 검출기 래퍼 및 훈련 파이프라인
-2. **PART_E EfficientNetV2-S 분류 모델**: 분류기 및 훈련 파이프라인  
-3. **PART_F 통합 Two-Stage Pipeline**: 조건부 파이프라인 구현
-4. **실제 Progressive Validation**: Stage 1 (5K 샘플, 50 클래스) 미시작
-5. **실제 모델 성능 검증**: YOLOv11m + EfficientNetV2-S 실제 동작 미확인
+## 🚧 다음 구현 예정 (3단계)
+1. **YOLOv11m 검출 모델** (`src/models/detector.py`)
+   - PART_D 기반 검출기 래퍼 및 훈련 파이프라인
+   - RTX 5080 최적화 (Mixed Precision, torch.compile)
+   
+2. **EfficientNetV2-S 분류 모델** (`src/models/classifier.py`)
+   - PART_E 기반 4,523개 클래스 분류기
+   - timm 통합 및 pre-trained weights 활용
+   
+3. **Two-Stage 조건부 파이프라인** (`src/models/pipeline.py`)
+   - PART_F 기반 사용자 선택 모드 구현
+   - Single/Combo 모드 자동 처리
+   
+4. **Progressive Validation Stage 1 실행**
+   - 5K 샘플, 50 클래스로 파이프라인 검증
+   - 성능 기준선 확립 및 OptimizationAdvisor 연동
+   
+5. **통합 테스트 및 성능 검증**
+   - 전체 Two-Stage 파이프라인 동작 확인
+   - 메모리 사용량 및 처리 속도 최적화
 
 ---
 
@@ -280,15 +330,52 @@ ppip install numpy        # pip 실행
 
 ---
 
-## 다음 구현 우선순위 (3단계: 모델 아키텍처 구현)
-1. **YOLOv11m 검출 모델**: PART_D 구현 (`src/models/detector.py`)
-2. **EfficientNetV2-S 분류 모델**: PART_E 구현 (`src/models/classifier.py`)
-3. **조건부 Two-Stage 파이프라인**: PART_F 통합 (`src/models/pipeline.py`)
-4. **Interleaved 학습 루프**: PART_G 구현 (`src/train.py`)
-5. **실제 Progressive Validation Stage 1**: 5K 샘플, 50 클래스 실행
-6. **성능 검증 및 최적화**: OptimizationAdvisor 연동
-7. **FastAPI 서빙**: PART_F API 엔드포인트 구현 (`src/api/main.py`)
-8. **ONNX 내보내기**: PART_H 배포 준비 (`src/export.py`)
+## 🛠️ 다음 실행 단계 (즉시 시작 가능)
+
+### 1단계: YOLOv11m 검출 모델 구현
+```bash
+# PART_D 문서 기반 구현
+./scripts/python_safe.sh -c "
+import torch
+from ultralytics import YOLO
+print('Ultralytics YOLO 환경 검증:', torch.cuda.is_available())
+"
+
+# src/models/detector.py 구현 시작
+# - YOLOv11m 래퍼 클래스
+# - RTX 5080 최적화 (Mixed Precision)
+# - Combination 약품 검출용 설정
+```
+
+### 2단계: EfficientNetV2-S 분류 모델 구현  
+```bash
+# PART_E 문서 기반 구현
+./scripts/python_safe.sh -c "
+import timm
+model = timm.create_model('efficientnetv2_s', num_classes=4523)
+print('timm EfficientNetV2-S 모델 생성 성공')
+"
+
+# src/models/classifier.py 구현
+# - 4,523개 클래스 분류기
+# - Pre-trained weights 활용
+# - Single 약품 직접 분류용
+```
+
+### 3단계: Two-Stage 파이프라인 통합
+```bash
+# src/models/pipeline.py 구현
+# - 사용자 선택 기반 모드 전환
+# - Single 모드: 직접 분류  
+# - Combo 모드: 검출 → 크롭 → 분류
+```
+
+### 4단계: Stage 1 실제 실행
+```bash
+# Progressive Validation Stage 1 샘플링 및 테스트
+./scripts/python_safe.sh -m src.data.sampling
+./scripts/python_safe.sh -m tests.stage_1_evaluator
+```
 
 ### 완료된 데이터 파이프라인 (2단계) ✅
 - ✅ Stage 1 데이터 샘플링 (`src/data/stage1_sampler.py`)
