@@ -34,13 +34,13 @@ exp/
 artifacts/cpu_runs/
 artifacts/gpu_runs/
 artifacts/cls_train_smoke/
+artifacts/wheels/
 artifacts/_scan_sample_head20.csv
 artifacts/env_install_error.log
 artifacts/venv_py311.freeze.txt
 artifacts/requirements.filtered.txt
 
 # artifacts 중 추적할 파일들은 명시적으로 허용
-!artifacts/wheels/
 !artifacts/stage1/
 !artifacts/models/
 !artifacts/manifests/
