@@ -30,7 +30,17 @@
       "Bash($HOME/pillsnap/.venv/bin/python -m pillsnap.stage1.run:*)",
       "Bash($HOME/pillsnap/.venv/bin/python -m pytest tests/test_json_enrichment.py -v)",
       "Bash($HOME/pillsnap/.venv/bin/python -m pytest tests/test_json_enrichment.py::test_empty_dataframe_schema -v)",
-      "Bash(PYTHONPATH=/home/max16/pillsnap $HOME/pillsnap/.venv/bin/python -m pillsnap.stage2.train_cls --manifest artifacts/manifest_enriched.csv --classes artifacts/classes_step11.json --epochs 1 --batch-size 8 --limit 32 --amp --outdir artifacts/cls_train_smoke)"
+      "Bash(PYTHONPATH=/home/max16/pillsnap $HOME/pillsnap/.venv/bin/python -m pillsnap.stage2.train_cls --manifest artifacts/manifest_enriched.csv --classes artifacts/classes_step11.json --epochs 1 --batch-size 8 --limit 32 --amp --outdir artifacts/cls_train_smoke)",
+      "Bash(ls:*)",
+      "Bash(bash:*)",
+      "Bash(BACKUP_DIR=\"backup/cleanup_1755530906\")",
+      "Bash(mv:*)",
+      "Bash(rm:*)",
+      "Bash(/home/max16/pillsnap/.venv_gpu/bin/python --version)",
+      "Bash(/home/max16/pillsnap/.venv_gpu/bin/python -c \"import torch; print(f''PyTorch: {torch.__version__}''); print(f''CUDA available: {torch.cuda.is_available()}'')\")",
+      "Bash(./scripts/python_safe.sh:*)",
+      "Bash(cp:*)",
+      "Bash(true)"
     ],
     "deny": [],
     "ask": [],

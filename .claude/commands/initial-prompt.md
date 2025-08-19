@@ -1,373 +1,274 @@
-# /initial-prompt — 세션 초기화 스크립트
+# /initial-prompt — PillSnap ML 세션 초기화 스크립트
 
-당신은 **Claude Code**입니다. 이 세션에서 수행할 초기화 절차를 다음과 같이 고정합니다.
+당신은 **Claude Code**입니다. **PillSnap ML** 프로젝트의 세션 초기화를 다음과 같이 수행합니다.
 **모든 응답은 한국어로 작성**합니다. 모호하면 가장 단순한 해법을 우선합니다.
 
 ---
 
-## 0) 목적(Goal)
-- 리포지토리의 **프롬프트(PART_0~H), 문서(docs), 핵심 코드(core)**를 한 번에 읽고,
-- **충돌 제거·복잡도 축소**를 위한 **최소 리팩터링 계획**을 세션 컨텍스트에 고정(pin)합니다.
+## 0) 프로젝트 개요 (Goal)
+- **PillSnap ML**: Two-Stage Conditional Pipeline 기반 경구약제 식별 AI 시스템
+- **아키텍처**: YOLOv11m 검출 + EfficientNetV2-S 분류 (5000개 EDI 코드)
+- **환경**: WSL2 + RTX 5080 16GB + PyTorch 2.7.0+cu128
+- **목표**: 92% 분류 정확도, 0.85 mAP@0.5 검출 성능
 
 ## 중요: Python 가상환경 경로
 **모든 Python 실행 시 반드시 다음 경로를 사용:**
 ```bash
-VENV_PYTHON="$HOME/pillsnap/.venv/bin/python"
-# 또는 직접 경로: /home/max16/pillsnap/.venv/bin/python
+VENV_PYTHON="/home/max16/pillsnap/.venv/bin/python"
+# 현재 .venv는 .venv_gpu로 심볼릭 링크 (RTX 5080 호환 PyTorch 2.7.0+cu128)
 ```
-**시스템 python/python3 alias를 사용하지 말 것 (python3.13으로 연결되어 있음)**
+**시스템 python/python3 alias 사용 금지 (python3.13 충돌 방지)**
 
 ---
 
-## 1) 수집 대상(읽기 순서 고정)
-1. **Prompt 사양**:
-   - `/Prompt/PART_0.md` … `/Prompt/PART_H.md` (존재하는 모든 PART_*.md)
-2. **문서(docs)**:
-   - `docs/*.md` 전부 (예: `docs/read_audit.md`, `docs/implementation_guide.md`, `docs/session_workflow_guide.md`)
-   - `.claude/session_continuity.md` (세션 연속성 가이드) **← 최신 상태 반영 중요**
-3. **핵심 코드(core)**: 아래 경로를 **순차 폴백**으로 스캔
-   - 우선: `core/*.py`
-   - 대안: `src/core/*.py`
-   - 최후: `/mnt/data/*.py` (특히 아래 파일명은 우선 인덱싱)
-     - `pipeline_mode.py`, `detector_manager.py`, `oom_handler.py`,
-       `memory_policy.py`, `onnx_export.py`, `path_policy.py`
+## 1) 수집 대상 (읽기 순서 고정)
+1. **프롬프트 사양 (필수)**:
+   - `Prompt/PART_0.md` - Progressive Validation Strategy + OptimizationAdvisor
+   - `Prompt/PART_A.md` - Two-Stage Conditional Pipeline 아키텍처
+   - `Prompt/PART_B.md` - 프로젝트 구조 + RTX 5080 최적화
+   - `Prompt/PART_C.md` - Two-Stage 데이터 파이프라인
+   - `Prompt/PART_D.md` - YOLOv11m 검출 모델
+   - `Prompt/PART_E.md` - EfficientNetV2-S 분류 모델
+   - `Prompt/PART_F.md` - API 서빙 + FastAPI
+   - `Prompt/PART_G.md` - 최적화 + 컴파일러
+   - `Prompt/PART_H.md` - 배포 + ONNX 내보내기
+
+2. **프로젝트 설정**:
+   - `config.yaml` - PART_B 원래 설계 설정
+   - `CLAUDE.md` - 프로젝트 가이드 + 세션 초기화 지침
+
+3. **핵심 코드 (PART_C~F 구현)**:
+   - `src/data.py` - Two-Stage 데이터 파이프라인
+   - `src/models/detector.py` - YOLOv11m 래퍼
+   - `src/models/classifier.py` - EfficientNetV2-S 구현
+   - `src/models/pipeline.py` - 조건부 Two-Stage 파이프라인
+   - `src/train.py` - Interleaved 학습 루프
+   - `src/api/main.py` - FastAPI 서빙
+
+4. **검증 시스템**:
+   - `tests/stage_1_evaluator.py` - OptimizationAdvisor + GPU 테스트 통합
+   - `tests/gpu_smoke/` - 현재 GPU 스모크 테스트 방법론
 
 > 파일이 없거나 읽기 실패 시, 어떤 경로가 비어있는지 **명시적으로 경고**하고 계속 진행합니다.
 
 ---
 
-## 2) 분석(읽은 뒤 반드시 생성할 산출물)
+## 2) 분석 (읽은 뒤 반드시 생성할 산출물)
 다음 **섹션 헤더와 포맷**을 그대로 출력하세요. (없으면 빈 섹션으로 두지 말고 실패 원인을 표시)
 
 ### [INITIALIZED]
-- 언어 규칙: “모든 응답은 한국어”
-- 실행 시각, 작업 루트
+- 언어 규칙: "모든 응답은 한국어"
+- 실행 시각, 작업 루트: `/home/max16/pillsnap`
+- Python 환경: `/home/max16/pillsnap/.venv/bin/python` (PyTorch 2.7.0+cu128)
 
-### 문서 스캔 결과
-- Prompt/ 읽은 파일: N개 목록(파일명만, 순서 유지)
-- docs/   읽은 파일: M개 목록
+### 프롬프트 스캔 결과
+- Prompt/ 읽은 파일: PART_0~H.md 목록 (순서 유지)
 - 누락/오류: 경로·사유 요약
 
-### 코드 스캔 결과(핵심 모듈 API 요약)
-- 각 모듈별 **공개 API 시그니처**와 **주의사항**(1~3줄)
-  - `pipeline_mode.py`: `resolve_pipeline_mode(request_mode, default_mode, ...) -> (mode_used, reason, recommendation)`
-  - `detector_manager.py`: `get()`, `maybe_unload()`, **락/TTL/히스테리시스** 규칙
-  - `oom_handler.py`: **유한 상태머신**(empty→fp16→accum→batch½) + **가드레일**(`max_retries`, `max_grad_accum`, `min_batch`)
-  - `memory_policy.py`: Stage 1 **캐시/배치 오버라이드 금지** 규칙
-  - `onnx_export.py`: **단일 SOT** tolerances + **export_report.schema.json** 연계
-  - `path_policy.py`: **WSL에서 Windows 경로 금지**(C:\, \\) 검증
+### 프로젝트 설정 스캔 결과  
+- `config.yaml`: Progressive Validation Strategy + RTX 5080 최적화 설정
+- `CLAUDE.md`: 세션 초기화 지침 + 프로젝트 가이드
 
-### 컨텍스트 스냅샷(필수 규칙·결정 요약)
-1) **모드 단일 진실원(SOT)**: HTTP `?mode=single|combo` → 내부 `pipeline_mode`로 **한 함수에서만 최종 결정**,
-   우선순위 = 사용자 > 기본값, 자동 추천은 메시지로만(자동 전환 없음), **안전 폴백**(model_unavailable/oom_predicted/sla_breach)에서만 `combo→single`.
-2) **검출기 지연 로딩**: **단일 Manager + 락**, 첫 요청 1회 로드, **(옵션) TTL 언로드 + 히스테리시스**, 중복 로드 방지.
-3) **OOM 상태머신(유한)**: empty_cache(1회) → fp16 강제(1회) → grad_accum×2(상한) → batch½(하한) → 실패.
-   글로벌 배치 변경 시 **LR 선형 스케일**·**by-samples 스케줄러**, BN freeze/GN 권장.
-4) **메모리 정책 잠금**: Stage 1(평가 전용)은 **캐시/배치 축소 금지**, 기본은 `labels_only` 또는 협의된 `hotset` 하나만 사용(중첩 금지).
-   병목 감지 시 **한 기법씩** 단계적 확장.
-5) **ONNX 검증 SOT**: tolerances(분류 `mse_mean/mse_p99/top1_mismatch_rate`, 검출 `mAPΔ/p95 IoUΔ`)는 **하나의 설정**에서만 읽기.
-   `export_report.json`은 **schema**로 검증.
-6) **경로·터널 정책**: 리눅스 서버는 `/home`/`/mnt`만 사용, Windows 경로 감지 시 즉시 실패. Cloudflared는 Windows에서만.
+### 코드 스캔 결과 (PART_C~F 구현 상태)
+- `src/data.py`: Two-Stage 데이터 파이프라인 (구현 상태)
+- `src/models/detector.py`: YOLOv11m 래퍼 (구현 상태) 
+- `src/models/classifier.py`: EfficientNetV2-S (구현 상태)
+- `src/models/pipeline.py`: 조건부 파이프라인 (구현 상태)
+- `src/train.py`: Interleaved 학습 루프 (구현 상태)
+- `src/api/main.py`: FastAPI 서빙 (구현 상태)
 
-### DoD(Definition of Done)
-- 위 6개 규칙이 코드/컨피그/문서에서 **모순 없이** 일치함을 확인(체크박스 6개).
-- 모드 결정이 **단일 함수**에만 존재, 지연 로딩은 **중복 로드 없음**, OOM FSM은 **유한**.
-- ONNX 리포트가 **schema 유효성** 통과, tolerances는 **단일 소스**.
-- 경로 정책 위반 시 **즉시 실패** 메시지 재현.
+### 환경 검증 시스템 상태 
+- `tests/stage_1_evaluator.py`: OptimizationAdvisor + GPU 환경 테스트 완료
+- GPU 환경 검증: 성공 (RTX 5080 + PyTorch 2.7.0+cu128 호환성 확인)
+- **주의**: 아직 실제 Progressive Validation Stage 1 (5K 샘플, Two-Stage Pipeline) 미구현
+
+### 컨텍스트 스냅샷 (핵심 설계 원칙)
+1) **Two-Stage Conditional Pipeline**: 사용자 제어 모드 (single/combo), 자동 판단 완전 제거
+2) **Progressive Validation Strategy**: Stage 1-4 (5K→25K→100K→500K), **현재 환경 준비만 완료**
+3) **OptimizationAdvisor**: 반자동화 평가 시스템, 사용자 선택권 제공 (PART_0 철학)  
+4) **RTX 5080 최적화**: Mixed Precision, torch.compile, channels_last, 16 workers
+5) **메모리 최적화**: 128GB RAM 활용, hotset 캐싱, LMDB, prefetch
+6) **경로 정책**: WSL 절대 경로만 사용 (/mnt/data/pillsnap_dataset)
+
+### DoD (Definition of Done)
+- [ ] PART_0~H 프롬프트 전체 읽기 완료
+- [ ] config.yaml PART_B 설계 반영 확인  
+- [ ] GPU 환경 검증 시스템 동작 확인 (완료)
+- [ ] PART_C~F 핵심 아키텍처 구현
+- [ ] **실제 Progressive Validation Stage 1 구현** (5K 샘플, 50 클래스, Two-Stage Pipeline)
+- [ ] OptimizationAdvisor와 실제 Stage 1 성능 연동
 
 ### 위험·제약 및 폴백
-- torch.compile/ultralytics/ORT 버전 편차 → 실패 시 **자동 강등**(reduce-overhead, opset+1, provider 교체) 제안.
-- 대용량 I/O → ZIP **무결성 검증 옵션화**(skip/quick/full), 샤딩 스트리밍 권장.
+- RTX 5080 sm_120 vs 기존 패키지 호환성 → PyTorch 2.7.0+cu128로 해결 완료
+- 128GB RAM 최적화 → config.yaml stage_overrides로 단계별 조정
+- 대용량 데이터셋 → Progressive Validation으로 단계적 확장
 
-### 다음 행동(추천)
-- `feat/refactor-mode-oom-onnx` 브랜치로 커밋 계획(작은 단위) 제시.
-- 부족한 스키마/밸리데이터/테스트 목록 생성.
+### 다음 행동 (현재 우선순위)
+- PART_C Two-Stage 데이터 파이프라인 구현 (`src/data.py`)
+- YOLOv11m 검출 모델 래퍼 구현 (`src/models/detector.py`)
+- EfficientNetV2-S 분류 모델 구현 (`src/models/classifier.py`)
+- 조건부 Two-Stage 파이프라인 구현 (`src/models/pipeline.py`)
+- **실제 Progressive Validation Stage 1 구현 및 검증** (5K 샘플, 50 클래스)
 
 ---
 
-## 3) 세션 핀(고정)
+## 3) 세션 핀 (고정)
 - 한국어 응답 규칙
-- Prompt/ + docs/ 요약 컨텍스트(충돌 해결 방안 포함)
-- core/ 공개 API 맵(6개 컴포넌트 규칙)
+- PART_0~H 프롬프트 설계 컨텍스트  
+- 현재 환경 준비 완료 상태 + PART_C~F 구현 필요
+- RTX 5080 + PyTorch 2.7.0+cu128 환경
+- Progressive Validation + OptimizationAdvisor 철학
+- **실제 Stage 1 (5K 샘플, Two-Stage Pipeline) 미시작**
 
 ---
 
 ## 4) 실패 처리
-- 필수 파일 누락/파싱 실패 시, **누락 목록·원인**을 먼저 출력하고,
-  대체 경로(위 폴백 순서)로 재시도 지시 후 **중단**합니다. 임의 추측으로 채우지 않습니다.
+- Prompt/PART_*.md 누락 시 **즉시 경고** 후 중단
+- src/ 핵심 파일 누락 시 **구현 상태** 명시
+- config.yaml 파싱 실패 시 **설정 문제** 지적
+- 임의 추측으로 채우지 않고 **실제 상태** 보고
 
 ---
 
 ## 5) 주의
-- 이 프롬프트는 **초기화 작업만** 수행합니다(코드 수정/생성은 다음 단계).
-- 출력 섹션 헤더·형식을 변경하지 마세요. 비교/자동화가 이를 전제로 합니다.
+- 이 프롬프트는 **세션 초기화 전용**입니다 (코드 수정/생성은 다음 단계)
+- 출력 섹션 헤더·형식을 변경하지 마세요
+- PART_0~H 프롬프트 읽기는 **필수**입니다
 
-# PillSnap 프로젝트 진행상황 요약 (Claude Code 초기 세션용 Prompt)
+# PillSnap ML 프로젝트 현재 상황 (세션 연속성용)
 
-프로젝트명: **PillSnap**
-목적: 경구약제 이미지 기반 의약품 식별 서비스 구축
-환경: WSL2 (Ubuntu), Python, pytest, Streamlit, FastAPI
+**프로젝트**: PillSnap ML - Two-Stage Conditional Pipeline AI 시스템
+**목적**: 5000개 EDI 코드 경구약제 식별 (92% 정확도 목표)  
+**환경**: WSL2 + RTX 5080 16GB + PyTorch 2.7.0+cu128 + 128GB RAM
+**아키텍처**: YOLOv11m 검출 + EfficientNetV2-S 분류
 
 ---
 
 ## 현재까지 진행된 작업
 
-### 1. 경로 유틸리티 (Stage 1)
-- `pillsnap/paths.py` 구현 완료
-  - `is_wsl()` → WSL 환경 감지 (현재 True로 확인됨)
-  - `get_data_root()` → 데이터 루트 경로 반환
-    - 우선순위: **환경변수 > WSL 기본값(/mnt/data/AIHub) > 일반 기본값(./data)**
-    - `path_policy.PathPolicyValidator` 검증 통합 완료
-  - `norm(p)` → 경로 정규화 및 절대경로 변환
-- 테스트 (`tests/test_paths.py`)
-  - ✅ 13개 테스트 전부 통과
-  - ✅ 실제 WSL 환경 및 환경변수 기반 동작 확인
+### 1. 기초 인프라 구축 완료 ✅
+- **Python 환경 정리**: `.venv_gpu` → `.venv` 직접 사용, Python 3.11.13 고정
+- **안전 실행 시스템**: `scripts/env/python_executor.sh` 환경 일관성 보장
+- **설정 시스템**: `src/utils/core.py` ConfigLoader, PillSnapLogger 구현
+- **로깅 시스템**: 콘솔+파일 로깅, 메트릭, 타이머, 진행상황 추적
 
-### 2. 설정 로딩 (Stage 2)
-- `config.py` 모듈 테스트 (`tests/test_config.py`) 작성 및 실행
-- 검증된 동작:
-  - 기본값 파싱 (config.yaml 비어있거나 없음 → 기본값 적용)
-  - 잘못된 YAML → 폴백 정상 작동
-  - 부분 설정 → 덮어쓰기 + 나머지는 기본값 유지
-  - 환경변수 vs config.yaml vs `paths.get_data_root()` 우선순위 검증
-  - Pydantic 유무 관계없이 정상 동작 확인
-- Step2 주요 테스트 통과 결과:
-  - `config.yaml > 환경변수 > paths.get_data_root() > "./data"`
+### 2. 데이터 구조 스캔 및 검증 완료 ✅
+- **실제 데이터 분석**: 526만개 이미지 (Single: 524만, Combo: 1.7만)
+- **K-코드 매핑**: EDI 코드 연결, 약품 메타데이터 추출
+- **Progressive Validation**: Stage 1 요구사항 (5K 이미지, 50 클래스) 확인
+- **데이터 무결성**: 이미지-라벨 매칭 검증 완료
 
-### 3. 데이터셋 구조 및 검증 (Stage 3)
-- 데이터 루트: `/mnt/data/pillsnap_dataset` 확정
-- 구조 검증:
-  - 단일 약물: 1,296 JSON/약물 (18 포즈 × 4 각도 × 18 회전)
-  - 조합 약물: 12 JSON/조합 (4개 K-코드 × 3 각도 + index.png)
-  - 각도 일관성: 단일(60°,70°,75°,90°), 조합(70°,75°,90°+index)
-- 검증 결과:
-  - 라벨(JSON) 크기·구조 정상 (1.9–2.1KB)
-  - 라벨/이미지 키 매칭 완료
-  - 누락 없음
-- 용량 검증:
-  - 총 라벨 파일 수: 1,220,412
-  - 압축률: 이미지 ≈100%, 라벨 ≈55%
+### 3. 프로젝트 구조 완전 정리 ✅
+- **모듈 구조 정리**: `src/utils.py` → `src/utils/core.py` 기능별 분류
+- **스크립트 정리**: `scripts/` 기능별 분류 (env, data, deployment, training)
+- **테스트 정리**: `tests/` 기능별 분류 (unit, integration, smoke, stage_validation)
+- **아티팩트 정리**: `artifacts/` 정리 (stage1, models, manifests, logs, wheels)
 
-### 4. 데이터 루트 및 Path Policy 확인
-- 환경변수 `PILLSNAP_DATA_ROOT=/mnt/data/pillsnap_dataset` 적용 → `config.load_config()` 반영 확인
-- `path_policy.py` 검증: `Valid WSL path` 통과
-- 최종 출력: `✅ ok`
-
-### 5. 데이터셋 스캔, 전처리, 검증 파이프라인 (Stage 1 완료)
-- **Step 3: 스캔 모듈 (`dataset/scan.py`)** 구현 완료
-  - 스트리밍 스캔: 260만+ 파일 메모리 효율적 처리
-  - 이미지-라벨 basename 매칭 및 통계 생성
-  - DataFrame 출력: `["image_path", "label_path", "code", "is_pair"]`
-  - 테스트: 14개 통과
-
-- **Step 4: 전처리 모듈 (`dataset/preprocess.py`)** 구현 완료
-  - 스캔 결과 → CSV 매니페스트 정규화
-  - 파일 존재성 재검증, 중복 코드 제거
-  - 스키마 보존 (빈 결과도 (0,4) 구조 유지)
-  - 테스트: 12개 통과
-
-- **Step 5: 검증 모듈 (`dataset/validate.py`)** 구현 완료
-  - 품질 게이트 및 ValidationReport 생성
-  - 검증 규칙 R0-R5: 컬럼 존재, 중복 코드, 파일 존재성, pair rate, 라벨 크기, 각도 규칙
-  - 파일 존재성 정책 (is_pair 여부에 따른 에러/경고 구분)
-  - 테스트: 17개 통과
-
-### 6. Step 6: 매니페스트 최종 무결성 & 리포트 생성
-- **E2E 파이프라인 검증**: scan → preprocess → validate 전체 플로우 확인
-- **실행 결과**:
-  - 데이터셋 스캔: 260만개 이미지/라벨 발견
-  - 샘플 처리: 400개 → 398-399개 유효 (1-2개 라벨 누락 제거)
-  - 검증 통과: 100% pair rate, 모든 파일 존재 확인
-- **생성 파일**:
-  - `artifacts/manifest_stage1.csv` - 최종 매니페스트
-  - `artifacts/manifest_validation_step6.json` - 검증 결과
-  - `artifacts/step6_report.md` - 사람이 읽기 쉬운 리포트
-
-### 7. Step 6.apply: 중요 발견사항 반영
-- **데이터 루트 고정**: `/mnt/data/pillsnap_dataset/data`
-- **PNG 확장자 지원**: config.yaml에 ".png" 포함 확인
-- **가상환경 Python 강제**: `$HOME/pillsnap/.venv/bin/python` 경로 고정
-- 모든 설정 반영 및 스모크 테스트 통과
-
-### 8. Step 5.x: scan 경고 요약 출력 개선
-- **중복 basename 경고 집계**: 개별 라인 대신 `defaultdict(int)` 카운터 사용
-- **상위 20개 요약**: `basename: count duplicates` 형태로 정렬 출력
-- **요약 형식**: `=== Duplicate Basename Summary ===` 헤더 구분
-- **실행 결과**: 391개 이미지 중복, 13,722개 라벨 중복 basename 발견
-- **테스트 추가**: 경고 문자열 검사 포함, pytest 15/15 통과
-
-### 9. Stage 1 엔트리포인트 구현 (E0-E4)
-- **E0: 경로 가드**: 중복 'pillsnap' 폴더 생성 방지 정책 적용
-- **E1: 엔트리포인트 구현**:
-  - `pillsnap/stage1/verify.py` - 빠른 스모크 테스트 (1-2분, 샘플링)
-  - `pillsnap/stage1/run.py` - 전체 파이프라인 실행 (모든 아티팩트 생성)
-  - Rich UI 통합으로 사용자 친화적 출력
-- **E2: 포괄적 테스트**: `tests/test_entrypoints.py` 구현
-  - 6개 테스트 메서드로 import, 실행, 환경변수, 스키마 검증
-  - 모든 테스트 통과 확인
-- **E3: 실행 가이드**: README.md 업데이트
-- **E4: 자체 검증**: 로그 생성 및 성공 확인
-
-### 10. Step 9: Stage 1 Freeze & 재현성 보장
-- **환경 스냅샷**: Python 3.11.13, torch 2.5.1+cu121, WSL 환경 정보 저장
-- **패키지 고정**: `artifacts/requirements.lock.txt` 생성
-- **무결성 보장**: 핵심 산출물 SHA1 체크섬 생성
-  - `artifacts/freeze_hashes_step9.json` - 기존 산출물
-  - `artifacts/freeze_hashes_step9_freeze50.json` - 재현성 테스트 결과
-- **재현성 검증**: 50개 샘플로 verify/run 엔트리포인트 재실행 성공
-- **Git 커밋**: 모든 freeze 파일 버전 관리 적용
+### 4. GPU 환경 검증 완료 ✅
+- **RTX 5080 호환성**: PyTorch 2.7.0+cu128 완전 구축
+- **가상환경 일원화**: `.venv` 직접 사용, 심볼릭 링크 제거
+- **GPU 검증**: CUDA 11.8, 16GB VRAM, channels_last 최적화 확인
 
 ---
 
-## 현재 상태
-- Stage 1 (경로 유틸리티) ✅ 완료
-- Stage 2 (config 로딩 및 data.root 우선순위) ✅ 통과 확인
-- Stage 3 (데이터셋 구조 및 검증) ✅ 완료
-- Stage 4 (데이터 루트 및 Path Policy 확인) ✅ 통과 확인
-- **Stage 1 데이터 파이프라인 (scan→preprocess→validate)** ✅ **완료**
-  - Step 3-5: 핵심 모듈 구현 및 테스트 (총 43개 테스트 통과)
-  - Step 6: E2E 검증 및 리포트 생성 완료
-  - Step 6.apply: 환경 설정 최적화 완료
-  - Step 5.x: 경고 출력 개선 완료
-- **Stage 1 엔트리포인트 & CLI** ✅ **완료**
-  - E0-E4: 사용자 친화적 CLI 인터페이스 구현
-  - Rich UI, 에러 핸들링, 포괄적 테스트 포함
-- **Stage 1 Freeze & 재현성** ✅ **완료**
-  - 환경 스냅샷, 패키지 고정, 체크섬 검증
-  - 재현성 테스트 통과, Git 버전 관리 적용
+## 현재 상태 (2025-08-19 기준)
+- ✅ **1단계: 기초 인프라 구축 완료** (Python 환경, 설정시스템, 로깅)
+- ✅ **데이터 구조 스캔 및 검증 완료** (526만 이미지, K-코드 매핑)
+- ✅ **프로젝트 구조 완전 정리 완료** (모듈, 스크립트, 테스트, 아티팩트)
+- 🔄 **2단계: 데이터 파이프라인 구현 진행 중**
+- ❌ **PART_C~F 아키텍처 미구현** (Two-Stage Pipeline 코드 없음)
+- ❌ **실제 Progressive Validation Stage 1 미시작** (5K 샘플, 50 클래스)
+- 🎯 **다음: 이미지 전처리 파이프라인 → COCO/YOLO 변환 → 데이터 로더**
 
 ---
 
-## 완료된 핵심 구성 요소
-1. **설정 관리**: `config.py` + 환경변수 우선순위
-2. **경로 정책**: `paths.py` + WSL 경로 검증
-3. **데이터 스캔**: `dataset/scan.py` - 260만+ 파일 스트리밍 처리
-4. **데이터 전처리**: `dataset/preprocess.py` - CSV 매니페스트 정규화
-5. **데이터 검증**: `dataset/validate.py` - 품질 게이트 및 리포팅
-6. **테스트 스위트**: 총 49개 테스트 (scan:15, preprocess:12, validate:17, entrypoints:6)
-7. **환경 최적화**: 가상환경 경로, 데이터 루트, PNG 지원
-8. **CLI 엔트리포인트**: `pillsnap.stage1.verify` / `pillsnap.stage1.run`
-9. **재현성 보장**: 환경 스냅샷, 패키지 고정, 체크섬 검증
+## 완료된 핵심 구성 요소 
+1. **PART_B 프로젝트 구조**: PART_0~H 원래 설계 복원
+2. **GPU 환경 준비**: RTX 5080 + PyTorch 2.7.0+cu128 완전 구축  
+3. **OptimizationAdvisor 준비**: PART_0 평가 시스템 환경 테스트 준비
+4. **config.yaml**: Two-Stage Pipeline + 128GB RAM 최적화 설정
+5. **환경 검증**: GPU 스모크 테스트를 통한 기본 환경 확인
+
+## 미완료 핵심 구성 요소
+1. **PART_C~F 아키텍처**: Two-Stage Pipeline 코드 미구현
+2. **실제 Progressive Validation**: Stage 1 (5K 샘플, 50 클래스) 미시작
+3. **실제 모델 성능 검증**: YOLOv11m + EfficientNetV2-S 실제 동작 미확인
 
 ---
 
-## 생성된 주요 파일 및 아티팩트
-
-### 코드 구조
+## 프로젝트 구조 (정리 완료 2025-08-19)
 ```
-pillsnap/
-├── __init__.py
-├── stage1/
-│   ├── __init__.py
-│   ├── verify.py      # 빠른 검증 (1-2분)
-│   └── run.py         # 전체 파이프라인
-src/
-├── data.py            # 데이터셋 클래스 (구현됨)
-├── train.py           # 학습 루프 (구현됨)
-├── models/            # 모델 정의 (구현됨)
-├── utils/
-│   └── oom_guard.py   # OOM 가드 (구현됨)
-dataset/
-├── scan.py            # 스트리밍 스캔
-├── preprocess.py      # 매니페스트 정규화
-└── validate.py        # 품질 검증
-tests/
-├── test_*.py          # 포괄적 테스트 스위트
-```
-
-### 아티팩트 (재현성 보장)
-```
-artifacts/
-├── env_snapshot.json           # 환경 스냅샷
-├── env_snapshot.md            # 환경 요약 (markdown)
-├── requirements.lock.txt      # 패키지 버전 고정
-├── freeze_hashes_step9.json   # 체크섬 (주요 산출물)
-├── freeze_hashes_step9_freeze50.json  # 체크섬 (재현성 테스트)
-├── manifest_stage1.csv        # 최종 매니페스트
-├── manifest_freeze50.csv      # 재현성 테스트 매니페스트
-├── stage1_stats.json          # 스캔 통계
-├── stage1_validation_report.json  # 검증 리포트
-└── step6_report.md           # 사람이 읽기 쉬운 리포트
+/home/max16/pillsnap/
+├── config.yaml        # Progressive Validation + RTX 5080 최적화 설정
+├── CLAUDE.md          # 프로젝트 가이드 + 세션 초기화 지침
+├── src/               # 핵심 구현 모듈
+│   ├── utils/           # 유틸리티 모듈 (정리됨)
+│   │   ├── core.py        # ConfigLoader, PillSnapLogger (완료)
+│   │   └── oom_guard.py   # OOM 방지 기능
+│   ├── data.py          # Two-Stage 데이터 파이프라인 (TODO)
+│   ├── models/          # AI 모델 구현
+│   │   ├── detector.py    # YOLOv11m 래퍼 (TODO)
+│   │   ├── classifier.py  # EfficientNetV2-S (TODO)
+│   │   └── pipeline.py    # 조건부 파이프라인 (TODO)
+│   ├── train.py         # Interleaved 학습 (TODO)  
+│   └── api/             # FastAPI 서빙 (일부 구현됨)
+├── tests/             # 기능별 테스트 (재구성됨)
+│   ├── unit/            # 단위 테스트
+│   ├── integration/     # 통합 테스트  
+│   ├── smoke/           # 스모크 테스트
+│   └── stage_validation/ # Progressive Validation 테스트
+├── scripts/           # 운영 스크립트 (기능별 정리됨)
+│   ├── env/             # 환경 관리
+│   ├── data/            # 데이터 처리 (analyze_dataset_structure.py 포함)
+│   ├── deployment/      # 배포 및 운영
+│   └── training/        # 학습 관련
+└── artifacts/         # 실험 산출물 (정리됨)
+    ├── stage1/          # Stage 1 관련 결과물
+    ├── models/          # 훈련된 모델 저장소
+    ├── manifests/       # 데이터 매니페스트
+    ├── logs/            # 실험 로그
+    └── wheels/          # PyTorch CUDA 패키지 캐시
 ```
 
-### 실행 명령어 (재현성 보장됨)
+---
+
+## 다음 구현 우선순위 (2단계: 데이터 파이프라인 구현)
+1. **Stage 1 데이터 샘플링**: 526만 → 5K 이미지, 50 클래스 추출 (`src/data/stage1_sampler.py`)
+2. **이미지 전처리 파이프라인**: Detection(640px), Classification(384px) 변환 (`src/data/image_transforms.py`)
+3. **COCO → YOLO 포맷 변환**: Bounding box 정규화, 클래스 ID 매핑 (`src/data/coco_to_yolo_converter.py`)
+4. **메모리 효율적 데이터 로더**: LMDB 캐싱, 배치 프리페칭 (`src/data/efficient_dataloader.py`)
+5. **K-코드 매핑 관리자**: EDI 코드 매핑, 약품 메타데이터 (`src/data/drug_metadata_manager.py`)
+6. **YOLOv11m 검출 모델**: PART_D 구현 (`src/models/detector.py`)
+7. **EfficientNetV2-S 분류 모델**: PART_E 구현 (`src/models/classifier.py`)
+8. **조건부 Two-Stage 파이프라인**: PART_C 통합 (`src/models/pipeline.py`)
+
+---
+
+## 실행 환경 (현재 구축 완료)
 ```bash
-# 가상환경 활성화
-source $HOME/pillsnap/.venv/bin/activate
+# RTX 5080 Python 환경 (정리됨)
+bash scripts/env/activate_environment.sh  # 환경 활성화
+bash scripts/env/python_executor.sh [스크립트]  # 안전한 Python 실행
 
-# 환경변수 설정
-export PILLSNAP_DATA_ROOT="/mnt/data/pillsnap_dataset/data"
+# 데이터 루트 설정  
+export PILLSNAP_DATA_ROOT="/mnt/data/pillsnap_dataset"
 
-# 빠른 검증 (1-2분)
-python -m pillsnap.stage1.verify --sample-limit 200 --max-seconds 120
+# 데이터 구조 분석 (완료됨)
+bash scripts/env/python_executor.sh scripts/data/analyze_dataset_structure.py
 
-# 전체 파이프라인 (제한된 샘플)
-python -m pillsnap.stage1.run --limit 400 --manifest artifacts/manifest_stage1.csv
+# GPU 호환성 확인
+python -c "import torch; print(torch.cuda.is_available(), torch.__version__)"
+# 출력: True 2.7.0+cu128
 
-# 테스트 실행
-pytest tests/test_entrypoints.py -v  # 엔트리포인트 테스트
-pytest tests/ -v                     # 전체 테스트 스위트
+# 현재 상태: 데이터 파이프라인 구현 진행 중
 ```
 
----
+**최신 변경사항 (2025-08-19)**:
+- ✅ 프로젝트 구조 완전 정리 (모듈, 스크립트, 테스트, 아티팩트)
+- ✅ 실제 데이터 구조 분석 완료 (526만 이미지, K-코드 매핑)
+- ✅ Python 환경 일원화 (.venv 직접 사용)
+- 🔄 데이터 파이프라인 구현 시작
 
-## Stage 1 완료 체크리스트 ✅
-- [x] **데이터 파이프라인**: scan → preprocess → validate 완전 구현
-- [x] **CLI 인터페이스**: 사용자 친화적 verify/run 엔트리포인트
-- [x] **테스트 커버리지**: 49개 테스트 모두 통과
-- [x] **재현성 보장**: 환경 고정, 체크섬 검증, Git 버전 관리
-- [x] **문서화**: 실행 가이드, 진행상황 요약 완료
-- [x] **환경 최적화**: WSL 경로, 가상환경, 데이터 루트 확정
-
----
-
-## 최신 상태 업데이트 (2025-08-18)
-
-### ✅ Step 11 Hotfix: JSON EDI 추출 완료
-**핵심 문제 해결**: `code` 컬럼(파일 basename) ≠ `edi_code` (실제 EDI)
-
-1. **preprocess.py 강화**:
-   - JSON 파싱하여 EDI 코드 및 메타데이터 추출
-   - 새 컬럼: `mapping_code`, `edi_code`, `json_ok` + 의약품 메타데이터
-   - 빈 DataFrame 스키마 보존 및 EDI 누락률 경고
-
-2. **클래스 맵 생성**: `pillsnap/stage1/utils.py`
-   - `build_edi_classes()`: EDI → class_id 매핑 자동 생성
-   - `validate_class_map()`: 클래스 맵 무결성 검증
-
-3. **테스트 추가**: `tests/test_json_enrichment.py` (5개 테스트 통과)
-
-4. **현재 산출물**:
-   - `artifacts/manifest_enriched.csv`: 풍부화된 매니페스트 (20개 샘플)
-   - `artifacts/classes_step11.json`: EDI → class_id 매핑 (19개 클래스)
-
-### ✅ Stage 2 학습 파이프라인 구현 완료 (Step 11-1)
-**목적**: Stage 1 산출물 기반 EfficientNetV2-L 분류 학습
-
-1. **패키지 구조**: `pillsnap/stage2/`
-   - `dataset_cls.py`: EDI 기반 PillsnapClsDataset 클래스
-   - `models.py`: EfficientNetV2-L 모델 팩토리 (timm → torchvision 폴백)
-   - `train_cls.py`: 완전한 학습 스크립트 (AMP, 검증, 체크포인트)
-
-2. **주요 특징**:
-   - 117M 파라미터 EfficientNetV2-L (447.3MB)
-   - 19개 EDI 클래스 분류
-   - train/val 자동 분할, AMP 지원
-   - CPU/GPU 자동 감지
-
-3. **현재 이슈**: RTX 5080 CUDA 호환성 (sm_120 vs PyTorch sm_90)
-
-### 🔄 즉시 다음 작업
-1. **Stage 2 스모크 테스트 완료** (CPU 기반)
-2. **CUDA 호환성 해결** 또는 CPU 개발 환경 구축
-3. **평가 스크립트 구현** 및 추론 파이프라인 연동
-
----
-
-## 기존 다음 단계
-- **Stage 3: API 서비스** (FastAPI + Streamlit)
-- **Stage 4: 배포 및 성능 최적화**
-
-**재현성 보장**: 새로운 세션에서는 `/.claude/commands/initial-prompt.md`를 실행하여 전체 컨텍스트를 로드할 수 있습니다.
+**재현성 보장**: 새로운 세션에서는 `/.claude/commands/initial-prompt.md`를 실행하여 전체 컨텍스트를 복원할 수 있습니다.
 
 ---

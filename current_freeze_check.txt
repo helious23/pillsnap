@@ -1,3 +1,0 @@
-a4220be6b82ca8a4205698fa085f0c48577e6b5a  artifacts/manifest_stage1.csv
-96d892120c1be898ce64c2637cfe4d4eae69752d  artifacts/requirements.lock.txt
-d65c54c7be51fe269fbf809f3909db7a5be6c37f  artifacts/freeze_hashes_step10.json

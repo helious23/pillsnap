@@ -1,0 +1,4 @@
+image_path,label_path,code,is_pair
+/mnt/data/pillsnap_dataset/data/train/images/single/TS_7_single/K-012914/K-012914_0_2_0_0_60_220_200.png,/mnt/data/pillsnap_dataset/data/train/labels/single/TL_7_single/K-012914_json/K-012914_0_2_0_0_60_220_200.json,K-012914_0_2_0_0_60_220_200,True
+/mnt/data/pillsnap_dataset/data/train/images/single/TS_8_single/K-013684/K-013684_0_1_1_2_60_240_200.png,/mnt/data/pillsnap_dataset/data/train/labels/single/TL_8_single/K-013684_json/K-013684_0_1_1_2_60_240_200.json,K-013684_0_1_1_2_60_240_200,True
+/mnt/data/pillsnap_dataset/data/train/images/single/TS_45_single/K-016740/K-016740_0_2_0_1_70_040_200.png,/mnt/data/pillsnap_dataset/data/train/labels/single/TL_45_single/K-016740_json/K-016740_0_2_0_1_70_040_200.json,K-016740_0_2_0_1_70_040_200,True

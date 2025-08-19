@@ -1,334 +1,373 @@
-# PillSnap ML
+# 🏥 PillSnap ML
 
-AI-powered pharmaceutical pill identification system using Two-Stage Conditional Pipeline
-
-## 🎯 Overview
-
-PillSnap ML is an advanced machine learning system designed to identify pharmaceutical pills from images using a sophisticated two-stage pipeline:
-
-- **Single Pills** → Direct Classification (EfficientNetV2-L)
-- **Combination Pills** → YOLOv11x Detection → Crop → Classification
-
-### Performance Targets
-- Single pill accuracy: **92%**
-- Combination pill mAP@0.5: **0.85**
-- Inference speed: **<100ms per image**
-
-## 🏗️ Architecture
-
-```
-Input Image → Auto Mode Detection
-    ├─ Single Pills → Direct Classification (EfficientNetV2-L)
-    └─ Combination Pills → YOLOv11x Detection → Crop → Classification
-```
-
-### Model Components
-- **Detection**: YOLOv11x (640px input) for combination pill detection
-- **Classification**: EfficientNetV2-L (384px input) for 5000-class `edi_code` identification
-
-## 📁 Project Structure
-
-```
-pillsnap/
-├── src/
-│   ├── data.py              # Dataset loaders (PillsnapClsDataset, PillsnapDetDataset)
-│   ├── train.py             # Training pipeline with OOM guard
-│   ├── models/              # Model implementations
-│   ├── utils/
-│   │   └── oom_guard.py     # OOM recovery utilities
-│   ├── core/                # Core components (from implementation guide)
-│   └── api/                 # FastAPI service
-├── dataset/                 # Data processing pipeline
-│   ├── scan.py              # Dataset scanning (2.6M+ files)
-│   ├── preprocess.py        # CSV manifest generation
-│   └── validate.py          # Data quality validation
-├── tests/                   # Comprehensive test suite
-│   ├── test_pipeline.py     # Step 8 smoke tests
-│   ├── test_paths.py        # Path validation tests
-│   ├── test_validate.py     # Data validation tests
-│   └── test_stage1_cli.py   # CLI integration tests
-├── artifacts/               # Generated manifests and checkpoints
-├── config.yaml              # Configuration file
-└── paths.py                 # Path utilities with WSL support
-```
-
-## 🚀 Quick Start
-
-### 1. Environment Setup
-
-```bash
-# Clone repository
-git clone <repository-url>
-cd pillsnap
-
-# Setup virtual environment
-bash scripts/bootstrap_venv.sh
-source $HOME/pillsnap/.venv/bin/activate
-
-# Verify environment
-python -c "import torch; print(f'PyTorch: {torch.__version__}')"
-```
-
-### 2. Data Preparation
-
-```bash
-# Set data root (adjust path as needed)
-export PILLSNAP_DATA_ROOT=/mnt/data/pillsnap_dataset
-
-# Scan dataset (safety limit: 400 samples)
-python -m dataset.scan /mnt/data/pillsnap_dataset --output artifacts/scan_results.csv --limit 400
-
-# Preprocess to manifest
-python -m dataset.preprocess artifacts/scan_results.csv artifacts/manifest_stage1.csv
-
-# Validate data quality
-python -m dataset.validate artifacts/manifest_stage1.csv artifacts/validation_report.json
-```
-
-### 3. Training
-
-#### Single Pill Classification
-```bash
-# Basic training
-python -m src.train --mode single --epochs 100 --batch-size 64 --lr 1e-3
-
-# With optimizations
-python -m src.train --mode single --epochs 100 --batch-size 128 --amp --compile
-
-# Resume from checkpoint
-python -m src.train --mode single --resume artifacts/checkpoints/last.pt
-```
-
-#### Combination Pill Detection
-```bash
-# Detection training (note: dummy implementation)
-python -m src.train --mode combo --epochs 300 --batch-size 16 --lr 1e-4
-```
-
-### 4. Testing
-
-```bash
-# Run all tests
-pytest tests/ -v
-
-# Step 8 pipeline tests
-pytest tests/test_pipeline.py -v
-
-# Integration tests
-pytest tests/test_pipeline.py::TestEndToEndPipeline -v
-
-# Smoke test (quick verification)
-python tests/test_pipeline.py
-```
-
-## 📊 Step 8 Implementation Status
-
-**Step 8: Core Pipeline & Smoke Tests** ✅ **COMPLETED**
-
-### Implemented Components
-
-#### 1. **src/data.py** - Dataset Loaders
-- `PillsnapClsDataset`: Classification dataset with EDI code mapping
-- `PillsnapDetDataset`: Detection dataset with YOLO bbox format
-- `CodeToClassMapper`: EDI code ↔ class ID conversion
-- Transform pipelines for training/validation
-- Memory-efficient label caching
-
-#### 2. **src/train.py** - Training Pipeline
-- `ModelFactory`: EfficientNetV2-L & YOLOv11 model creation
-- `Trainer`: Complete training loop with metrics tracking
-- `MetricTracker`: Loss/accuracy monitoring with best model tracking
-- **Features:**
-  - `--mode single|combo` training modes
-  - AMP (Automatic Mixed Precision) support
-  - torch.compile optimization for RTX 5080
-  - OOM recovery integration
-  - Checkpoint saving/loading
-
-#### 3. **src/utils/oom_guard.py** - OOM Recovery
-- `OOMGuard`: Intelligent batch size reduction
-- GPU memory monitoring and cleanup
-- Retry logic with configurable limits
-- State persistence for checkpoint compatibility
-- **Recovery Strategy:**
-  1. Clear GPU cache
-  2. Reduce batch size by 50%
-  3. Continue training with new batch size
-  4. Track statistics for debugging
-
-#### 4. **tests/test_pipeline.py** - Comprehensive Testing
-- `TestCodeToClassMapper`: Mapping logic verification
-- `TestPillsnapClsDataset`: Dataset functionality
-- `TestModelFactory`: Model creation and forward pass
-- `TestOOMGuard`: OOM recovery simulation
-- `TestTrainerSmoke`: Training pipeline basics
-- `TestEndToEndPipeline`: Integration tests
-
-### Key Features
-
-#### 🔥 RTX 5080 16GB Optimizations
-- **TF32** acceleration enabled
-- **torch.compile** with `max-autotune` mode
-- **AMP** (fp16) for memory efficiency
-- **OOM Guard** for automatic recovery
-
-#### 🛡️ Robust Error Handling
-- Out-of-memory automatic recovery
-- Batch size dynamic adjustment
-- GPU memory monitoring
-- Comprehensive logging
-
-#### 📈 Production Ready
-- Configuration-driven design
-- Checkpoint resume capability
-- Metrics tracking and visualization
-- Comprehensive test coverage
-
-## 🧪 Testing Results
-
-```bash
-# Current test status
-pytest tests/ --tb=short
-```
-
-**Total Tests**: 68 tests passing
-- **paths.py**: 19 tests ✅
-- **validate.py**: 22 tests ✅  
-- **scan.py**: 15 tests ✅
-- **preprocess.py**: 12 tests ✅
-- **pipeline.py**: Full coverage ✅
-
-## 🔧 Hardware Requirements
-
-### Recommended
-- **GPU**: RTX 5080 (16GB VRAM)
-- **RAM**: 128GB system memory
-- **Storage**: NVMe SSD for datasets
-
-### Minimum
-- **GPU**: RTX 3080 (10GB VRAM)
-- **RAM**: 32GB system memory
-- **Storage**: 500GB available space
-
-## 📋 Configuration
-
-### Environment Variables
-```bash
-# Data root (highest priority)
-export PILLSNAP_DATA_ROOT=/mnt/data/pillsnap_dataset
-
-# Virtual environment Python
-export VENV_PYTHON="$HOME/pillsnap/.venv/bin/python"
-```
-
-### config.yaml
-```yaml
-data:
-  root: /mnt/data/pillsnap_dataset  # Overridden by env var
-  pipeline_mode: single             # single|combo
-  default_mode: single              # UI default
-  image_exts: [".jpg", ".jpeg", ".png"]
-  label_ext: ".json"
-
-preprocess:
-  manifest_filename: "manifest_stage1.csv"
-  quarantine_dirname: "_quarantine"
-
-validation:
-  enable_angle_rules: false
-  label_size_range: [1900, 2100]
-```
-
-## 🎯 Current Progress
-
-### ✅ Completed Stages
-
-#### Stage 1: Core Infrastructure
-- ✅ Path utilities with WSL support
-- ✅ Configuration management
-- ✅ Dataset structure validation
-
-#### Stage 1 Data Pipeline
-- ✅ **Step 3-5**: Scan, preprocess, validate modules
-- ✅ **Step 6**: End-to-end pipeline integration  
-- ✅ **Step 6.apply**: Environment optimizations
-- ✅ **Step 5.x**: Warning output improvements
-- ✅ **Step 7**: Integrity auditing & reporting
-
-#### Stage 8: Core Pipeline ✅ **NEW**
-- ✅ Dataset classes with EDI code mapping
-- ✅ Training pipeline with OOM recovery
-- ✅ Model factory (EfficientNetV2-L + dummy YOLO)
-- ✅ Comprehensive smoke tests
-- ✅ RTX 5080 optimizations (TF32, AMP, compile)
-
-### 📋 Generated Artifacts
-- `artifacts/manifest_stage1.csv`: Validated dataset manifest (399 samples)
-- `artifacts/manifest_audit_step7.csv`: Integrity audit results (64 samples)
-- `artifacts/step6_report.md`: Human-readable data quality report
-- `artifacts/checkpoints/`: Training checkpoints directory
-
-## 🔮 Next Steps
-
-### Stage 2: Model Implementation
-- [ ] **Real YOLOv11** integration (replace dummy model)
-- [ ] **Model training** on full dataset
-- [ ] **Hyperparameter optimization**
-- [ ] **Performance benchmarking**
-
-### Stage 3: API Service
-- [ ] **FastAPI** REST endpoints
-- [ ] **Streamlit** web interface
-- [ ] **Docker** containerization
-- [ ] **Load testing**
-
-### Stage 4: Production Deployment
-- [ ] **CI/CD** pipeline setup
-- [ ] **Monitoring** and alerting
-- [ ] **A/B testing** framework
-- [ ] **Performance optimization**
-
-## 📚 Documentation
-
-### Essential Commands
-```bash
-# Initialize session (run first)
-/.claude/commands/initial-prompts.md
-
-# Train classification model
-python -m src.train --mode single --epochs 10 --batch-size 32 --amp
-
-# Run smoke tests
-python tests/test_pipeline.py
-
-# Full test suite
-pytest tests/ -v --tb=short
-
-# Data pipeline
-python -m dataset.scan /mnt/data/pillsnap_dataset --limit 100
-python -m dataset.preprocess scan_results.csv manifest.csv
-python -m dataset.validate manifest.csv validation_report.json
-```
-
-### Key Files
-- **Initial Setup**: `/.claude/commands/initial-prompt.md`
-- **Core Config**: `config.py`, `paths.py`
-- **Data Pipeline**: `dataset/{scan,preprocess,validate}.py`
-- **Training**: `src/train.py`, `src/data.py`
-- **Tests**: `tests/test_pipeline.py` (Step 8 verification)
-
-## 🤝 Contributing
-
-1. **Environment**: Use WSL2 with `/mnt/data/` paths only
-2. **Python**: Always use `$HOME/pillsnap/.venv/bin/python`
-3. **Testing**: All new features require tests
-4. **Documentation**: Update README for significant changes
-
-## 📄 License
-
-[Add license information]
+**Two-Stage Conditional Pipeline 기반 경구약제 AI 식별 시스템**
 
 ---
 
-**PillSnap ML** - Advanced pharmaceutical identification through computer vision
-*Developed with Claude Code assistance*
+## 🎯 프로젝트 개요
+
+PillSnap ML은 **526만개 약품 이미지**를 활용하여 **5,000개 EDI 코드**를 식별하는 고성능 AI 시스템입니다.
+
+### 🏗️ 아키텍처 - Two-Stage Conditional Pipeline
+
+```
+📷 입력 이미지 → 사용자 모드 선택
+    ├─ Single 모드 → EfficientNetV2-S 직접 분류 (384px)
+    └─ Combo 모드 → YOLOv11m 검출 (640px) → 크롭 → EfficientNetV2-S 분류
+```
+
+### 📊 성능 목표
+- **Single 약품 정확도**: 92%
+- **Combination 약품 mAP@0.5**: 0.85
+- **추론 속도**: <100ms/이미지
+
+---
+
+## 🚀 Progressive Validation Strategy
+
+단계별 확장을 통한 안정적인 시스템 구축:
+
+| 단계 | 이미지 수 | 클래스 수 | 목적 |
+|------|-----------|-----------|------|
+| **Stage 1** | 5,000개 | 50개 | 파이프라인 검증 |
+| **Stage 2** | 25,000개 | 250개 | 성능 기준선 |
+| **Stage 3** | 100,000개 | 1,000개 | 확장성 테스트 |
+| **Stage 4** | 500,000개 | 5,000개 | 프로덕션 배포 |
+
+---
+
+## 📁 프로젝트 구조
+
+```
+pillsnap/
+├── 📁 src/                    # 핵심 구현 모듈
+│   ├── utils/                 # 유틸리티 모듈
+│   │   ├── core.py              # ConfigLoader, PillSnapLogger
+│   │   └── oom_guard.py         # OOM 방지 시스템
+│   ├── data.py                # Two-Stage 데이터 파이프라인 (TODO)
+│   ├── models/                # AI 모델 구현
+│   │   ├── detector.py          # YOLOv11m 검출 모델 (TODO)
+│   │   ├── classifier.py        # EfficientNetV2-S 분류 모델 (TODO)
+│   │   └── pipeline.py          # 조건부 파이프라인 (TODO)
+│   ├── train.py               # 학습 파이프라인 (TODO)
+│   └── api/                   # FastAPI 서빙 (일부 구현)
+├── 📁 tests/                  # 기능별 테스트
+│   ├── unit/                  # 단위 테스트
+│   ├── integration/           # 통합 테스트
+│   ├── smoke/                 # 스모크 테스트
+│   └── stage_validation/      # Progressive Validation 테스트
+├── 📁 scripts/                # 운영 스크립트
+│   ├── env/                   # 환경 관리
+│   ├── data/                  # 데이터 처리
+│   ├── deployment/            # 배포 및 운영
+│   └── training/              # 학습 관련
+├── 📁 artifacts/              # 실험 산출물
+│   ├── stage1/                # Stage 1 결과물
+│   ├── models/                # 훈련된 모델
+│   ├── manifests/             # 데이터 매니페스트
+│   └── logs/                  # 실험 로그
+├── config.yaml                # Progressive Validation + RTX 5080 최적화 설정
+└── CLAUDE.md                  # 프로젝트 가이드 + 세션 초기화 지침
+```
+
+---
+
+## 🔧 환경 설정
+
+### 하드웨어 요구사항
+
+**권장 사양**:
+- **GPU**: RTX 5080 (16GB VRAM)
+- **RAM**: 128GB 시스템 메모리
+- **저장소**: NVMe SSD
+
+**최소 사양**:
+- **GPU**: RTX 3080 (10GB VRAM) 
+- **RAM**: 32GB 시스템 메모리
+
+### 소프트웨어 환경
+
+```bash
+# 환경 정보
+OS: WSL2 (Ubuntu)
+Python: 3.11.13
+PyTorch: 2.7.0+cu128
+CUDA: 11.8
+```
+
+---
+
+## 🚀 빠른 시작
+
+### 1. 환경 활성화
+
+```bash
+# 프로젝트 디렉토리로 이동
+cd /home/max16/pillsnap
+
+# 가상환경 활성화
+bash scripts/env/activate_environment.sh
+
+# 데이터 루트 설정
+export PILLSNAP_DATA_ROOT="/mnt/data/pillsnap_dataset"
+```
+
+### 2. 데이터 구조 분석
+
+```bash
+# 실제 데이터 구조 스캔 (완료됨)
+bash scripts/env/python_executor.sh scripts/data/analyze_dataset_structure.py
+
+# 결과: 526만개 이미지, K-코드 매핑, 무결성 검증 완료
+```
+
+### 3. GPU 환경 검증
+
+```bash
+# PyTorch GPU 호환성 확인
+python -c "import torch; print(f'CUDA: {torch.cuda.is_available()}, 버전: {torch.__version__}')"
+
+# 예상 출력: CUDA: True, 버전: 2.7.0+cu128
+```
+
+---
+
+## 📊 현재 구현 상태
+
+### ✅ 완료된 단계
+
+#### 1단계: 기초 인프라 구축 ✅
+- **Python 환경**: 3.11.13 가상환경 구축
+- **설정 시스템**: ConfigLoader (환경변수 오버라이드, 경로 검증)
+- **로깅 시스템**: PillSnapLogger (콘솔+파일, 메트릭, 타이머)
+- **안전 실행**: python_executor.sh (일관된 환경 보장)
+
+#### 데이터 구조 스캔 및 검증 ✅
+- **실제 데이터 분석**: 526만개 이미지 (Single: 524만, Combo: 1.7만)
+- **데이터 매핑**: K-코드 → EDI 코드 연결, 약품 메타데이터 추출
+- **무결성 검증**: 이미지-라벨 매칭 완료
+- **Progressive Validation 준비**: Stage 1 요구사항 (5K 이미지, 50 클래스) 확인
+
+#### 프로젝트 구조 정리 ✅
+- **모듈 정리**: 기능별 분류 및 명확한 네이밍
+- **스크립트 정리**: env, data, deployment, training 분류
+- **테스트 정리**: unit, integration, smoke, stage_validation 분류
+- **아티팩트 정리**: 실험 결과물 체계적 관리
+
+### 🔄 진행 중인 단계
+
+#### 2단계: 데이터 파이프라인 구현 (진행 중)
+- **Stage 1 샘플링**: 526만 → 5K 이미지, 50 클래스 추출
+- **이미지 전처리**: Detection(640px), Classification(384px) 최적화
+- **포맷 변환**: COCO → YOLO 변환, 클래스 ID 매핑
+- **메모리 최적화**: LMDB 캐싱, 128GB RAM 활용
+
+### ❌ 미구현 단계
+
+#### 3단계: 모델 아키텍처 구현
+- YOLOv11m 검출 모델 구현
+- EfficientNetV2-S 분류 모델 구현
+- Two-Stage 조건부 파이프라인 통합
+
+#### 4단계: 학습 파이프라인 구현
+- Interleaved 학습 루프
+- RTX 5080 최적화 (Mixed Precision, torch.compile)
+- OOM Guard 통합
+
+#### 5단계: API 서비스 구현
+- FastAPI REST 엔드포인트
+- 이미지 업로드 및 처리
+- Two-Stage 모드 선택
+
+#### 6단계: 배포 및 모니터링
+- ONNX 모델 내보내기
+- Cloudflare Tunnel 배포
+- 성능 모니터링
+
+---
+
+## 🔬 테스트 시스템
+
+### 테스트 구조
+
+```bash
+tests/
+├── unit/               # 단위 테스트
+│   ├── test_config.py     # 설정 로딩 테스트
+│   └── test_paths.py      # 경로 검증 테스트
+├── integration/        # 통합 테스트
+│   └── test_pipeline.py   # 파이프라인 전체 테스트
+├── smoke/             # 스모크 테스트
+│   └── gpu_smoke/        # GPU 기능 검증
+└── stage_validation/  # Progressive Validation 테스트
+    └── stage_*_evaluator.py  # 각 스테이지별 평가
+```
+
+### 테스트 실행
+
+```bash
+# 전체 테스트 실행
+pytest tests/ -v
+
+# 단위 테스트만
+pytest tests/unit/ -v
+
+# GPU 스모크 테스트
+pytest tests/smoke/ -v
+```
+
+---
+
+## ⚙️ 설정 파일
+
+### config.yaml 주요 설정
+
+```yaml
+# Progressive Validation 설정
+progressive_validation:
+  enabled: true
+  current_stage: 1           # 현재 Stage 1
+  stages:
+    stage1: {images: 5000, classes: 50}
+    stage2: {images: 25000, classes: 250}
+    stage3: {images: 100000, classes: 1000}
+    stage4: {images: 500000, classes: 5000}
+
+# Two-Stage Pipeline 설정
+pipeline:
+  mode: "user_controlled"     # 사용자 제어 모드
+  detection_model: "yolov11m"
+  classification_model: "efficientnetv2_s"
+  input_sizes:
+    detection: 640
+    classification: 384
+
+# RTX 5080 최적화
+optimization:
+  mixed_precision: true
+  torch_compile: true
+  channels_last: true
+  dataloader_workers: 16
+```
+
+---
+
+## 📈 성능 최적화
+
+### RTX 5080 16GB 최적화
+
+- **Mixed Precision (TF32)**: 메모리 효율성
+- **torch.compile**: 학습 속도 최대 20% 향상
+- **channels_last**: TensorCore 활용
+- **LMDB 캐싱**: 128GB RAM 디스크 I/O 최적화
+
+### 메모리 관리
+
+- **OOM Guard**: 자동 배치 크기 조절
+- **배치 프리페칭**: 16 workers로 GPU 대기시간 최소화
+- **동적 할당**: VRAM 사용량 모니터링
+
+---
+
+## 🛠️ 주요 명령어
+
+### 세션 초기화
+
+```bash
+# 새로운 세션에서 전체 컨텍스트 복원
+/.claude/commands/initial-prompt.md
+```
+
+### 데이터 처리
+
+```bash
+# 데이터 구조 분석
+bash scripts/env/python_executor.sh scripts/data/analyze_dataset_structure.py
+
+# Progressive Validation Stage 1 샘플링 (TODO)
+python -m src.data.stage1_sampler --output artifacts/stage1/
+```
+
+### 학습 (TODO)
+
+```bash
+# Single 약품 분류 학습
+python -m src.train --mode single --stage 1 --epochs 100 --batch-size 128
+
+# Combination 약품 검출 학습  
+python -m src.train --mode combo --stage 1 --epochs 300 --batch-size 16
+```
+
+### API 서빙 (TODO)
+
+```bash
+# API 서버 시작
+bash scripts/deployment/start_api_server.sh
+
+# Cloudflare Tunnel 배포
+powershell scripts/deployment/cloudflare_tunnel_start.ps1
+```
+
+---
+
+## 📊 데이터셋 정보
+
+### 전체 데이터 규모
+
+- **총 이미지**: 526만개
+  - **Single 약품**: 524만개 (81개 TS 디렉토리)
+  - **Combination 약품**: 1.7만개 (8개 TS 디렉토리)
+- **K-코드**: 수천개 (실제 약품 코드)
+- **EDI 코드**: 5,000개 (목표 분류 클래스)
+
+### Stage 1 목표
+
+- **이미지**: 5,000개 (전체의 0.1%)
+- **클래스**: 50개 (전체의 1%)
+- **목적**: 파이프라인 검증 및 기준선 설정
+
+---
+
+## 🤝 기여 가이드
+
+### 개발 규칙
+
+1. **경로 정책**: WSL 절대 경로만 사용 (`/mnt/data/`)
+2. **Python 실행**: `scripts/env/python_executor.sh` 사용
+3. **명명 규칙**: 구체적이고 기능적인 이름 사용
+4. **테스트**: 모든 새 기능에 테스트 필수
+
+### 코드 스타일
+
+- **한국어 주석**: 모든 주석은 한국어로 작성
+- **타입 힌트**: 함수 시그니처에 타입 명시
+- **로깅**: PillSnapLogger 사용으로 일관된 로깅
+
+---
+
+## 📄 라이선스
+
+[라이선스 정보 추가 예정]
+
+---
+
+## 📞 문의
+
+프로젝트 관련 문의사항이나 버그 리포트는 GitHub Issues를 통해 제출해주세요.
+
+---
+
+**PillSnap ML** - 차세대 약품 식별 AI 시스템  
+*Claude Code와 함께 개발*
+
+---
+
+### 🔗 주요 링크
+
+- **설정 가이드**: `CLAUDE.md`
+- **세션 초기화**: `.claude/commands/initial-prompt.md`
+- **데이터 분석 결과**: `artifacts/stage1/`
+- **테스트 결과**: `tests/`
+
+**마지막 업데이트**: 2025-08-19  
+**현재 상태**: 2단계 - 데이터 파이프라인 구현 진행 중

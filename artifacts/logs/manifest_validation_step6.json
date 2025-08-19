@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "stats": {
+    "rows": 399,
+    "pairs": 399,
+    "pair_rate": 1.0,
+    "missing_image": 0,
+    "missing_label": 0,
+    "duplicate_codes": 0
+  },
+  "warnings": [],
+  "errors": []
+}

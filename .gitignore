@@ -2,6 +2,8 @@
 
 venvs/
 .venv/
+.venv*/
+
 **/__pycache__/**
 *.pyc
 *.pyo
@@ -26,8 +28,23 @@ logs/
 tb/
 reports/
 exp/
-artifacts/
 *.freeze.txt
+
+# artifacts (선별적 무시)
+artifacts/cpu_runs/
+artifacts/gpu_runs/
+artifacts/cls_train_smoke/
+artifacts/_scan_sample_head20.csv
+artifacts/env_install_error.log
+artifacts/venv_py311.freeze.txt
+artifacts/requirements.filtered.txt
+
+# artifacts 중 추적할 파일들은 명시적으로 허용
+!artifacts/wheels/
+!artifacts/stage1/
+!artifacts/models/
+!artifacts/manifests/
+!artifacts/logs/
 
 # ML specific
 checkpoints/
@@ -39,12 +56,16 @@ mlruns/
 *.h5
 *.pkl
 
-# data processing temp files
-manifest_*.csv
-*_stats.json
-*_report.json
-*_audit.md
-step*_report.md
+# data processing temp files (실제 작업 결과물은 추적)
+# manifest_*.csv
+# *_stats.json  
+# *_report.json
+# *_audit.md
+# step*_report.md
+
+# 임시 스캔 결과만 무시
+scan_results_*.csv
+temp_manifest_*.csv
 
 # secrets
 
