@@ -7,9 +7,10 @@
   - **원본**: /mnt/data/pillsnap_dataset (외장 HDD 8TB, ext4, 100MB/s) - 전체 데이터셋
   - **SSD 이전**: /home/max16/ssd_pillsnap/dataset (내장 SSD 1TB, 3,500MB/s) - Stage 1 완료, Stage 2-3 예정
 - **디스크 I/O 병목 해결**: 외장 HDD (100MB/s) → SSD (3,500MB/s) 35배 성능 향상
-  - **✅ Stage 1**: 5,000장 SSD 이전 완료, GPU 활용률 정상화 달성
-  - **🔄 Stage 2-3**: SSD 이전 준비 완룼 (내장 SSD 용량 937GB 충분)
-  - **🔜 Stage 4**: M.2 SSD 4TB 추가 계획 (Samsung 990 PRO, 7,450MB/s)
+  - **✅ Stage 1**: 5,000장 SSD 이전 완료, 83.2% 정확도 달성
+  - **✅ Stage 2**: 307,152개 이미지 + 112,365개 라벨 SSD 이전 완료, 83.1% 정확도 달성
+  - **📊 현재 사용량**: 459GB (Stage 3 대비 M.2 SSD 4TB 확장 필요)
+  - **🔜 Stage 3-4**: M.2 SSD 4TB 추가 계획 (Samsung 990 PRO, 7,450MB/s)
 - 기본 작업: 약품 검출+분류(Detection → Classification, Two-Stage). 순수 분류 모드도 지원.
 - 모든 데이터 경로는 **SSD 기반** (/home/max16/ssd_pillsnap/)만 사용. HDD 경로(/mnt/data/) 백업용.
 - 코드는 /home/max16/pillsnap, **학습 산출물/캐시/체크포인트는 SSD**(/home/max16/ssd_pillsnap/exp/)로 고정.
@@ -70,9 +71,9 @@ data:
   drug_metadata_file: "/home/max16/ssd_pillsnap/exp/exp01/drug_metadata.json"  # SSD에 drug_id → complete_metadata 매핑
   # 단순화된 Stage 평가 시스템
   progressive_validation:
-    current_stage: 1
-    stage_1: {max_samples: 5000, max_classes: 50, target_accuracy: 0.78, max_latency_ms: 220}
-    stage_2: {max_samples: 25000, max_classes: 250, target_accuracy: 0.82, max_latency_ms: 220}
+    current_stage: 2  # Stage 2 완료
+    stage_1: {max_samples: 5000, max_classes: 50, target_accuracy: 0.78, achieved_accuracy: 0.832, status: "completed"}
+    stage_2: {max_samples: 23700, max_classes: 237, target_accuracy: 0.82, achieved_accuracy: 0.831, status: "completed"}
     stage_3: {max_samples: 100000, max_classes: 1000, target_accuracy: 0.85, max_latency_ms: 200}
     stage_4: {max_samples: 500000, max_classes: 5000, target_accuracy: 0.85, max_latency_ms: 200}
   extensions: [".jpg",".jpeg",".png",".bmp",".webp"]

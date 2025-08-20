@@ -327,6 +327,7 @@ def main():
     parser.add_argument("--device", type=str, default="cuda", help="Device (cuda/cpu)")
     parser.add_argument("--dry-run", action="store_true", help="Dry run without actual training")
     parser.add_argument("--resume", action="store_true", help="Resume from checkpoint if available")
+    parser.add_argument("--manifest", type=str, help="Path to manifest CSV file (overrides default stage data)")
     
     args = parser.parse_args()
     
@@ -364,46 +365,68 @@ def main():
     # 실제 학습 시작
     print("🚀 실제 학습 파이프라인 시작")
     
-    # 트레이너 초기화
-    trainer = ClassificationStageTrainer(
-        num_classes=num_classes,
-        target_accuracy=0.40,
-        device=args.device
-    )
-    trainer.setup_model_and_optimizers(learning_rate=args.learning_rate)
-    
-    
-    # 데이터로더 생성
+    # 데이터로더 생성 (manifest 사용 시 클래스 수 확인 필요)
     print("📊 데이터로더 생성 중...")
-    from src.data.dataloader_single_pill_training import SinglePillTrainingDataLoader
     
-    dataloader_manager = SinglePillTrainingDataLoader(
-        stage=args.stage,
-        batch_size=args.batch_size
-        # num_workers는 시스템 최적화를 통해 자동 설정
-    )
-    
-    train_loader, val_loader, metadata = dataloader_manager.get_stage_dataloaders()
+    if args.manifest:
+        print(f"📄 Manifest 파일 사용: {args.manifest}")
+        # Manifest 기반 데이터로더 (Lazy Loading 버전 사용)
+        from src.data.dataloader_manifest_training_lazy import ManifestTrainingDataLoaderLazy
+        
+        dataloader_manager = ManifestTrainingDataLoaderLazy(
+            manifest_path=args.manifest,
+            batch_size=args.batch_size
+        )
+        
+        train_loader, val_loader, metadata = dataloader_manager.get_dataloaders()
+        
+        # manifest에서 클래스 수 추출 (이미 위에서 확인했지만 재확인)
+        num_classes = metadata['num_classes']
+        print(f"📋 Manifest 클래스 수: {num_classes}개")
+        
+    else:
+        print(f"📂 Stage {args.stage} 기본 데이터 사용")
+        from src.data.dataloader_single_pill_training import SinglePillTrainingDataLoader
+        
+        dataloader_manager = SinglePillTrainingDataLoader(
+            stage=args.stage,
+            batch_size=args.batch_size
+            # num_workers는 시스템 최적화를 통해 자동 설정
+        )
+        
+        train_loader, val_loader, metadata = dataloader_manager.get_stage_dataloaders()
+        num_classes = stage_classes[args.stage]
     
     print(f"✅ 데이터로더 준비 완료")
     print(f"   클래스 수: {metadata['num_classes']}")
     print(f"   학습 데이터: {metadata['train_size']}개")
     print(f"   검증 데이터: {metadata['val_size']}개")
     
+    # 트레이너 초기화 (클래스 수가 확정된 후)
+    trainer = ClassificationStageTrainer(
+        num_classes=metadata['num_classes'],
+        target_accuracy=0.40,
+        device=args.device
+    )
+    trainer.setup_model_and_optimizers(learning_rate=args.learning_rate)
+    
     # 실제 학습 실행
     print(f"🏋️ 학습 시작 - {args.epochs} epochs")
     
     try:
-        # 시스템 최적화된 DataLoader 사용
-        print("🔧 시스템 최적화된 DataLoader 재생성")
-        dataloader_manager_optimized = SinglePillTrainingDataLoader(
-            stage=args.stage,
-            batch_size=args.batch_size
-            # num_workers는 자동 최적화됨
-        )
-        
-        train_loader, val_loader, metadata = dataloader_manager_optimized.get_stage_dataloaders()
-        print(f"✅ 최적화된 데이터로더 준비 완료")
+        # Manifest 사용 시에는 기존 데이터로더 재사용, 아니면 시스템 최적화
+        if not args.manifest:
+            print("🔧 시스템 최적화된 DataLoader 재생성")
+            dataloader_manager_optimized = SinglePillTrainingDataLoader(
+                stage=args.stage,
+                batch_size=args.batch_size
+                # num_workers는 자동 최적화됨
+            )
+            
+            train_loader, val_loader, metadata = dataloader_manager_optimized.get_stage_dataloaders()
+            print(f"✅ 최적화된 데이터로더 준비 완료")
+        else:
+            print("📄 Manifest 기반 데이터로더 사용 (재생성 건너뛰기)")
         
         # 원래 train_stage() 호출
         print("🚀 원래 train_stage() 메서드 호출")

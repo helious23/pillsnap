@@ -19,7 +19,7 @@ PillSnap ML 프로젝트의 Claude Code 종합 가이드입니다. 프로젝트 
 - SSD 기반 절대 경로 사용 강제
 - 모든 응답의 기본 언어를 한국어로 설정
 - Two-Stage Conditional Pipeline 로직 등 핵심 제약사항 로드
-- **Stage 1 검증 완료** 상태 및 현재 진행 상황 반영
+- **Stage 1-2 검증 완료** 상태 및 현재 진행 상황 반영
 
 초기화를 실행하지 않으면 일관성 없는 출력이나 프로젝트 규칙 위반이 발생할 수 있습니다.
 
@@ -56,9 +56,12 @@ PillSnap ML 프로젝트의 Claude Code 종합 가이드입니다. 프로젝트 
    ```  
 3. **Training:**  
    ```bash
+   # Stage별 훈련 (Manifest 기반)
+   python -m src.training.train_classification_stage --manifest artifacts/stage2/manifest_ssd.csv --epochs 1 --batch-size 32
+   
+   # 기존 Config 기반 (일반적)
    python -m src.train --cfg config.yaml
    python -m src.train --cfg config.yaml train.resume=last
-   python -m src.train --cfg config.yaml train.batch_size=128 dataloader.num_workers=12
    ```  
 4. **Testing & Evaluation:**  
    ```bash
@@ -124,8 +127,10 @@ Input Image → Auto Mode Detection
   - 안정성 우선: 데드락 없는 안정적 학습
 - **Current Performance:**  
   - Stage 1: ✅ 완료 (83.2% 정확도, 6분 완료)
-  - Stage 2: ✅ 완료 (250 클래스, 307,152개 이미지 SSD 이전 완료)
+  - Stage 2: ✅ 완료 (83.1% 정확도, 10.9분, 237클래스/23,700샘플)
+  - 데이터 이전: 307,152개 이미지 + 112,365개 라벨 SSD 완료
   - 디스크 I/O 병목 해결: 35배 성능 향상 (100MB/s → 3,500MB/s)
+  - Manifest 기반 훈련: Lazy Loading으로 메모리 최적화
   - Albumentations 2.0.8 완전 호환
 
 ### 🚀 **Planned Environment (Native Ubuntu on M.2 SSD)**
@@ -141,12 +146,12 @@ Input Image → Auto Mode Detection
 
 ## Progressive Validation Stages
 
-| Stage | Images  | Classes | Purpose              | Status |
-|-------|---------|---------|----------------------|--------|
-| 1     | 5,000   | 50      | Pipeline verification | ✅ **완료** |
-| 2     | 25,000  | 250     | Performance baseline  | ✅ **완료** |
-| 3     | 100,000 | 1,000   | Scalability test      | ⚠️ M.2 SSD 필요 |
-| 4     | 500,000 | 4,523   | Production deployment | ⏳ 대기 |
+| Stage | Images  | Classes | Purpose              | Accuracy | Status |
+|-------|---------|---------|----------------------|----------|--------|
+| 1     | 5,000   | 50      | Pipeline verification | 83.2%    | ✅ **완료** |
+| 2     | 23,700  | 237     | Performance baseline  | 83.1%    | ✅ **완료** |
+| 3     | 100,000 | 1,000   | Scalability test      | 목표85%  | ⚠️ M.2 SSD 필요 |
+| 4     | 500,000 | 4,523   | Production deployment | 목표85%  | ⏳ 대기 |
 
 ---
 
@@ -176,8 +181,12 @@ Input Image → Auto Mode Detection
    - 🎯 **Production Ready**: Cloud API deployment
 
 ### **Migration Priority**
-- **Stage 1-2**: Current WSL sufficient (완료됨)
+- **Stage 1-2**: ✅ Current WSL sufficient (완료됨)
+  - Stage 1: 83.2% (목표 78% 초과달성)
+  - Stage 2: 83.1% (목표 82% 초과달성)
 - **Stage 3-4**: Native Ubuntu essential (25만-50만 이미지)
+  - 현재 SSD 용량: 459GB 사용 (Stage 3 대비 부족)
+  - M.2 SSD 4TB 확장 필수
 - **Production API**: Cloud tunnel deployment required
 
 ---

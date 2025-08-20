@@ -1,0 +1,7 @@
+{
+  "total_samples": 23700,
+  "unique_classes": 237,
+  "target_images": 25000,
+  "images_per_class": 100,
+  "timestamp": "2025-08-20T11:28:12.968474"
+}

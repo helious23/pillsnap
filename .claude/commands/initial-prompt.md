@@ -16,12 +16,17 @@
 
 ### **Progressive Validation 현황**
 - ✅ **Stage 1**: 완료 (5K 샘플, 50 클래스, 83.2% 정확도 달성)
-- ✅ **Stage 2**: 완료 (25K 샘플, 250 클래스, SSD 이전 완료 - 307,152개 이미지)
-- ⚠️ **Stage 3**: M.2 SSD 4TB 필요 (현재 SSD 용량 부족)
+- ✅ **Stage 2**: 완료 (23.7K 샘플, 237 클래스, 83.1% 정확도 달성)
+  - 데이터 이전: 307,152개 이미지 + 112,365개 라벨 SSD 완료
+  - Manifest 기반 훈련: Lazy Loading 메모리 최적화
+  - 훈련 시간: 10.9분 (WSL 제약하에서 우수한 성능)
+- ⚠️ **Stage 3**: M.2 SSD 4TB 필요 (현재 SSD 용량 459GB 부족)
 - ⏳ **Stage 4**: Native Ubuntu + M.2 SSD 이전 후 진행
 
 ### **최근 완료 작업 (2025-08-20)**
-- ✅ Stage 2 데이터 SSD 이전 완료 (237개 클래스, 307,152개 이미지, 28분 소요)
+- ✅ Stage 2 데이터 SSD 이전 완료 (307,152개 이미지 + 112,365개 라벨)
+- ✅ Stage 2 Manifest 기반 훈련 완료 (83.1% 정확도, 237클래스)
+- ✅ Lazy Loading DataLoader 구현 (대용량 데이터셋 메모리 최적화)
 - ✅ Scripts 폴더 구조 재정리 (기능별, Stage별 분류)
 - ✅ 전체 문서 경로 참조 업데이트 (20개 파일)
 - ✅ WSL DataLoader 최적화 (num_workers=0, 안정성 확보)
@@ -63,9 +68,10 @@
 ### **현재 구현 상태**
 - ✅ **모델 아키텍처**: YOLOv11m + EfficientNetV2-S + Two-Stage Pipeline 완료
 - ✅ **데이터 파이프라인**: Progressive Validation 샘플링 완료
-- ✅ **Training/Evaluation 시스템**: 상업용 컴포넌트 완료
+- ✅ **Training/Evaluation 시스템**: 상업용 컴포넌트 완룼
 - ✅ **통합 테스트**: 22개 테스트 (기본 + 엄격한 검증)
-- ✅ **Stage 1 검증**: 5K 샘플, 50 클래스, 83.2% 정확도
+- ✅ **Stage 1-2 검증**: 전채 완료 (83.2%, 83.1% 정확도 초과달성)
+- ✅ **Manifest 기반 훈련**: Lazy Loading으로 대용량 데이터셋 지원
 
 ### **핵심 설계 원칙**
 1. **Two-Stage Conditional Pipeline**: 사용자 제어 모드 (single/combo)
@@ -75,8 +81,9 @@
 5. **RTX 5080 최적화**: Mixed Precision, torch.compile
 
 ### **다음 우선순위**
-- **Stage 2 준비**: 25K 샘플, 250 클래스
-- **Native Ubuntu 이전**: CPU 멀티프로세싱 활용
+- **Stage 3 준비**: M.2 SSD 4TB 확장 + Native Ubuntu 이전
+- **CPU 멀티프로세싱 활용**: num_workers=8-12 (16코어 활용)
+- **대용량 데이터셋 대비**: 100K샘플 (Stage 3), 500K샘플 (Stage 4)
 - **Production API**: Cloud tunnel 배포
 
 ---
@@ -94,8 +101,11 @@
 # 통합 테스트
 ./scripts/core/python_safe.sh -m pytest tests/integration/ -v
 
-# Stage 2 시작 (예정)
-./scripts/core/python_safe.sh -m src.training.train_classification_stage --stage 2
+# Stage 2 훈련 (완료됨)
+./scripts/core/python_safe.sh -m src.training.train_classification_stage --manifest artifacts/stage2/manifest_ssd.csv --epochs 1 --batch-size 32
+
+# Stage 3 준비
+# M.2 SSD 확장 후 Native Ubuntu 이전 필요
 ```
 
 ---
