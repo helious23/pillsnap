@@ -42,7 +42,9 @@
       "Bash(cp:*)",
       "Bash(true)",
       "Bash(sudo mkdir:*)",
-      "Bash(sudo chown:*)"
+      "Bash(sudo chown:*)",
+      "Bash(export PILLSNAP_DATA_ROOT=/home/max16/ssd_pillsnap/dataset)",
+      "Bash(export PILLSNAP_DATA_ROOT=\"/home/max16/ssd_pillsnap/dataset\")"
     ],
     "deny": [],
     "ask": [],

@@ -237,6 +237,58 @@ class OptimizedImagePreprocessor:
         except Exception as e:
             return False, None, {'error': f'전처리 실패: {str(e)}'}
     
+    def preprocess_pil_for_detection(
+        self, 
+        pil_image, 
+        is_training: bool = True
+    ) -> torch.Tensor:
+        """PIL Image를 Detection용으로 전처리 (640x640)"""
+        import numpy as np
+        
+        # PIL → numpy 변환
+        image_np = np.array(pil_image)
+        
+        # RGB 확인 (PIL은 이미 RGB)
+        if len(image_np.shape) != 3 or image_np.shape[2] != 3:
+            raise ValueError("RGB 이미지가 아닙니다")
+        
+        # 640x640으로 리사이즈
+        resized = cv2.resize(image_np, (640, 640), interpolation=cv2.INTER_LINEAR)
+        
+        # 정규화 및 텐서 변환
+        tensor = torch.from_numpy(resized).float()
+        tensor = tensor / 255.0  # [0, 1] 정규화
+        tensor = tensor.permute(2, 0, 1)  # HWC → CHW
+        tensor = tensor.unsqueeze(0)  # 배치 차원 추가: [1, 3, 640, 640]
+        
+        return tensor
+    
+    def preprocess_pil_for_classification(
+        self, 
+        pil_image, 
+        is_training: bool = True
+    ) -> torch.Tensor:
+        """PIL Image를 Classification용으로 전처리 (384x384)"""
+        import numpy as np
+        
+        # PIL → numpy 변환
+        image_np = np.array(pil_image)
+        
+        # RGB 확인
+        if len(image_np.shape) != 3 or image_np.shape[2] != 3:
+            raise ValueError("RGB 이미지가 아닙니다")
+        
+        # 384x384로 리사이즈
+        resized = cv2.resize(image_np, (384, 384), interpolation=cv2.INTER_LINEAR)
+        
+        # 정규화 및 텐서 변환
+        tensor = torch.from_numpy(resized).float()
+        tensor = tensor / 255.0  # [0, 1] 정규화
+        tensor = tensor.permute(2, 0, 1)  # HWC → CHW
+        tensor = tensor.unsqueeze(0)  # 배치 차원 추가: [1, 3, 384, 384]
+        
+        return tensor
+
     def get_performance_stats(self) -> Dict[str, Any]:
         """성능 통계 반환"""
         return self.stats.copy()

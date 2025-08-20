@@ -18,8 +18,8 @@ import time
 from PIL import Image
 import numpy as np
 
-from .detector_yolo11m import PillSnapYOLODetector, create_pillsnap_detector
-from .classifier_efficientnetv2 import PillSnapClassifier, create_pillsnap_classifier
+from .detector_yolo11m import PillSnapYOLODetector, create_pillsnap_detector, YOLOConfig, DetectionResult
+from .classifier_efficientnetv2 import PillSnapClassifier, create_pillsnap_classifier, ClassifierConfig, ClassificationResult
 from ..utils.core import PillSnapLogger, load_config
 
 
@@ -299,7 +299,6 @@ class PillSnapPipeline(nn.Module):
             self.logger.warning("Combo 모드에서 검출된 객체 없음")
             timing['classification'] = 0.0
             # 빈 결과 생성
-            from .detector import DetectionResult
             empty_detection = DetectionResult(
                 boxes=torch.empty(0, 4),
                 scores=torch.empty(0),

@@ -1,37 +1,38 @@
 # CLAUDE.md
 
-This file provides comprehensive guidance for Claude Code (claude.ai/code) when working with the PillSnap ML repository. It integrates project overview, technical details, and essential session initialization instructions to ensure consistent and optimized interactions.
+PillSnap ML 프로젝트의 Claude Code 종합 가이드입니다. 프로젝트 개요, 기술적 세부사항, 세션 초기화 지침을 통합하여 일관되고 최적화된 상호작용을 보장합니다.
 
 ---
 
-## Session Initialization
+## 세션 초기화
 
-At the start of every session, **always initialize the Claude Code environment by running the command:**
+**모든 세션 시작 시 반드시 다음 명령어로 Claude Code 환경을 초기화하세요:**
 
 ```
-/.claude/commands/initial-prompts.md
+/.claude/commands/initial-prompt.md
 ```
 
-This command sets up the context, environment variables, and project-specific configurations to enable accurate and efficient assistance. It includes loading core rules, path constraints, coding standards, and response language settings.
+이 명령어는 정확하고 효율적인 지원을 위해 컨텍스트, 환경변수, 프로젝트별 설정을 구성합니다.
 
-**Purpose:**  
-- Establish baseline knowledge of the PillSnap ML project.  
-- Enforce usage of absolute WSL-native paths only.  
-- Activate Korean as the default language for all responses.  
-- Load critical constraints such as the two-stage conditional pipeline logic.  
+**목적:**  
+- PillSnap ML 프로젝트의 기본 지식 구축
+- SSD 기반 절대 경로 사용 강제
+- 모든 응답의 기본 언어를 한국어로 설정
+- Two-Stage Conditional Pipeline 로직 등 핵심 제약사항 로드
+- **Stage 1 검증 완료** 상태 및 현재 진행 상황 반영
 
-Failing to run this initialization may lead to inconsistent outputs or violations of project rules.
+초기화를 실행하지 않으면 일관성 없는 출력이나 프로젝트 규칙 위반이 발생할 수 있습니다.
 
 ---
 
-## Core Rules
+## 핵심 규칙
 
-- **Language:** All responses must be in **Korean** by default unless explicitly instructed otherwise.  
-- **Path Usage:** Use **absolute paths starting with `/mnt/` only**. Never use Windows-style paths (e.g., `C:\`) within code or commands.  
-- **Data Location:** All datasets and experiments must reside in WSL-native filesystems for performance (e.g., `/mnt/data/pillsnap_dataset`).  
-- **Two-Stage Pipeline Enforcement:** Respect the conditional pipeline logic:  
-  - Single pills → direct classification with EfficientNetV2-L  
-  - Combination pills → YOLOv11x detection → crop → classification  
+- **언어:** 별도 지시가 없는 한 모든 응답은 **한국어**로 작성
+- **경로 사용:** **SSD 기반 절대 경로만 사용** (`/home/max16/ssd_pillsnap/`). Windows 스타일 경로(예: `C:\`) 금지  
+- **데이터 위치:** 모든 데이터셋과 실험은 성능을 위해 **SSD 기반 경로** 사용 (`/home/max16/ssd_pillsnap/dataset`)
+- **Two-Stage Pipeline 강제:** 조건부 파이프라인 로직 준수:
+  - Single pills → EfficientNetV2-S 직접 분류 (384px)
+  - Combination pills → YOLOv11m 검출 → crop → 분류 (640px→384px)  
 - **API Security:** Always assume API key authentication and rate limiting are in place (100 requests/minute).  
 - **Performance Targets:**  
   - Single pill accuracy: 92%  
@@ -39,7 +40,8 @@ Failing to run this initialization may lead to inconsistent outputs or violation
 - **Hardware Optimization:**  
   - Use mixed precision (TF32) and channels_last memory format on RTX 5080 (16GB) GPUs.  
   - Enable `torch.compile(model, mode='max-autotune')` for training speedups.  
-  - Utilize LMDB caching and batch prefetching with 16 dataloader workers for large datasets.  
+  - **현재 WSL 제약**: num_workers=0 (DataLoader 멀티프로세싱 비활성화)
+  - **Native Ubuntu 이전 계획**: CPU 멀티프로세싱 최적화를 위한 전면 이전 예정
   - Monitor VRAM usage to stay under 14GB.  
 
 ---
@@ -101,28 +103,37 @@ Input Image → Auto Mode Detection
 
 ### Critical Paths
 
-| Purpose            | Path                                      |
-|--------------------|-------------------------------------------|
-| Codebase           | `/mnt/c/Users/max16/Desktop/pillsnap`     |
-| Dataset (English)  | `/mnt/data/pillsnap_dataset`               |
-| Virtual Environment | `$HOME/pillsnap/.venv`                     |
-| Experiment Outputs | `/mnt/data/exp/exp01`                      |
+| Purpose            | Current (WSL)                             | Future (Native Ubuntu)                   |
+|--------------------|-------------------------------------------|-------------------------------------------|
+| Codebase           | `/home/max16/pillsnap`                    | `/home/max16/pillsnap` (M.2 SSD)         |
+| Dataset            | `/home/max16/ssd_pillsnap/dataset`        | `/home/max16/pillsnap/dataset` (M.2 SSD) |
+| Virtual Environment | `$HOME/pillsnap/.venv`                     | `$HOME/pillsnap/.venv` (Native)          |
+| Experiment Outputs | `/home/max16/ssd_pillsnap/exp`            | `/home/max16/pillsnap/exp` (M.2 SSD)     |
 
 ---
 
 ## Hardware Optimization Settings
 
+### 🖥️ **Current Environment (WSL)**
 - **GPU:** RTX 5080 (16GB)  
   - Use mixed precision (TF32)  
   - Apply `channels_last` memory format  
   - Utilize `torch.compile(model, mode='max-autotune')` for training  
 - **System RAM:** 128GB  
-  - Use LMDB caching for datasets  
-  - Prefetch batches with `non_blocking=True`  
-  - Use 16 dataloader workers for optimal throughput  
-- **Batch Sizes:**  
-  - Detection: 16  
-  - Classification: 128 (auto-tuned based on VRAM availability)  
+  - **WSL 제약**: num_workers=0 (CPU 멀티프로세싱 비활성화)
+  - 안정성 우선: 데드락 없는 안정적 학습
+- **Current Performance:**  
+  - Stage 1: 83.2% 정확도, 6분 완료
+  - Albumentations 2.0.8 완전 호환
+
+### 🚀 **Planned Environment (Native Ubuntu on M.2 SSD)**
+- **Storage:** Samsung 990 PRO 4TB M.2 SSD (7,450MB/s)
+- **OS:** Native Ubuntu (WSL 제약 완전 해결)
+- **DataLoader:** num_workers=8-12 (16 CPU 코어 활용)
+- **Expected Performance:**  
+  - 데이터 로딩 속도: 8-12배 향상
+  - Stage 3-4 대용량 데이터셋 최적화
+  - Cloud tunnel API 서비스 준비  
 
 ---
 
@@ -134,6 +145,38 @@ Input Image → Auto Mode Detection
 | 2     | 25,000  | 250     | Performance baseline  |
 | 3     | 100,000 | 1,000   | Scalability test      |
 | 4     | 500,000 | 5,000   | Production deployment |
+
+---
+
+## 🔄 Native Ubuntu Migration Plan
+
+### **Migration Roadmap**
+1. **Hardware Setup**
+   - ✅ Install 4TB M.2 SSD in available slot
+   - ✅ Install Native Ubuntu on M.2 SSD
+
+2. **Data & Code Migration**
+   - ✅ Windows SSD access (NTFS mount)
+   - ✅ External HDD access (USB/SATA mount)
+   - ✅ Copy datasets to Ubuntu M.2 SSD
+   - ✅ Copy codebase to Ubuntu M.2 SSD
+
+3. **Environment Setup**
+   - ✅ Install Cursor & development tools
+   - ✅ Setup Python virtual environment
+   - ✅ Install PyTorch with CUDA support
+   - ✅ Configure cloud tunnel for API service
+
+4. **Performance Benefits**
+   - 🎯 **CPU Utilization**: 16 cores → num_workers=8-12
+   - 🎯 **Storage Speed**: 7,450MB/s (vs current 3,500MB/s)
+   - 🎯 **WSL Constraints**: Completely eliminated
+   - 🎯 **Production Ready**: Cloud API deployment
+
+### **Migration Priority**
+- **Stage 1-2**: Current WSL sufficient (완료됨)
+- **Stage 3-4**: Native Ubuntu essential (25만-50만 이미지)
+- **Production API**: Cloud tunnel deployment required
 
 ---
 

@@ -3,11 +3,12 @@
 [프로젝트 메타/경로 + 디스크 I/O 최적화 상황]
 
 - **코드 루트**: /home/max16/pillsnap
-- **가상환경(WSL)**: $HOME/pillsnap/.venv
+- **현재 환경**: WSL2 + $HOME/pillsnap/.venv (num_workers=0, DataLoader 제약)
+- **이전 계획**: Native Ubuntu + M.2 SSD (CPU 멀티프로세싱 최적화)
 - **데이터 루트**: 
   - **원본**: /mnt/data/pillsnap_dataset (외장 HDD 8TB, ext4, 100MB/s) - Stage 4 전체 데이터
-  - **SSD 이전**: /home/max16/ssd_pillsnap/dataset (내장 SSD 1TB, 3,500MB/s) - Stage 1 완료, Stage 2-3 예정
-  - **M.2 확장 계획**: Samsung 990 PRO 4TB (7,450MB/s) - Stage 4 최종 운영 데이터용
+  - **현재 SSD**: /home/max16/ssd_pillsnap/dataset (내장 SSD 1TB, 3,500MB/s) - Stage 1 완료, Stage 2-3 예정
+  - **미래 M.2**: /home/max16/pillsnap/dataset (Samsung 990 PRO 4TB, 7,450MB/s) - Native Ubuntu 환경
 - **실험 디렉터리**: 
   - **SSD**: /home/max16/ssd_pillsnap/exp/exp01 (현재 Stage 1 완료)
   - **HDD**: /mnt/data/exp/exp01 (이전 실험 기록)

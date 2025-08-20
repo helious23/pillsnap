@@ -24,7 +24,7 @@ cd "$PROJECT_ROOT"
 
 # 환경변수 설정
 export PYTHONPATH="$PROJECT_ROOT${PYTHONPATH:+:$PYTHONPATH}"
-export PILLSNAP_DATA_ROOT="/mnt/data/pillsnap_dataset"
+export PILLSNAP_DATA_ROOT="/home/max16/ssd_pillsnap/dataset"
 
 # Python 실행
 echo -e "${GREEN}🐍 가상환경 Python 실행: $*${NC}"

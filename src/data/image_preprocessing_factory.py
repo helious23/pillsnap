@@ -222,7 +222,8 @@ class ImageAugmentationPipeline:
         # 검출용 증강 파이프라인
         self.detection_augmentation = A.Compose([
             A.RandomRotate90(p=0.5),
-            A.Flip(p=0.5),
+            A.HorizontalFlip(p=0.5),
+            A.VerticalFlip(p=0.5),
             A.RandomBrightnessContrast(
                 brightness_limit=0.2, 
                 contrast_limit=0.2, 
@@ -234,7 +235,7 @@ class ImageAugmentationPipeline:
                 val_shift_limit=10, 
                 p=0.5
             ),
-            A.GaussNoise(var_limit=(10.0, 50.0), p=0.3),
+            A.GaussNoise(std_range=(0.01, 0.05), p=0.3),
             A.OneOf([
                 A.MotionBlur(blur_limit=3, p=0.3),
                 A.MedianBlur(blur_limit=3, p=0.3),
@@ -250,7 +251,8 @@ class ImageAugmentationPipeline:
         # 분류용 증강 파이프라인
         self.classification_augmentation = A.Compose([
             A.RandomRotate90(p=0.5),
-            A.Flip(p=0.5),
+            A.HorizontalFlip(p=0.5),
+            A.VerticalFlip(p=0.5),
             A.ShiftScaleRotate(
                 shift_limit=0.1, 
                 scale_limit=0.1, 
@@ -269,7 +271,7 @@ class ImageAugmentationPipeline:
                 p=0.5
             ),
             A.OneOf([
-                A.GaussNoise(var_limit=(10.0, 30.0)),
+                A.GaussNoise(std_range=(0.01, 0.03)),
                 A.ISONoise(color_shift=(0.01, 0.05), intensity=(0.1, 0.5)),
             ], p=0.3),
             A.OneOf([

@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 from src.data.progressive_validation_sampler import ProgressiveValidationSampler, Stage1SamplingStrategy
 from src.data.image_preprocessing_factory import TwoStageImagePreprocessor, PipelineStage
 from src.utils.core import PillSnapLogger, load_config
+from src.utils.system_optimization import get_dataloader_kwargs, log_system_optimization
 
 
 class SinglePillDataset(Dataset):
@@ -96,18 +97,36 @@ class SinglePillTrainingDataLoader:
     
     def __init__(
         self,
-        data_root: str = "/mnt/data/pillsnap_dataset",
+        data_root: Optional[str] = None,
         stage: int = 1,
         batch_size: int = 32,
-        num_workers: int = 8,
-        pin_memory: bool = True
+        num_workers: Optional[int] = None,
+        pin_memory: Optional[bool] = None
     ):
+        # 설정에서 데이터 루트 가져오기
+        if data_root is None:
+            config = load_config()
+            data_root = config['data']['root']
+        
         self.data_root = Path(data_root)
         self.stage = stage
         self.batch_size = batch_size
-        self.num_workers = num_workers
-        self.pin_memory = pin_memory
+        
+        # 시스템 최적화 설정 적용
+        dataloader_config = get_dataloader_kwargs(stage)
+        self.num_workers = num_workers if num_workers is not None else dataloader_config['num_workers']
+        self.pin_memory = pin_memory if pin_memory is not None else dataloader_config['pin_memory']
+        self.persistent_workers = dataloader_config.get('persistent_workers', False)
+        self.prefetch_factor = dataloader_config.get('prefetch_factor', 2)
+        self.drop_last = dataloader_config.get('drop_last', True)
+        self.multiprocessing_context = dataloader_config.get('multiprocessing_context', None)
+        
         self.logger = PillSnapLogger(__name__)
+        
+        # 시스템 최적화 정보 로깅 (첫 번째 인스턴스에서만)
+        if not hasattr(SinglePillTrainingDataLoader, '_optimization_logged'):
+            log_system_optimization()
+            SinglePillTrainingDataLoader._optimization_logged = True
         
         # 전처리기 초기화
         self.preprocessor = TwoStageImagePreprocessor()
@@ -203,25 +222,37 @@ class SinglePillTrainingDataLoader:
         """데이터로더 생성"""
         
         try:
-            # 학습 데이터로더
-            train_loader = DataLoader(
-                train_dataset,
-                batch_size=self.batch_size,
-                shuffle=shuffle_train,
-                num_workers=self.num_workers,
-                pin_memory=self.pin_memory,
-                drop_last=True  # 마지막 배치 크기 일관성
-            )
+            # 학습 데이터로더 (시스템 최적화 적용)
+            train_kwargs = {
+                'dataset': train_dataset,
+                'batch_size': self.batch_size,
+                'shuffle': shuffle_train,
+                'num_workers': self.num_workers,
+                'pin_memory': self.pin_memory,
+                'drop_last': self.drop_last
+            }
             
-            # 검증 데이터로더
-            val_loader = DataLoader(
-                val_dataset,
-                batch_size=self.batch_size,
-                shuffle=False,
-                num_workers=self.num_workers,
-                pin_memory=self.pin_memory,
-                drop_last=False
-            )
+            # 추가 최적화 옵션 적용 (num_workers > 0일 때만)
+            if self.num_workers > 0:
+                if self.persistent_workers:
+                    train_kwargs['persistent_workers'] = True
+                if self.prefetch_factor is not None:
+                    train_kwargs['prefetch_factor'] = self.prefetch_factor
+                if self.multiprocessing_context is not None:
+                    import multiprocessing as mp
+                    train_kwargs['multiprocessing_context'] = mp.get_context(self.multiprocessing_context)
+            
+            train_loader = DataLoader(**train_kwargs)
+            
+            # 검증 데이터로더 (동일한 최적화 적용, 셔플 제외)
+            val_kwargs = train_kwargs.copy()
+            val_kwargs.update({
+                'dataset': val_dataset,
+                'shuffle': False,
+                'drop_last': False  # 검증에서는 모든 데이터 사용
+            })
+            
+            val_loader = DataLoader(**val_kwargs)
             
             self.logger.info(f"데이터로더 생성 완료")
             self.logger.info(f"  학습 배치 수: {len(train_loader)}")

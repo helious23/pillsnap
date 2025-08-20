@@ -35,6 +35,7 @@ class ClassificationMetrics:
     
     # 기본 메트릭
     top1_accuracy: float
+    top3_accuracy: float  # top3 추가
     top5_accuracy: float
     
     # 클래스별 메트릭
@@ -54,6 +55,22 @@ class ClassificationMetrics:
     # 메타데이터
     num_classes: int = 50
     num_samples: int = 0
+    
+    # 호환성을 위한 속성들
+    @property
+    def accuracy(self) -> float:
+        """top1_accuracy의 별칭"""
+        return self.top1_accuracy
+    
+    @property
+    def macro_f1(self) -> float:
+        """f1_macro의 별칭"""
+        return self.f1_macro
+    
+    @property
+    def weighted_f1(self) -> float:
+        """f1_weighted의 별칭"""
+        return self.f1_weighted
     evaluation_time_seconds: float = 0.0
 
 
@@ -94,11 +111,13 @@ class ClassificationMetricsEvaluator:
             # Top-1 예측
             y_pred_top1 = np.argmax(y_pred_logits_np, axis=1)
             
-            # Top-5 예측
+            # Top-3, Top-5 예측
+            top3_indices = np.argsort(y_pred_logits_np, axis=1)[:, -3:]
             top5_indices = np.argsort(y_pred_logits_np, axis=1)[:, -5:]
             
             # 기본 메트릭 계산
             top1_accuracy = accuracy_score(y_true_np, y_pred_top1)
+            top3_accuracy = self._calculate_top_k_accuracy(y_true_np, top3_indices, k=3)
             top5_accuracy = self._calculate_top_k_accuracy(y_true_np, top5_indices, k=5)
             
             # 정밀도, 재현율, F1 점수
@@ -135,6 +154,7 @@ class ClassificationMetricsEvaluator:
             # 메트릭 객체 생성
             metrics = ClassificationMetrics(
                 top1_accuracy=top1_accuracy,
+                top3_accuracy=top3_accuracy,
                 top5_accuracy=top5_accuracy,
                 precision_macro=precision_macro,
                 recall_macro=recall_macro,
@@ -152,6 +172,7 @@ class ClassificationMetricsEvaluator:
             # 결과 로깅
             self.logger.info(f"분류 평가 완료 ({len(y_true_np)}개 샘플)")
             self.logger.metric("top1_accuracy", top1_accuracy, "%")
+            self.logger.metric("top3_accuracy", top3_accuracy, "%") 
             self.logger.metric("top5_accuracy", top5_accuracy, "%")
             self.logger.metric("f1_macro", f1_macro)
             
@@ -359,6 +380,7 @@ class ClassificationMetricsEvaluator:
                 'stage': 1,
                 'metrics': {
                     'top1_accuracy': metrics.top1_accuracy,
+                    'top3_accuracy': metrics.top3_accuracy,
                     'top5_accuracy': metrics.top5_accuracy,
                     'precision_macro': metrics.precision_macro,
                     'recall_macro': metrics.recall_macro,

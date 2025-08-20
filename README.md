@@ -159,6 +159,49 @@ python --version     # 사용 금지
 python3 --version    # 사용 금지
 ```
 
+### 🔄 Native Ubuntu Migration Plan
+
+**WSL에서 Native Ubuntu로 전면 이전 계획** (CPU 멀티프로세싱 최적화):
+
+#### **📋 이전 절차**
+1. **하드웨어 준비**
+   ```bash
+   # M.2 슬롯에 4TB SSD 설치
+   # Samsung 990 PRO 4TB (7,450MB/s)
+   ```
+
+2. **Native Ubuntu 설치**
+   ```bash
+   # M.2 SSD에 Ubuntu 22.04 LTS 설치
+   # 듀얼 부팅 설정 (Windows 기존 유지)
+   ```
+
+3. **데이터 & 코드 이전**
+   ```bash
+   # Windows SSD 자동 마운트 (/mnt/windows)
+   # 외장 HDD 자동 마운트 (/mnt/external)
+   # 데이터셋 → Ubuntu M.2 SSD 복사
+   # 코드베이스 → Ubuntu M.2 SSD 복사
+   ```
+
+4. **개발 환경 구축**
+   ```bash
+   # Cursor, Python 3.11, PyTorch CUDA 설치
+   # 가상환경 재구축
+   # Cloud tunnel 설정 (ngrok/cloudflared)
+   ```
+
+#### **🎯 예상 성능 향상**
+- **DataLoader**: num_workers=0 → 8-12 (16 CPU 코어 활용)
+- **데이터 로딩**: 8-12배 속도 향상
+- **Stage 3-4**: 대용량 데이터셋(25만-50만 이미지) 최적화
+- **API 서비스**: Cloud tunnel로 외부 API 제공
+
+#### **📅 이전 우선순위**
+- **Stage 1-2**: 현재 WSL 환경 충분 (이미 완료)
+- **Stage 3-4**: Native Ubuntu 필수 (대용량 처리)
+- **Production**: Cloud API 배포 준비
+
 ---
 
 ## 🚀 빠른 시작

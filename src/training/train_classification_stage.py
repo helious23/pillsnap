@@ -117,7 +117,7 @@ class ClassificationStageTrainer:
             
             # Mixed Precision 학습
             if self.scaler is not None:
-                with autocast():
+                with autocast(device_type='cuda'):
                     outputs = self.model(images)
                     loss = criterion(outputs, labels)
                 
@@ -135,8 +135,11 @@ class ClassificationStageTrainer:
             total += labels.size(0)
             correct += predicted.eq(labels).sum().item()
             
-            # 진행 상황 로깅
-            if batch_idx % 100 == 0:
+            # 진행 상황 로깅 (더 자주 출력)
+            if batch_idx % 5 == 0 or batch_idx == len(train_loader) - 1:
+                current_acc = correct / total if total > 0 else 0
+                print(f"  Batch {batch_idx+1}/{len(train_loader)}: Loss={loss.item():.4f}, Acc={current_acc:.2%}")
+            elif batch_idx % 100 == 0:
                 self.logger.info(f"Epoch {epoch} Batch {batch_idx}: Loss {loss.item():.4f}")
         
         epoch_loss = total_loss / len(train_loader)
@@ -167,8 +170,9 @@ class ClassificationStageTrainer:
         all_predictions = []
         all_labels = []
         
+        print(f"  📊 검증 중... ({len(val_loader)} 배치)")
         with torch.no_grad():
-            for images, labels in val_loader:
+            for batch_idx, (images, labels) in enumerate(val_loader):
                 images, labels = images.to(self.device), labels.to(self.device)
                 
                 outputs = self.model(images)
@@ -178,6 +182,11 @@ class ClassificationStageTrainer:
                 _, predicted = outputs.max(1)
                 total += labels.size(0)
                 correct += predicted.eq(labels).sum().item()
+                
+                # 검증 진행상황 출력
+                if batch_idx % 3 == 0 or batch_idx == len(val_loader) - 1:
+                    current_acc = correct / total if total > 0 else 0
+                    print(f"    Val Batch {batch_idx+1}/{len(val_loader)}: Acc={current_acc:.2%}")
                 
                 all_predictions.extend(predicted.cpu())
                 all_labels.extend(labels.cpu())
@@ -295,15 +304,14 @@ class ClassificationStageTrainer:
             model_path = save_dir / f"best_classifier_{self.num_classes}classes.pt"
             torch.save({
                 'model_state_dict': self.model.state_dict(),
-                'optimizer_state_dict': self.optimizer.state_dict() if self.optimizer else None,
                 'best_accuracy': self.best_accuracy,
                 'num_classes': self.num_classes
             }, model_path)
             
             self.logger.info(f"최고 성능 모델 저장: {model_path}")
-            
         except Exception as e:
-            self.logger.warning(f"모델 저장 실패: {e}")
+            self.logger.error(f"모델 저장 실패: {e}")
+    
 
 
 def main():
@@ -318,6 +326,7 @@ def main():
     parser.add_argument("--learning-rate", type=float, default=1e-3, help="Learning rate")
     parser.add_argument("--device", type=str, default="cuda", help="Device (cuda/cpu)")
     parser.add_argument("--dry-run", action="store_true", help="Dry run without actual training")
+    parser.add_argument("--resume", action="store_true", help="Resume from checkpoint if available")
     
     args = parser.parse_args()
     
@@ -363,14 +372,15 @@ def main():
     )
     trainer.setup_model_and_optimizers(learning_rate=args.learning_rate)
     
+    
     # 데이터로더 생성
     print("📊 데이터로더 생성 중...")
     from src.data.dataloader_single_pill_training import SinglePillTrainingDataLoader
     
     dataloader_manager = SinglePillTrainingDataLoader(
         stage=args.stage,
-        batch_size=args.batch_size,
-        num_workers=8  # RTX 5080 최적화
+        batch_size=args.batch_size
+        # num_workers는 시스템 최적화를 통해 자동 설정
     )
     
     train_loader, val_loader, metadata = dataloader_manager.get_stage_dataloaders()
@@ -384,63 +394,31 @@ def main():
     print(f"🏋️ 학습 시작 - {args.epochs} epochs")
     
     try:
-        # 간단한 학습 루프 (1-2 에포크로 제한)
-        best_accuracy = 0.0
+        # 시스템 최적화된 DataLoader 사용
+        print("🔧 시스템 최적화된 DataLoader 재생성")
+        dataloader_manager_optimized = SinglePillTrainingDataLoader(
+            stage=args.stage,
+            batch_size=args.batch_size
+            # num_workers는 자동 최적화됨
+        )
         
-        for epoch in range(min(args.epochs, 2)):  # 최대 2 에포크로 제한
-            print(f"\n📈 Epoch {epoch+1}/{min(args.epochs, 2)}")
-            
-            # 학습 진행 (여기서는 시뮬레이션)
-            trainer.model.train()
-            total_loss = 0.0
-            correct = 0
-            total = 0
-            
-            # 몇 개 배치만 처리 (테스트용)
-            max_batches = min(10, len(train_loader))
-            
-            for batch_idx, (images, labels) in enumerate(train_loader):
-                if batch_idx >= max_batches:
-                    break
-                    
-                images, labels = images.to(trainer.device), labels.to(trainer.device)
-                
-                # Forward pass
-                trainer.optimizer.zero_grad()
-                outputs = trainer.model(images)
-                loss = trainer.criterion(outputs, labels)
-                
-                # Backward pass
-                loss.backward()
-                trainer.optimizer.step()
-                
-                # 통계
-                total_loss += loss.item()
-                _, predicted = outputs.max(1)
-                total += labels.size(0)
-                correct += predicted.eq(labels).sum().item()
-                
-                if batch_idx % 5 == 0:
-                    print(f"  Batch {batch_idx+1}/{max_batches}: Loss={loss.item():.4f}, Acc={100.*correct/total:.2f}%")
-            
-            epoch_accuracy = 100. * correct / total
-            epoch_loss = total_loss / max_batches
-            
-            print(f"  📊 Epoch {epoch+1} 결과: Loss={epoch_loss:.4f}, Accuracy={epoch_accuracy:.2f}%")
-            
-            if epoch_accuracy > best_accuracy:
-                best_accuracy = epoch_accuracy
-                print(f"  🏆 새로운 최고 정확도: {best_accuracy:.2f}%")
+        train_loader, val_loader, metadata = dataloader_manager_optimized.get_stage_dataloaders()
+        print(f"✅ 최적화된 데이터로더 준비 완료")
+        
+        # 원래 train_stage() 호출
+        print("🚀 원래 train_stage() 메서드 호출")
+        results = trainer.train_stage(
+            train_loader=train_loader,
+            val_loader=val_loader,
+            max_epochs=args.epochs,
+            early_stopping_patience=5
+        )
         
         print(f"\n✅ 학습 완료!")
-        print(f"   최고 정확도: {best_accuracy:.2f}%")
-        print(f"   목표 정확도: {trainer.target_accuracy*100:.1f}%")
-        
-        success = best_accuracy >= trainer.target_accuracy * 100
-        if success:
-            print("🎉 목표 달성!")
-        else:
-            print("📈 추가 학습 필요")
+        print(f"   최고 정확도: {results['best_accuracy']:.1%}")
+        print(f"   목표 달성: {results['target_achieved']}")
+        print(f"   완료 에포크: {results['epochs_completed']}")
+        print(f"   소요 시간: {results['total_time_minutes']:.1f}분")
             
     except Exception as e:
         print(f"❌ 학습 중 오류 발생: {e}")
