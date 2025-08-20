@@ -350,7 +350,7 @@ C-11) 실행·검증 절차
 1. config.yaml의 data.root/img_size/augment 확인.
 2. (선택) classes.json 작성해 data.class_names에 지정, 없으면 폴더명 자동.
 3. src/data.py를 본 명세대로 구현(주석에 설계 이유·예외 처리 근거 포함).
-4. $ bash scripts/bootstrap_venv.sh
+4. $ bash scripts/core/setup_venv.sh
 5. (간이 점검) Python REPL:
  > > > from src import data as D, utils as U
  > > >

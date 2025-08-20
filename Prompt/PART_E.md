@@ -348,7 +348,7 @@ E-9) tests/test_export_compare.py (동등성 테스트 지시)
 
 ──────────────────────────────────────────────────────────────────────────────
 E-10) 실행 예시
-$ bash scripts/export_onnx.sh
+$ bash scripts/deployment/export_onnx.sh
 
 # 성공 시:
 

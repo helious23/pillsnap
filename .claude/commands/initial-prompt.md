@@ -16,14 +16,16 @@
 
 ### **Progressive Validation 현황**
 - ✅ **Stage 1**: 완료 (5K 샘플, 50 클래스, 83.2% 정확도 달성)
-- 🔄 **Stage 2**: 준비됨 (25K 샘플, 250 클래스)
-- ⏳ **Stage 3-4**: Native Ubuntu 이전 후 진행 예정
+- ✅ **Stage 2**: 완료 (25K 샘플, 250 클래스, SSD 이전 완료 - 307,152개 이미지)
+- ⚠️ **Stage 3**: M.2 SSD 4TB 필요 (현재 SSD 용량 부족)
+- ⏳ **Stage 4**: Native Ubuntu + M.2 SSD 이전 후 진행
 
 ### **최근 완료 작업 (2025-08-20)**
+- ✅ Stage 2 데이터 SSD 이전 완료 (237개 클래스, 307,152개 이미지, 28분 소요)
+- ✅ Scripts 폴더 구조 재정리 (기능별, Stage별 분류)
+- ✅ 전체 문서 경로 참조 업데이트 (20개 파일)
 - ✅ WSL DataLoader 최적화 (num_workers=0, 안정성 확보)
 - ✅ Albumentations 2.0.8 업그레이드 (API 호환성 완료)
-- ✅ 데드락 모니터링 시스템 구현
-- ✅ Native Ubuntu 이전 계획 문서화
 
 ---
 
@@ -31,7 +33,7 @@
 
 **모든 Python 실행 시 반드시 사용:**
 ```bash
-./scripts/python_safe.sh [명령어]
+./scripts/core/python_safe.sh [명령어]
 ```
 
 **금지사항**: `python`, `python3` 시스템 명령어 사용 금지 (Python 3.13 충돌)
@@ -83,24 +85,24 @@
 
 ```bash
 # 환경 확인
-./scripts/python_safe.sh --version
-./scripts/python_safe.sh -c "import torch; print(f'CUDA: {torch.cuda.is_available()}, PyTorch: {torch.__version__}')"
+./scripts/core/python_safe.sh --version
+./scripts/core/python_safe.sh -c "import torch; print(f'CUDA: {torch.cuda.is_available()}, PyTorch: {torch.__version__}')"
 
 # Stage 1 테스트
-./scripts/python_safe.sh tests/test_stage1_real_image.py
+./scripts/core/python_safe.sh tests/test_stage1_real_image.py
 
 # 통합 테스트
-./scripts/python_safe.sh -m pytest tests/integration/ -v
+./scripts/core/python_safe.sh -m pytest tests/integration/ -v
 
 # Stage 2 시작 (예정)
-./scripts/python_safe.sh -m src.training.train_classification_stage --stage 2
+./scripts/core/python_safe.sh -m src.training.train_classification_stage --stage 2
 ```
 
 ---
 
 ## ⚠️ 중요 제약사항
 
-- **Python 실행**: 반드시 `./scripts/python_safe.sh` 사용
+- **Python 실행**: 반드시 `./scripts/core/python_safe.sh` 사용
 - **경로 정책**: SSD 기반 절대 경로 (`/home/max16/ssd_pillsnap/`)
 - **WSL 제약**: num_workers=0 (Native Ubuntu 이전으로 해결 예정)
 - **데이터 정책**: Train 데이터만 학습/검증 분할, Val은 최종 테스트 전용

@@ -24,7 +24,7 @@
 G-0) 사전 점검
 
 1. WSL에서 API 구동:
-   $ bash scripts/run_api.sh --no-tmux
+   $ bash scripts/deployment/run_api.sh --no-tmux
    # 로컬 확인:
    $ curl http://localhost:8000/health
    → 200 OK여야 함.

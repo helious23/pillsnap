@@ -805,7 +805,7 @@ D-12) CLI/오버라이드
 - resume 로딩 시 key 불일치/백본 차이 검증 및 친절한 에러
 
 [실행 명령 예시]
-$ bash scripts/bootstrap_venv.sh
+$ bash scripts/core/setup_venv.sh
 $ bash scripts/train.sh
 
 # 재개

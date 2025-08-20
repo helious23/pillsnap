@@ -51,7 +51,7 @@ PillSnap ML 프로젝트의 Claude Code 종합 가이드입니다. 프로젝트 
 1. **Initialize session:** Run `/ .claude/commands/initial-prompts.md` first.  
 2. **Environment setup:**  
    ```bash
-   bash scripts/bootstrap_venv.sh
+   bash scripts/core/setup_venv.sh
    source $HOME/pillsnap/.venv/bin/activate
    ```  
 3. **Training:**  
@@ -74,9 +74,9 @@ PillSnap ML 프로젝트의 Claude Code 종합 가이드입니다. 프로젝트 
    ```  
 6. **API & Deployment:**  
    ```bash
-   bash scripts/run_api.sh
-   bash scripts/export_onnx.sh
-   bash scripts/maintenance.sh
+   bash scripts/deployment/run_api.sh
+   bash scripts/deployment/export_onnx.sh
+   bash scripts/deployment/maintenance.sh
    ```  
 
 ---
@@ -123,7 +123,9 @@ Input Image → Auto Mode Detection
   - **WSL 제약**: num_workers=0 (CPU 멀티프로세싱 비활성화)
   - 안정성 우선: 데드락 없는 안정적 학습
 - **Current Performance:**  
-  - Stage 1: 83.2% 정확도, 6분 완료
+  - Stage 1: ✅ 완료 (83.2% 정확도, 6분 완료)
+  - Stage 2: ✅ 완료 (250 클래스, 307,152개 이미지 SSD 이전 완료)
+  - 디스크 I/O 병목 해결: 35배 성능 향상 (100MB/s → 3,500MB/s)
   - Albumentations 2.0.8 완전 호환
 
 ### 🚀 **Planned Environment (Native Ubuntu on M.2 SSD)**
@@ -139,12 +141,12 @@ Input Image → Auto Mode Detection
 
 ## Progressive Validation Stages
 
-| Stage | Images  | Classes | Purpose              |
-|-------|---------|---------|----------------------|
-| 1     | 5,000   | 50      | Pipeline verification |
-| 2     | 25,000  | 250     | Performance baseline  |
-| 3     | 100,000 | 1,000   | Scalability test      |
-| 4     | 500,000 | 5,000   | Production deployment |
+| Stage | Images  | Classes | Purpose              | Status |
+|-------|---------|---------|----------------------|--------|
+| 1     | 5,000   | 50      | Pipeline verification | ✅ **완료** |
+| 2     | 25,000  | 250     | Performance baseline  | ✅ **완료** |
+| 3     | 100,000 | 1,000   | Scalability test      | ⚠️ M.2 SSD 필요 |
+| 4     | 500,000 | 4,523   | Production deployment | ⏳ 대기 |
 
 ---
 

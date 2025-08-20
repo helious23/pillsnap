@@ -14,12 +14,12 @@
 #### 1. 안전한 실행 스크립트 (권장)
 ```bash
 # 기본 사용법
-./scripts/python_safe.sh [Python 명령어와 인수들]
+./scripts/core/python_safe.sh [Python 명령어와 인수들]
 
 # 예시
-./scripts/python_safe.sh --version
-./scripts/python_safe.sh -m pytest tests/ -v
-./scripts/python_safe.sh -m src.train
+./scripts/core/python_safe.sh --version
+./scripts/core/python_safe.sh -m pytest tests/ -v
+./scripts/core/python_safe.sh -m src.train
 ```
 
 #### 2. 직접 경로 (대안)
@@ -30,7 +30,7 @@ $VENV_PYTHON [명령어]
 
 #### 3. 별칭 설정 (선택사항)
 ```bash
-source scripts/setup_aliases.sh
+source scripts/core/setup_aliases.sh
 pp --version              # Python 실행
 ptest tests/ -v           # pytest 실행
 ppip install numpy        # pip 실행
@@ -61,15 +61,15 @@ ls -la .venv/bin/python
 ### 2단계: 가상환경 검증
 ```bash
 # Python 버전 확인
-./scripts/python_safe.sh --version
+./scripts/core/python_safe.sh --version
 # 예상 출력: Python 3.11.13
 
 # PyTorch 및 CUDA 확인
-./scripts/python_safe.sh -c "import torch; print(f'PyTorch: {torch.__version__}'); print(f'CUDA available: {torch.cuda.is_available()}')"
+./scripts/core/python_safe.sh -c "import torch; print(f'PyTorch: {torch.__version__}'); print(f'CUDA available: {torch.cuda.is_available()}')"
 # 예상 출력: PyTorch: 2.7.0+cu128, CUDA available: True
 
 # GPU 하드웨어 확인
-./scripts/python_safe.sh -c "import torch; print(f'GPU: {torch.cuda.get_device_name(0)}'); print(f'Memory: {torch.cuda.get_device_properties(0).total_memory // 1024**3}GB')"
+./scripts/core/python_safe.sh -c "import torch; print(f'GPU: {torch.cuda.get_device_name(0)}'); print(f'Memory: {torch.cuda.get_device_properties(0).total_memory // 1024**3}GB')"
 # 예상 출력: GPU: NVIDIA GeForce RTX 5080, Memory: 15GB
 ```
 
@@ -96,7 +96,7 @@ tree -L 2 src/
 # 예상: models/, training/, evaluation/, data/ 등 디렉토리 존재
 
 # 간단한 import 테스트
-./scripts/python_safe.sh -c "from src.utils.core import ConfigLoader; print('✅ 환경 설정 완료')"
+./scripts/core/python_safe.sh -c "from src.utils.core import ConfigLoader; print('✅ 환경 설정 완료')"
 ```
 
 ---
@@ -106,23 +106,23 @@ tree -L 2 src/
 ### 프로젝트 상태 확인
 ```bash
 # Stage 1 파이프라인 테스트
-./scripts/python_safe.sh tests/test_stage1_real_image.py
+./scripts/core/python_safe.sh tests/test_stage1_real_image.py
 
 # 통합 테스트 실행
-./scripts/python_safe.sh -m pytest tests/integration/ -v
+./scripts/core/python_safe.sh -m pytest tests/integration/ -v
 
 # 모델 개별 테스트
-./scripts/python_safe.sh -m src.models.detector_yolo11m
-./scripts/python_safe.sh -m src.models.classifier_efficientnetv2
+./scripts/core/python_safe.sh -m src.models.detector_yolo11m
+./scripts/core/python_safe.sh -m src.models.classifier_efficientnetv2
 ```
 
 ### 실제 학습 시작 (Ready!)
 ```bash
 # Stage 1 분류 학습
-./scripts/python_safe.sh -m src.training.train_classification_stage --stage 1 --epochs 10
+./scripts/core/python_safe.sh -m src.training.train_classification_stage --stage 1 --epochs 10
 
 # 배치 크기 자동 최적화
-./scripts/python_safe.sh -m src.training.batch_size_auto_tuner --model-type classification
+./scripts/core/python_safe.sh -m src.training.batch_size_auto_tuner --model-type classification
 ```
 
 ---
@@ -142,7 +142,7 @@ pip install -r requirements.txt
 # CUDA 호환성 확인
 nvidia-smi
 # PyTorch CUDA 버전 확인
-./scripts/python_safe.sh -c "import torch; print(torch.version.cuda)"
+./scripts/core/python_safe.sh -c "import torch; print(torch.version.cuda)"
 ```
 
 ### 데이터 경로 오류 시
@@ -180,9 +180,9 @@ ls -la /home/max16/ssd_pillsnap/dataset/
 
 **환경 설정 완료 후 다음 단계**:
 
-1. **Stage 1 파이프라인 테스트**: `./scripts/python_safe.sh tests/test_stage1_real_image.py`
-2. **실제 학습 시작**: `./scripts/python_safe.sh -m src.training.train_classification_stage --stage 1`
-3. **성능 평가**: `./scripts/python_safe.sh -m src.evaluation.evaluate_pipeline_end_to_end --stage 1`
+1. **Stage 1 파이프라인 테스트**: `./scripts/core/python_safe.sh tests/test_stage1_real_image.py`
+2. **실제 학습 시작**: `./scripts/core/python_safe.sh -m src.training.train_classification_stage --stage 1`
+3. **성능 평가**: `./scripts/core/python_safe.sh -m src.evaluation.evaluate_pipeline_end_to_end --stage 1`
 
 **🎯 목표**: 92% 분류 정확도, 0.85 mAP@0.5 검출 성능 달성!
 

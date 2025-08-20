@@ -1142,7 +1142,7 @@ python scripts/sequential_extract.py --batch-size 1
 
 ## 📋 **다음 단계 (압축 해제 완료 후)**
 
-1. **프로젝트 초기화**: `bash scripts/bootstrap_venv.sh`
+1. **프로젝트 초기화**: `bash scripts/core/setup_venv.sh`
 2. **COCO→YOLO 변환**: Part C 데이터 파이프라인
 3. **edi_code 매핑 생성**: Part C 매핑 테이블
 4. **조건부 Two-Stage 학습**: Part D 학습 파이프라인

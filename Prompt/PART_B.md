@@ -943,7 +943,7 @@ B-10. 부트스트랩 & 점검(실행 순서)
 
 1. 폴더 생성/파일 작성(현재 파트 B 복붙 적용)
 2. venv 부팅
-   $ bash scripts/bootstrap_venv.sh
+   $ bash scripts/core/setup_venv.sh
    - 출력에 CUDA available: True/False, GPU name/capability 확인
 3. 최소 디렉토리 확인
    $ tree -L 2 /home/max16/pillsnap # (없으면 'sudo apt install tree')

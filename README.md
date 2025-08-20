@@ -36,7 +36,7 @@ PillSnap ML은 **263만개 약품 이미지**를 활용하여 **4,523개 EDI 코
 | 단계 | 이미지 수 | 클래스 수 | 목적 | 상태 |
 |------|-----------|-----------|------|------|
 | **Stage 1** | 5,000개 | 50개 | 파이프라인 검증 | ✅ **완료** |
-| **Stage 2** | 25,000개 | 250개 | 성능 기준선 | 🔄 **준비됨** |
+| **Stage 2** | 25,000개 | 250개 | 성능 기준선 | ✅ **완료** |
 | **Stage 3** | 100,000개 | 1,000개 | 확장성 테스트 | ⏳ 대기 |
 | **Stage 4** | 500,000개 | 4,523개 | 프로덕션 배포 | ⏳ 대기 |
 
@@ -147,9 +147,9 @@ CUDA: 11.8
 
 ```bash
 # 🔥 권장: 안전한 실행 스크립트
-./scripts/python_safe.sh --version
-./scripts/python_safe.sh -m pytest tests/ -v
-./scripts/python_safe.sh -m src.training.train_classification_stage
+./scripts/core/python_safe.sh --version
+./scripts/core/python_safe.sh -m pytest tests/ -v
+./scripts/core/python_safe.sh -m src.training.train_classification_stage
 
 # 대안: 직접 경로
 /home/max16/pillsnap/.venv/bin/python --version
@@ -216,7 +216,7 @@ cd /home/max16/pillsnap
 /.claude/commands/initial-prompt.md
 
 # 환경 확인
-./scripts/python_safe.sh -c "import torch; print(f'CUDA: {torch.cuda.is_available()}, PyTorch: {torch.__version__}')"
+./scripts/core/python_safe.sh -c "import torch; print(f'CUDA: {torch.cuda.is_available()}, PyTorch: {torch.__version__}')"
 # 예상 출력: CUDA: True, PyTorch: 2.7.0+cu128
 ```
 
@@ -224,41 +224,41 @@ cd /home/max16/pillsnap
 
 ```bash
 # Progressive Validation Stage 1 샘플링
-./scripts/python_safe.sh -m src.data.progressive_validation_sampler
+./scripts/core/python_safe.sh -m src.data.progressive_validation_sampler
 
 # 실제 이미지로 파이프라인 테스트
-./scripts/python_safe.sh tests/test_stage1_real_image.py
+./scripts/core/python_safe.sh tests/test_stage1_real_image.py
 
 # 모델별 단독 테스트
-./scripts/python_safe.sh -m src.models.detector_yolo11m
-./scripts/python_safe.sh -m src.models.classifier_efficientnetv2
-./scripts/python_safe.sh -m src.models.pipeline_two_stage_conditional
+./scripts/core/python_safe.sh -m src.models.detector_yolo11m
+./scripts/core/python_safe.sh -m src.models.classifier_efficientnetv2
+./scripts/core/python_safe.sh -m src.models.pipeline_two_stage_conditional
 ```
 
 ### 3. 통합 테스트 실행 (22개 상업용 테스트)
 
 ```bash
 # 새로운 아키텍처 컴포넌트 통합 테스트
-./scripts/python_safe.sh -m pytest tests/integration/test_new_architecture_components.py -v
+./scripts/core/python_safe.sh -m pytest tests/integration/test_new_architecture_components.py -v
 
 # 전체 단위 테스트 (80+ 테스트)
-./scripts/python_safe.sh -m pytest tests/unit/ -v --tb=short
+./scripts/core/python_safe.sh -m pytest tests/unit/ -v --tb=short
 
 # 성능 테스트
-./scripts/python_safe.sh -m pytest tests/performance/ -v
+./scripts/core/python_safe.sh -m pytest tests/performance/ -v
 ```
 
 ### 4. 실제 학습 시작 (Ready!)
 
 ```bash
 # Stage 1 분류 학습 (새 Training Components 활용)
-./scripts/python_safe.sh -m src.training.train_classification_stage --stage 1 --epochs 10
+./scripts/core/python_safe.sh -m src.training.train_classification_stage --stage 1 --epochs 10
 
 # 배치 크기 자동 최적화 (RTX 5080)
-./scripts/python_safe.sh -m src.training.batch_size_auto_tuner --model-type classification
+./scripts/core/python_safe.sh -m src.training.batch_size_auto_tuner --model-type classification
 
 # End-to-End 파이프라인 평가
-./scripts/python_safe.sh -m src.evaluation.evaluate_pipeline_end_to_end --stage 1
+./scripts/core/python_safe.sh -m src.evaluation.evaluate_pipeline_end_to_end --stage 1
 ```
 
 ---
@@ -330,16 +330,16 @@ tests/
 
 ```bash
 # 🔥 새로운 아키텍처 통합 테스트 (22개)
-./scripts/python_safe.sh -m pytest tests/integration/test_new_architecture_components.py -v
+./scripts/core/python_safe.sh -m pytest tests/integration/test_new_architecture_components.py -v
 
 # 성능/메모리/에러 처리 엄격 검증 (4개 추가)
-./scripts/python_safe.sh -m pytest tests/integration/test_new_architecture_components.py::TestStrictValidation -v
+./scripts/core/python_safe.sh -m pytest tests/integration/test_new_architecture_components.py::TestStrictValidation -v
 
 # 전체 테스트 스위트
-./scripts/python_safe.sh -m pytest tests/ -v --tb=short
+./scripts/core/python_safe.sh -m pytest tests/ -v --tb=short
 
 # Stage 1 실제 이미지 테스트
-./scripts/python_safe.sh tests/test_stage1_real_image.py
+./scripts/core/python_safe.sh tests/test_stage1_real_image.py
 ```
 
 ---
@@ -423,11 +423,11 @@ train:
 /.claude/commands/initial-prompt.md
 
 # 환경 확인
-./scripts/python_safe.sh --version
-./scripts/python_safe.sh -c "import torch; print(torch.cuda.is_available())"
+./scripts/core/python_safe.sh --version
+./scripts/core/python_safe.sh -c "import torch; print(torch.cuda.is_available())"
 
 # 별칭 설정 (선택사항)
-source scripts/setup_aliases.sh
+source scripts/core/setup_aliases.sh
 pp --version              # Python 실행
 ptest tests/ -v          # pytest 실행
 ```
@@ -436,37 +436,37 @@ ptest tests/ -v          # pytest 실행
 
 ```bash
 # Progressive Validation Stage 1 샘플링
-./scripts/python_safe.sh -m src.data.progressive_validation_sampler
+./scripts/core/python_safe.sh -m src.data.progressive_validation_sampler
 
 # 실제 데이터 구조 분석 (완료됨)
-./scripts/python_safe.sh scripts/data/analyze_dataset_structure.py
+./scripts/core/python_safe.sh scripts/data/analyze_dataset_structure.py
 ```
 
 ### 모델 테스트 (완료)
 
 ```bash
 # 개별 모델 테스트
-./scripts/python_safe.sh -m src.models.detector_yolo11m
-./scripts/python_safe.sh -m src.models.classifier_efficientnetv2
-./scripts/python_safe.sh -m src.models.pipeline_two_stage_conditional
+./scripts/core/python_safe.sh -m src.models.detector_yolo11m
+./scripts/core/python_safe.sh -m src.models.classifier_efficientnetv2
+./scripts/core/python_safe.sh -m src.models.pipeline_two_stage_conditional
 
 # 통합 파이프라인 테스트
-./scripts/python_safe.sh tests/test_stage1_real_image.py
+./scripts/core/python_safe.sh tests/test_stage1_real_image.py
 ```
 
 ### 학습 (Ready!)
 
 ```bash
 # 🚀 Stage 1 분류 학습 (새 Training Components)
-./scripts/python_safe.sh -m src.training.train_classification_stage \
+./scripts/core/python_safe.sh -m src.training.train_classification_stage \
   --stage 1 --epochs 10 --batch-size 32
 
 # 🚀 Stage 1 검출 학습
-./scripts/python_safe.sh -m src.training.train_detection_stage \
+./scripts/core/python_safe.sh -m src.training.train_detection_stage \
   --stage 1 --epochs 10
 
 # RTX 5080 배치 크기 자동 최적화
-./scripts/python_safe.sh -m src.training.batch_size_auto_tuner \
+./scripts/core/python_safe.sh -m src.training.batch_size_auto_tuner \
   --model-type classification --max-batch 64
 ```
 
@@ -474,13 +474,13 @@ ptest tests/ -v          # pytest 실행
 
 ```bash
 # End-to-End 파이프라인 평가
-./scripts/python_safe.sh -m src.evaluation.evaluate_pipeline_end_to_end --stage 1
+./scripts/core/python_safe.sh -m src.evaluation.evaluate_pipeline_end_to_end --stage 1
 
 # Stage 1 목표 달성 검증
-./scripts/python_safe.sh -m src.evaluation.evaluate_stage1_targets
+./scripts/core/python_safe.sh -m src.evaluation.evaluate_stage1_targets
 
 # 상업적 준비도 평가
-./scripts/python_safe.sh -m src.evaluation.evaluate_pipeline_end_to_end --commercial-ready
+./scripts/core/python_safe.sh -m src.evaluation.evaluate_pipeline_end_to_end --commercial-ready
 ```
 
 ---
@@ -518,7 +518,7 @@ ptest tests/ -v          # pytest 실행
 
 ### 핵심 개발 규칙
 
-1. **Python 실행**: `./scripts/python_safe.sh` 사용 필수
+1. **Python 실행**: `./scripts/core/python_safe.sh` 사용 필수
 2. **경로 정책**: WSL 절대 경로만 사용 (`/mnt/data/`)
 3. **명명 규칙**: 함수 기반, 구체적 이름 (`detector_yolo11m.py`)
 4. **테스트**: 모든 새 기능에 단위/통합 테스트 필수
@@ -538,10 +538,10 @@ ptest tests/ -v          # pytest 실행
 git checkout -b feature/new-component
 
 # 2. 구현 + 테스트 작성
-./scripts/python_safe.sh -m pytest tests/unit/test_new_component.py -v
+./scripts/core/python_safe.sh -m pytest tests/unit/test_new_component.py -v
 
 # 3. 통합 테스트 확인
-./scripts/python_safe.sh -m pytest tests/integration/ -v
+./scripts/core/python_safe.sh -m pytest tests/integration/ -v
 
 # 4. 커밋 및 푸시
 git add -A && git commit -m "feat: 새 컴포넌트 구현 + 테스트"
@@ -607,7 +607,7 @@ git push origin feature/new-component
 ```bash
 # 🔥 바로 시작: Stage 1 실제 학습
 /.claude/commands/initial-prompt.md
-./scripts/python_safe.sh -m src.training.train_classification_stage --stage 1
+./scripts/core/python_safe.sh -m src.training.train_classification_stage --stage 1
 ```
 
 **Ready for Production! 🚀**

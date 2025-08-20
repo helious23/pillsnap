@@ -56,7 +56,7 @@ H-1) 로깅·보존·로테이션 정책
   5. df -h / /mnt/data 결과를 reports/disk_YYYYMMDD.txt로 저장
   ```
 - 실행 예:
-  $ bash scripts/maintenance.sh
+  $ bash scripts/deployment/maintenance.sh
 
 ──────────────────────────────────────────────────────────────────────────────
 H-2) 백업·릴리스 아카이브(배포 산출물 표준화)
