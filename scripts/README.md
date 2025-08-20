@@ -1,91 +1,73 @@
-# PillSnap ML Scripts 사용법
+# Scripts 디렉토리 구조
 
-## 가상환경 Python 실행
+## 📁 구조 개요
 
-### 기본 사용법
-```bash
-# Python 명령어 실행
-./scripts/python_safe.sh [Python 명령어와 인수들]
-
-# 예시
-./scripts/python_safe.sh --version
-./scripts/python_safe.sh -c "print('Hello PillSnap!')"
-./scripts/python_safe.sh -m pytest tests/ -v
-./scripts/python_safe.sh -m pip install numpy
+```
+scripts/
+├── core/                   # 핵심 유틸리티
+│   ├── python_safe.sh     # 안전한 Python 실행
+│   ├── setup_aliases.sh   # 편의 별칭 설정
+│   ├── setup_venv.sh      # 가상환경 설정
+│   └── update_docs.sh     # 문서 업데이트
+│
+├── stage1/                 # Stage 1 관련
+│   ├── migrate_stage1_images_only.sh
+│   └── migrate_stage1_to_ssd.sh
+│
+├── stage2/                 # Stage 2 관련
+│   ├── run_stage2_sampling.py         # Stage 2 샘플링
+│   ├── migrate_stage2_data.py         # Stage 2 데이터 이전
+│   ├── monitor_stage2_migration.sh    # 실시간 모니터링
+│   ├── quick_status.sh               # 빠른 상태 확인
+│   └── check_stage_overlap.py        # Stage 중복 확인
+│
+├── monitoring/             # 모니터링 도구
+│   ├── monitor_deadlock.sh
+│   ├── monitor_simple.sh
+│   ├── monitor_training.sh
+│   ├── simple_monitor.sh
+│   ├── simple_watch.sh
+│   ├── live_log.sh
+│   └── watch_training.sh
+│
+├── training/               # 학습 관련
+│   ├── train_and_monitor.sh
+│   └── train_with_monitor.sh
+│
+├── data/                   # 데이터 처리 (기존 유지)
+├── deployment/             # 배포 관련 (기존 유지)
+└── testing/               # 테스트 관련 (기존 유지)
 ```
 
-### 자주 사용하는 명령어들
+## 🚀 빠른 사용법
 
-#### 테스트 실행
+### Stage 2 작업
 ```bash
-# 전체 테스트
-./scripts/python_safe.sh -m pytest
+# Stage 2 샘플링
+./scripts/stage2/run_stage2_sampling.py
 
-# 특정 테스트 파일
-./scripts/python_safe.sh -m pytest tests/unit/test_dataloaders_strict_validation.py -v
+# Stage 2 데이터 이전
+./scripts/stage2/migrate_stage2_data.py
 
-# 특정 테스트 함수
-./scripts/python_safe.sh -m pytest tests/unit/test_dataloaders_strict_validation.py::TestSinglePillDatasetHandlerStrictValidation::test_getitem_error_handling_robustness -v
+# 진행 상황 모니터링
+./scripts/stage2/quick_status.sh
+./scripts/stage2/monitor_stage2_migration.sh
 ```
 
-#### 패키지 관리
+### 모니터링
 ```bash
-# 패키지 설치
-./scripts/python_safe.sh -m pip install [패키지명]
+# 학습 모니터링
+./scripts/monitoring/monitor_training.sh
 
-# 설치된 패키지 목록
-./scripts/python_safe.sh -m pip list
-
-# requirements.txt 설치
-./scripts/python_safe.sh -m pip install -r requirements.txt
+# 데드락 모니터링  
+./scripts/monitoring/monitor_deadlock.sh
 ```
 
-#### 스크립트 실행
+### 핵심 도구
 ```bash
-# 프로젝트 스크립트 실행
-./scripts/python_safe.sh -m src.train
-./scripts/python_safe.sh -m src.evaluate
-./scripts/python_safe.sh -m src.infer
-```
+# 안전한 Python 실행
+./scripts/core/python_safe.sh [명령어]
 
-## 별칭 설정 (선택사항)
-
-더 짧은 명령어를 원한다면:
-```bash
-# 별칭 설정 로드
-source scripts/setup_aliases.sh
-
-# 사용법
-pp --version                    # Python 실행
-ptest tests/ -v                 # pytest 실행  
-ppip install numpy              # pip 실행
-```
-
-## 환경 활성화 (전체 환경)
-
-전체 환경을 활성화하려면:
-```bash
-source scripts/env/activate_environment.sh
-```
-
-이후 일반적인 `python`, `pytest` 명령어 사용 가능
-
-## 문제 해결
-
-### 가상환경을 찾을 수 없다는 오류
-```bash
-# 가상환경 경로 확인
-ls -la /home/max16/pillsnap/.venv/bin/python
-
-# 가상환경 재생성이 필요한 경우
-python3.11 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-### 권한 오류
-```bash
-# 스크립트 실행 권한 부여
-chmod +x scripts/python_safe.sh
-chmod +x scripts/setup_aliases.sh
+# 환경 설정
+./scripts/core/setup_venv.sh
 ```

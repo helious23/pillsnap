@@ -46,6 +46,21 @@ class Stage1SamplingStrategy:
     
     single_combo_ratio: float = 0.7  # Single:Combo = 7:3 비율
     prefer_balanced_distribution: bool = True
+
+
+@dataclass
+class Stage2SamplingStrategy:
+    """Stage 2 샘플링 전략 설정 (25K 샘플, 250 클래스)"""
+    target_images: int = 25000
+    target_classes: int = 250
+    images_per_class: int = 100  # 25000 / 250 = 100
+    min_images_per_class: int = 80  # 클래스당 최소 이미지 수
+    max_images_per_class: int = 120  # 클래스당 최대 이미지 수
+    quality_threshold: float = 0.95  # 품질 통과 비율 임계값
+    seed: int = 42  # 재현 가능성을 위한 시드
+    
+    single_combo_ratio: float = 0.7  # Single:Combo = 7:3 비율
+    prefer_balanced_distribution: bool = True
     
     def __post_init__(self):
         """설정 유효성 검증"""
@@ -60,7 +75,7 @@ class Stage1SamplingStrategy:
         if calculated_images != self.target_images:
             self.images_per_class = self.target_images // self.target_classes
             remaining = self.target_images % self.target_classes
-            print(f"⚠️  이미지 수 조정: {self.images_per_class}개/클래스 + {remaining}개 추가")
+            print(f"⚠️  Stage 2 이미지 수 조정: {self.images_per_class}개/클래스 + {remaining}개 추가")
 
 
 class ProgressiveValidationSampler:
@@ -72,8 +87,13 @@ class ProgressiveValidationSampler:
         self.logger = PillSnapLogger(__name__)
         self.config = load_config()
         
-        # 샘플링 결과 저장 경로
-        self.artifacts_dir = Path("artifacts/stage1/sampling")
+        # 샘플링 결과 저장 경로 (동적으로 결정)
+        if hasattr(strategy, 'target_classes') and strategy.target_classes == 250:
+            # Stage 2인 경우
+            self.artifacts_dir = Path("artifacts/stage2/sampling")
+        else:
+            # Stage 1인 경우
+            self.artifacts_dir = Path("artifacts/stage1/sampling")
         self.artifacts_dir.mkdir(parents=True, exist_ok=True)
         
         # 시드 설정으로 재현 가능성 보장
@@ -157,6 +177,34 @@ class ProgressiveValidationSampler:
         selected_classes = sorted_k_codes[:self.strategy.target_classes]
         
         self.logger.info(f"선택된 {len(selected_classes)}개 클래스:")
+        for k_code in selected_classes[:10]:  # 상위 10개만 로깅
+            self.logger.info(f"  {k_code}: {k_code_counts[k_code]}개 이미지")
+        
+        return selected_classes
+    
+    def select_target_classes_stage2(self, k_code_counts: Dict[str, int]) -> List[str]:
+        """Stage 2용 250개 클래스 선택"""
+        self.logger.info(f"목표 {self.strategy.target_classes}개 클래스 선택 (Stage 2)...")
+        
+        # 충분한 이미지가 있는 K-코드만 필터링
+        valid_k_codes = [
+            k_code for k_code, count in k_code_counts.items()
+            if count >= self.strategy.min_images_per_class
+        ]
+        
+        if len(valid_k_codes) < self.strategy.target_classes:
+            raise ValueError(
+                f"충분한 이미지가 있는 K-코드가 부족합니다. "
+                f"필요: {self.strategy.target_classes}, 사용 가능: {len(valid_k_codes)}"
+            )
+        
+        # 이미지 수 기준으로 정렬하여 균등 분포 유지
+        sorted_k_codes = sorted(valid_k_codes, key=lambda k: k_code_counts[k], reverse=True)
+        
+        # 상위 클래스들을 균등하게 선택
+        selected_classes = sorted_k_codes[:self.strategy.target_classes]
+        
+        self.logger.info(f"선택된 {len(selected_classes)}개 클래스 (Stage 2):")
         for k_code in selected_classes[:10]:  # 상위 10개만 로깅
             self.logger.info(f"  {k_code}: {k_code_counts[k_code]}개 이미지")
         
@@ -313,6 +361,90 @@ class ProgressiveValidationSampler:
         self.logger.info(f"  Single/Combo 비율: {stats.single_pill_ratio:.1%}/{stats.combo_pill_ratio:.1%}")
         
         return stage1_sample
+
+    def generate_stage2_sample(self) -> Dict:
+        """Stage 2 샘플 생성 (25K 샘플, 250 클래스)"""
+        self.logger.info("Stage 2 샘플링 시작...")
+        
+        # 1. 데이터 스캔
+        scan_result = self.scan_available_data()
+        single_images = scan_result['single']
+        combo_images = scan_result['combo']
+        k_code_counts = scan_result['k_code_counts']
+        
+        # 2. 목표 클래스 선택 (Stage 2용)
+        selected_classes = self.select_target_classes_stage2(k_code_counts)
+        
+        # 3. 각 클래스별 이미지 샘플링
+        stage2_sample = {
+            'metadata': {
+                'stage': 2,
+                'strategy': asdict(self.strategy),
+                'timestamp': pd.Timestamp.now().isoformat(),
+                'selected_classes': selected_classes
+            },
+            'samples': {}
+        }
+        
+        total_sampled_images = 0
+        quality_pass_count = 0
+        total_tested = 0
+        
+        for k_code in selected_classes:
+            single_imgs = single_images.get(k_code, [])
+            combo_imgs = combo_images.get(k_code, [])
+            
+            # 이미지 샘플링
+            sampled_single, sampled_combo = self.sample_images_for_class(
+                k_code, single_imgs, combo_imgs
+            )
+            
+            # 품질 통계 업데이트
+            all_sampled = sampled_single + sampled_combo
+            for img_path in all_sampled:
+                total_tested += 1
+                if self.validate_image_quality(img_path):
+                    quality_pass_count += 1
+            
+            total_sampled_images += len(all_sampled)
+            
+            # 결과 저장
+            stage2_sample['samples'][k_code] = {
+                'single_images': [str(p) for p in sampled_single],
+                'combo_images': [str(p) for p in sampled_combo],
+                'total_images': len(all_sampled),
+                'single_count': len(sampled_single),
+                'combo_count': len(sampled_combo)
+            }
+            
+            self.logger.info(f"{k_code}: {len(all_sampled)}개 이미지 "
+                           f"(Single: {len(sampled_single)}, Combo: {len(sampled_combo)})")
+        
+        # 통계 계산
+        quality_pass_rate = quality_pass_count / total_tested if total_tested > 0 else 0
+        single_total = sum(data['single_count'] for data in stage2_sample['samples'].values())
+        combo_total = sum(data['combo_count'] for data in stage2_sample['samples'].values())
+        
+        stats = SamplingStats(
+            total_images=sum(k_code_counts.values()),
+            total_classes=len(k_code_counts),
+            sampled_images=total_sampled_images,
+            sampled_classes=len(selected_classes),
+            images_per_class={k: data['total_images'] for k, data in stage2_sample['samples'].items()},
+            single_pill_ratio=single_total / total_sampled_images if total_sampled_images > 0 else 0,
+            combo_pill_ratio=combo_total / total_sampled_images if total_sampled_images > 0 else 0,
+            quality_pass_rate=quality_pass_rate
+        )
+        
+        stage2_sample['stats'] = asdict(stats)
+        
+        self.logger.info(f"Stage 2 샘플링 완료:")
+        self.logger.info(f"  총 이미지: {total_sampled_images}개")
+        self.logger.info(f"  총 클래스: {len(selected_classes)}개")
+        self.logger.info(f"  품질 통과율: {quality_pass_rate:.2%}")
+        self.logger.info(f"  Single/Combo 비율: {stats.single_pill_ratio:.1%}/{stats.combo_pill_ratio:.1%}")
+        
+        return stage2_sample
     
     def save_sample(self, sample_data: Dict, filename: str = "stage1_sample.json"):
         """샘플 데이터 저장"""

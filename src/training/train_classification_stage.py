@@ -356,7 +356,7 @@ def main():
     if not os.path.exists(stage1_sample_path):
         print(f"❌ Stage 1 샘플 데이터가 없습니다: {stage1_sample_path}")
         print("먼저 Progressive Validation 샘플링을 실행하세요:")
-        print("./scripts/python_safe.sh -m src.data.progressive_validation_sampler")
+        print("./scripts/core/python_safe.sh -m src.data.progressive_validation_sampler")
         return
     
     print("✅ Stage 1 샘플 데이터 확인됨")
