@@ -15,8 +15,8 @@
 [전제/경로/규칙]
 
 - 코드 루트: /home/max16/pillsnap
-- exp_dir: **/home/max16/ssd_pillsnap/exp/exp01** (SSD 이전 완룼)
-- 모든 데이터 경로는 **SSD 기반** (/home/max16/ssd_pillsnap/)만 사용. HDD 경로(/mnt/data/) 백업용.
+- exp_dir: **/home/max16/pillsnap_data/exp/exp01** (Native Linux SSD, 프로젝트 분리)
+- 모든 데이터 경로는 **Native Linux SSD** (/home/max16/pillsnap_data/)만 사용. 프로젝트와 데이터 분리.
 - 기본 작업은 검출+분류(Detection+Classification, Two-Stage). 약품 검출 후 분류하여 edi_code 반환.
 
 [필수 의존성(WSL)]

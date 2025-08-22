@@ -12,7 +12,7 @@ import time
 import os
 
 # 환경 설정
-os.environ['PILLSNAP_DATA_ROOT'] = '/mnt/data/pillsnap_dataset'
+os.environ['PILLSNAP_DATA_ROOT'] = '/home/max16/pillsnap_data'
 
 # 모델 import
 from src.models.pipeline import create_pillsnap_pipeline

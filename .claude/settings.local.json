@@ -44,7 +44,14 @@
       "Bash(sudo mkdir:*)",
       "Bash(sudo chown:*)",
       "Bash(export PILLSNAP_DATA_ROOT=/home/max16/ssd_pillsnap/dataset)",
-      "Bash(export PILLSNAP_DATA_ROOT=\"/home/max16/ssd_pillsnap/dataset\")"
+      "Bash(export PILLSNAP_DATA_ROOT=\"/home/max16/ssd_pillsnap/dataset\")",
+      "WebSearch",
+      "Bash(for ts in 21 34 44 54 71 80)",
+      "Bash(do if [[ ! -d \"dataset/train/images/single/TS_$ts_single\" ]])",
+      "Bash(then echo \"✅ TS_$ts_single 누락 확인됨\")",
+      "Bash(fi)",
+      "Bash(md5sum:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": [],

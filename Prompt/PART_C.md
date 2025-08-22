@@ -2,18 +2,19 @@
 
 [절대 경로/전제 + 디스크 I/O 병목 해결 상황]
 
-- **원본 데이터**: /mnt/data/AIHub/166.약품식별_인공지능_개발을_위한_경구약제_이미지_데이터 (한글 경로, 압축 해제 후 영문 변환)
-- **처리된 데이터**: 
-  - **원본**: /mnt/data/pillsnap_dataset (외장 HDD 8TB, ext4, 100MB/s) - 전체 데이터셋
-  - **SSD 이전**: /home/max16/ssd_pillsnap/dataset (내장 SSD 1TB, 3,500MB/s) - Stage 1 완료, Stage 2-3 예정
-- **디스크 I/O 병목 해결**: 외장 HDD (100MB/s) → SSD (3,500MB/s) 35배 성능 향상
-  - **✅ Stage 1**: 5,000장 SSD 이전 완료, 83.2% 정확도 달성
-  - **✅ Stage 2**: 307,152개 이미지 + 112,365개 라벨 SSD 이전 완료, 83.1% 정확도 달성
-  - **📊 현재 사용량**: 459GB (Stage 3 대비 M.2 SSD 4TB 확장 필요)
-  - **🔜 Stage 3-4**: M.2 SSD 4TB 추가 계획 (Samsung 990 PRO, 7,450MB/s)
+- **원본 데이터**: /mnt/data/pillsnap_dataset (원본 보관)
+- **데이터 구조**: 
+  - **Native Linux**: /home/max16/pillsnap_data (Linux SSD, 주요 데이터)
+  - **Windows SSD**: 심볼릭 링크로 연결 (하이브리드 스토리지)
+  - **백업**: /mnt/data/pillsnap_dataset (원본 보관용)
+- **Native Linux 이전 완료**: WSL 제약 해결, CPU 멀티프로세싱 활성화 (num_workers=8)
+  - **✅ Stage 1**: 74.9% 정확돀 달성 (Native Linux, 1분 완료)
+  - **✅ Stage 2**: 준비 완료 (25K 샘플, 250클래스, 하이브리드 스토리지)
+  - **🔗 심볼릭 링크**: Windows SSD 81개 폴더 완전 설정
+  - **🔄 Stage 3-4**: 준비 중 (대용량 데이터셋)
 - 기본 작업: 약품 검출+분류(Detection → Classification, Two-Stage). 순수 분류 모드도 지원.
-- 모든 데이터 경로는 **SSD 기반** (/home/max16/ssd_pillsnap/)만 사용. HDD 경로(/mnt/data/) 백업용.
-- 코드는 /home/max16/pillsnap, **학습 산출물/캐시/체크포인트는 SSD**(/home/max16/ssd_pillsnap/exp/)로 고정.
+- 모든 데이터 경로는 **/home/max16/pillsnap_data** 사용 (프로젝트와 분리).
+- 코드는 /home/max16/pillsnap, **학습 산출물/체크포인트**는 /home/max16/pillsnap_data/exp/로 고정 (데이터 분리).
 
 C-0) 목표 & 산출물
 
@@ -52,11 +53,11 @@ data:
   pipeline_strategy: "user_controlled"  # single 우선, combo 명시적 선택
   default_mode: "single"         # 90% 케이스 기본값
   auto_fallback: false           # 자동 판단 완전 제거
-  root: "/home/max16/ssd_pillsnap/dataset"  # SSD로 이전된 데이터 경로 (Stage 1 완료)
+  root: "/home/max16/pillsnap_data"  # Native Linux SSD 데이터 경로 (Stage 1-2 완료)
   detection:
     img_size: 640
     coco_json_path: "data/train/labels"  # COCO annotation 경로
-    yolo_output_dir: "/home/max16/ssd_pillsnap/exp/exp01/yolo_data"      # SSD에 변환된 YOLO 포맷 저장
+    yolo_output_dir: "/home/max16/pillsnap_data/exp/exp01/yolo_data"      # Native Linux SSD에 변환된 YOLO 포맷 저장
     conf_threshold: 0.3
     iou_threshold: 0.5
     max_detections: 100
@@ -68,18 +69,18 @@ data:
   test_data_source: "aihub_validation"  # AI Hub Validation 전체를 test로 사용 (Stage 학습 중 절대 사용 금지)
   test_usage_policy: "final_evaluation_only"  # test는 모든 Stage 완료 후 최종 평가시 1회만 사용
   max_samples: null              # 디버그 시 1000 같은 제한 지원(null이면 전체)
-  drug_metadata_file: "/home/max16/ssd_pillsnap/exp/exp01/drug_metadata.json"  # SSD에 drug_id → complete_metadata 매핑
-  # 단순화된 Stage 평가 시스템
+  drug_metadata_file: "/home/max16/pillsnap_data/exp/exp01/drug_metadata.json"  # Native Linux SSD에 drug_id → complete_metadata 매핑
+  # 단순화된 Stage 평가 시스템 (Native Linux 업데이트)
   progressive_validation:
-    current_stage: 2  # Stage 2 완료
-    stage_1: {max_samples: 5000, max_classes: 50, target_accuracy: 0.78, achieved_accuracy: 0.832, status: "completed"}
-    stage_2: {max_samples: 23700, max_classes: 237, target_accuracy: 0.82, achieved_accuracy: 0.831, status: "completed"}
+    current_stage: 2  # Stage 2 준비 완료
+    stage_1: {max_samples: 5000, max_classes: 50, target_accuracy: 0.78, achieved_accuracy: 0.749, status: "completed"}
+    stage_2: {max_samples: 25000, max_classes: 250, target_accuracy: 0.82, status: "ready"}
     stage_3: {max_samples: 100000, max_classes: 1000, target_accuracy: 0.85, max_latency_ms: 200}
-    stage_4: {max_samples: 500000, max_classes: 5000, target_accuracy: 0.85, max_latency_ms: 200}
+    stage_4: {max_samples: 500000, max_classes: 4523, target_accuracy: 0.85, max_latency_ms: 200}
   extensions: [".jpg",".jpeg",".png",".bmp",".webp"]
   ignore_hidden: true            # ._* 숨김 파일 무시
   verify_on_build: true          # 스캔 시 이미지 오픈 검증(권장)
-  cache_meta_path: "/home/max16/ssd_pillsnap/exp/exp01/splits.json"  # SSD에 분할/메타 캐시
+  cache_meta_path: "/home/max16/pillsnap_data/exp/exp01/splits.json"  # Native Linux SSD에 분할/메타 캐시
   broken_policy: "skip"          # "skip"|"fail" — 반드시 "skip"
   grayscale_policy: "rgb"        # "rgb"(3채널 변환) | "skip"
   rgba_policy: "drop_alpha"      # "drop_alpha"(RGB 변환) | "skip"
@@ -102,7 +103,7 @@ data:
     use_weighted_sampler: false  # true면 DataLoader sampler로 대체(충돌 주의)
 
 dataloader:
-  num_workers: 16
+  num_workers: 8  # Native Linux 최적화 값
   autotune_workers: true
   pin_memory: true
   pin_memory_device: "cuda"
@@ -133,16 +134,16 @@ dataloader:
     # use_lmdb: true 또는 WebDataset 중 하나만 선택
 ```
 
-> 참고: num_workers=0일 때 prefetch_factor/persistent_workers는 무시됩니다.
+> 참고: Native Linux에서 num_workers=8로 최적화되었습니다.
 > autotune_workers가 true이면 Part D의 오토튜너가 [4,8,12,16] 후보로 벤치 후 최적을 반영합니다.
 
 ```
 
 C-2) 디렉토리/파일 구조(COCO → YOLO 변환)
 
-- 통일된 입력 구조 (SSD 이전 완료, 실제 ZIP 추출 구조):
+- 통일된 입력 구조 (Native Linux SSD 이전 완료, 실제 ZIP 추출 구조):
 ```
-/home/max16/ssd_pillsnap/dataset/  # Stage 1 완료, Stage 2-3 예정
+/home/max16/pillsnap_data/  # Stage 1-2 완료, Stage 3-4 준비
 ├─ data/train/
 │  ├─ labels/
 │  │  ├─ combination/
@@ -210,9 +211,9 @@ C-2) 디렉토리/파일 구조(COCO → YOLO 변환)
 └─ data/test/ (Stage 4 완료 후만 사용, 동일한 K-코드 폴더 구조)
 ```
 
-- 출력 구조 (SSD 최적화, YOLO 포맷):
+- 출력 구조 (Native Linux SSD 최적화, YOLO 포맷):
 ```
-/home/max16/ssd_pillsnap/exp/exp01/yolo_data/  # SSD에 YOLO 포맷 저장
+/home/max16/pillsnap_data/exp/exp01/yolo_data/  # Native Linux SSD에 YOLO 포맷 저장
 ├─ images/
 │  ├─ train/
 │  └─ val/
@@ -329,7 +330,7 @@ meta = {
 "class_to_idx": dict[str,int],
 "train_count": int, "val_count": int, "test_count": int,
 "img_size": int,
-"splits_json": "/mnt/data/exp/exp01/splits.json",
+"splits_json": "/home/max16/pillsnap_data/exp/exp01/splits.json",
 "test_usage_policy": "final_evaluation_only",
 "weights_used": "inv_freq|effective_num|none",
 "sampler_used": "weighted|none",

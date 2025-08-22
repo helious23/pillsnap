@@ -2,8 +2,8 @@
 
 # PyTorch stack (정확한 페어링 필수)
 # 설치: pip install torch==2.7.0 torchvision==0.22.0 --index-url https://download.pytorch.org/whl/cu128
-#torch==2.7.0+cu128  # 이미 설치됨 (2.8.0+cu128)
-#torchvision==0.22.0+cu128  # 이미 설치됨 (0.23.0+cu128)
+torch==2.7.0+cu128
+torchvision==0.22.0+cu128
 # torchaudio==2.7.0+cu128  # 필요시 주석 해제
 
 # Vision & ML frameworks
@@ -14,7 +14,7 @@ ultralytics>=8.3.0     # PyTorch 2.7.0 호환, YOLO11 지원
 numpy>=2.1.0,<2.2      # PyTorch 2.7.0 호환 (numpy 2.x 지원)
 pillow>=10.0,<12.0
 opencv-python-headless>=4.9,<5.0
-albumentations>=2.0.8  # 최신 버전, PyTorch 2.8 호환
+albumentations>=1.4,<2.0  # 프레임워크 비종속
 kornia>=0.7,<1.0       # PyTorch 의존성만 있음
 
 # Data & Config
@@ -47,8 +47,8 @@ psutil>=6.0,<8.0
 gputil>=1.4,<2.0      # GPU 모니터링 (가벼운 psutil 호환 라이브러리)
 
 # Version compatibility & fallback support
-# pkg_resources          # 더 이상 필요하지 않음 (Python 3.11+)
-# subprocess-run>=0.1.0  # 불필요 (Python 표준 라이브러리 subprocess 사용)
+pkg_resources          # 버전 체크용
+subprocess-run>=0.1.0  # Git SHA 획득용
 
 # Testing
 httpx>=0.26,<1.0

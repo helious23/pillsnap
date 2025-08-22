@@ -111,7 +111,7 @@ class ProgressiveValidationSampler:
         combo_images = defaultdict(list)
         
         # Single 약품 이미지 스캔
-        single_dir = self.data_root / "data/train/images/single"
+        single_dir = self.data_root / "train/images/single"
         if single_dir.exists():
             for ts_dir in single_dir.glob("TS_*"):
                 if ts_dir.is_dir():
@@ -123,7 +123,7 @@ class ProgressiveValidationSampler:
                                 single_images[k_code].extend(images)
         
         # Combination 약품 이미지 스캔  
-        combo_dir = self.data_root / "data/train/images/combination"
+        combo_dir = self.data_root / "train/images/combination"
         if combo_dir.exists():
             for ts_dir in combo_dir.glob("TS_*"):
                 if ts_dir.is_dir():

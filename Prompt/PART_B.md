@@ -3,19 +3,19 @@
 [절대 경로 + 디스크 I/O 병목 해결 상황]
 
 - **코드 루트**: /home/max16/pillsnap
-- **현재 환경**: WSL2 + $HOME/pillsnap/.venv (DataLoader 제약: num_workers=0)
-- **Migration 계획**: Native Ubuntu + M.2 SSD 4TB (CPU 멀티프로세싱 활용)
+- **현재 환경**: Native Ubuntu + M.2 SSD 4TB (CPU 멀티프로세싱 활용 num_workers=8)
+- **WSL 제약 해결**: Native Linux 이전 완료 (16 CPU 코어 전체 활용)
 - **데이터 루트**: 
   - **원본**: /mnt/data/pillsnap_dataset (외장 HDD 8TB, ext4, 100MB/s) - 전체 데이터셋
-  - **현재 WSL**: /home/max16/ssd_pillsnap/dataset (내장 SSD 1TB, 3,500MB/s) - Stage 1 완료
-  - **미래 Ubuntu**: /home/max16/pillsnap/dataset (Samsung 990 PRO 4TB, 7,450MB/s)
+  - **현재 Native Linux**: /home/max16/pillsnap_data (하이브리드 스토리지, Linux SSD + Windows SSD) - Stage 1-2 완료
+  - **미래 확장**: Stage 3-4를 위한 대용량 스토리지 예정
 - **실험 디렉토리**: 
-  - **SSD**: /home/max16/ssd_pillsnap/exp/exp01 (현재 Stage 1 완료)
-  - **HDD**: /mnt/data/exp/exp01 (이전 기록)
-- **디스크 I/O 병목 해결 완료**:
-  - **문제**: 외장 HDD (100MB/s)로 인한 GPU 활용률 극저, 추론 시간 43배 초과 (2,139ms vs 50ms)
-  - **해결**: Stage 1 데이터 5,000장 완전 SSD 이전 완료 (7.0GB), 35배 성능 향상
-  - **검증**: SSD에서 Stage 1 샘플링 테스트 성공, 디스크 I/O 병목 제거 확인
+  - **Native Linux SSD**: /home/max16/pillsnap_data/exp/exp01 (현재 Stage 1-2 완료)
+  - **백업**: /mnt/data/exp/exp01 (이전 기록)
+- **Native Linux 환경 최적화 완료**:
+  - **성과**: Stage 1 74.9% 정확도 (1분 완료), Stage 2 준비 완료
+  - **성능**: 데이터 로딩 35배 향상, CPU 멀티프로세싱 활용 (num_workers=8)
+  - **비교**: WSL 6분 vs Native Linux 1분 (향상된 성능)
 - **하드웨어 스펙**:
   - **CPU**: AMD Ryzen 7 7800X3D (8코어 16스레드)
   - **RAM**: 128GB DDR5-5600 (삼성 32GB × 4)
@@ -23,18 +23,18 @@
   - **Storage**: 
     - **OS/Code**: 1TB NVMe SSD (937GB 여유 공간)
     - **Data**: 8TB External HDD (100MB/s) + 4TB M.2 SSD 추가 계획 (7,450MB/s)
-- **규칙**: 모든 데이터 스크립트는 **SSD 경로** (/home/max16/ssd_pillsnap/) 사용. 원본 HDD 경로(/mnt/data/) 백업용. Windows↔WSL 경로 혼용 금지.
+- **규칙**: 모든 데이터 스크립트는 **Native Linux SSD 경로** (/home/max16/pillsnap_data/) 사용. 원본 HDD 경로(/mnt/data/) 백업용. 프로젝트와 데이터 완전 분리.
 - **예외**: Windows 운영 도구(Cloudflared 등, Part G/H)는 C:\ 표준 경로 사용 허용
 - **데이터 처리 정책**:
-  - **Stage 1**: SSD 완료 (/home/max16/ssd_pillsnap/dataset) - 5,000장, 7.0GB
-  - **Stage 2-3**: SSD 이전 예정 (내장 SSD 용량 충분)
-  - **Stage 4**: M.2 SSD 4TB 추가 후 전체 데이터셋 이전
+  - **Stage 1**: 완료 (/home/max16/pillsnap_data) - 5,000장, 74.9% 정확도
+  - **Stage 2**: 준비 완료 (25,000장, 250클래스)
+  - **Stage 3-4**: 대용량 데이터셋 준비 중
 
 [목표]
 
 - **조건부 Two-Stage Pipeline**을 위한 프로젝트 구조 완성
 - **128GB RAM + RTX 5080 16GB** 최적화 설정으로 config.yaml 구성
-- **SSD 데이터 경로**(/home/max16/ssd_pillsnap/dataset) 기반 환경 구축 (디스크 I/O 병목 해결)
+- **Native Linux SSD 데이터 경로**(/home/max16/pillsnap_data) 기반 환경 구축 (디스크 I/O 병목 해결)
 - **단일/조합 약품** 구분 학습을 위한 스크립트 골격 생성
 - 가상환경/의존성/기본 설정을 **한 번에 부팅** 가능하게 구성
 - GPU CUDA 휠 우선 설치, 실패 시 CPU 폴백
@@ -212,7 +212,7 @@ indent_size = 4
 
 ## 🔧 환경
 - **Code root**: `/home/max16/pillsnap`
-- **Data root**: `/mnt/data/pillsnap_dataset` (영문 변환 후)
+- **Data root**: `/home/max16/pillsnap_data` (Native Linux, 프로젝트 분리)
 - **venv**: `$HOME/pillsnap/.venv`
 - **Hardware**: AMD Ryzen 7 7800X3D + 128GB RAM + RTX 5080 16GB
 
@@ -245,7 +245,7 @@ ultralytics>=8.2.0
 numpy>=1.24,<2.0
 pillow>=10.0,<11.0
 opencv-python-headless>=4.9,<5.0
-albumentations>=1.4,<2.0
+albumentations>=2.0.8  # 최신 버전, PyTorch 2.8 호환
 kornia>=0.7,<1.0
 
 # Data & Config
@@ -305,15 +305,15 @@ B-4. config.yaml (프로젝트 전역 설정 — 확정값 반영)
 
 [config.yaml — RTX 5080 16GB + 128GB RAM 최적화 설정]
 
-# 경로 설정 (SSD 최적화)
+# 경로 설정 (Native Linux SSD 최적화)
 paths:
-  exp_dir: "/home/max16/ssd_pillsnap/exp/exp01"  # SSD로 이전된 실험 디렉토리
-  data_root: "/home/max16/ssd_pillsnap/dataset"  # SSD로 이전된 데이터셋 경로 (Stage 1 완료)
+  exp_dir: "/home/max16/pillsnap_data/exp/exp01"  # Native Linux SSD 실험 디렉토리
+  data_root: "/home/max16/pillsnap_data"  # Native Linux SSD 데이터셋 경로 (Stage 1-2 완료)
   ckpt_dir: null  # exp_dir/checkpoints 자동 생성
   tb_dir: null    # exp_dir/tb 자동 생성
   reports_dir: null  # exp_dir/reports 자동 생성
   # 원본 HDD 경로 (필요시 참조용)
-  data_root_hdd: "/mnt/data/pillsnap_dataset"  # 전체 데이터셋 (Stage 4용)
+  data_root_hdd: "/mnt/data/pillsnap_dataset"  # 원본 데이터셋 (백업용)
   exp_dir_hdd: "/mnt/data/exp/exp01"  # 이전 실험 기록
 
 # 데이터셋 구성
@@ -330,8 +330,8 @@ data:
     split_ratio: [0.85, 0.15]                       # train:val = 85:15
     test_usage: "final_evaluation_only"              # test는 Stage 4 완료 후만 사용
   
-  # 통일된 데이터 경로 (SSD 최적화)  
-  root: "/home/max16/ssd_pillsnap/dataset"  # Stage 1 완료, Stage 2-3 예정
+  # 통일된 데이터 경로 (Native Linux SSD 최적화)  
+  root: "/home/max16/pillsnap_data"  # Stage 1-2 완료, Stage 3-4 준비
   train:
     single_images: "data/train/images/single"      # TS_1_single~TS_81_single 폴더들 (각 폴더 내 K-코드 서브폴더 구조)
     combination_images: "data/train/images/combination"  # TS_1_combo~TS_8_combo 폴더들 (각 폴더 내 K-코드 서브폴더 구조)
@@ -353,10 +353,10 @@ data:
     detection: 640      # YOLOv11m 입력 크기
     classification: 224 # EfficientNetV2-S 기본 크기
   
-  # 클래스 정보 (SSD 최적화)
-  num_classes: 5000  # edi_code 기준 5000 클래스
-  class_names_path: "/home/max16/ssd_pillsnap/dataset/processed/class_names.json"
-  edi_mapping_path: "/home/max16/ssd_pillsnap/dataset/processed/edi_mapping.json"
+  # 클래스 정보 (Native Linux SSD 최적화)
+  num_classes: 4523  # edi_code 기준 4523 클래스 (최종 실제 수)
+  class_names_path: "/home/max16/pillsnap_data/processed/class_names.json"
+  edi_mapping_path: "/home/max16/pillsnap_data/processed/edi_mapping.json"
   
   # 점진적 검증 샘플링 (PART_0 전략)
   progressive_validation:
@@ -368,14 +368,17 @@ data:
         max_classes: 50
         target_ratio: {single: 0.7, combination: 0.3}
         time_limit_hours: 2
+        status: "completed"               # Stage 1 완료 상태
+        accuracy_achieved: 0.749         # 달성 정확도 74.9%
         allow_success_on_time_cap: true   # 시간 캡 도달 시 성공 판정 허용
         min_samples_required: 1000        # 성공 판정 최소 처리 샘플 수
         min_class_coverage: 30            # 성공 판정 최소 클래스 커버리지
       stage_2: 
-        max_samples: 10000
-        max_classes: 2000
+        max_samples: 25000
+        max_classes: 250
         target_ratio: {single: 0.7, combination: 0.3}
         time_limit_hours: 8
+        status: "ready"                  # Stage 2 준비 완료
       stage_3:
         max_samples: 100000
         max_classes: 4000
@@ -383,7 +386,7 @@ data:
         time_limit_hours: 16
       stage_4:
         max_samples: null    # 전체 데이터
-        max_classes: 5000
+        max_classes: 4523    # 실제 EDI 코드 수
         target_ratio: {single: 0.7, combination: 0.3}
         time_limit_hours: 48
 
@@ -568,9 +571,9 @@ optimization:
   warmup_steps: 100      # 컴파일 워밍업
   profile_interval: 500   # 성능 로깅 주기
 
-# 데이터로더 (128GB RAM + 16 스레드 최적화)
+# 데이터로더 (128GB RAM + 16 스레드 최적화, Native Linux)
 dataloader:
-  num_workers: 16
+  num_workers: 8  # Native Linux 최적화값
   autotune_workers: true
   pin_memory: true
   pin_memory_device: "cuda"
@@ -661,10 +664,10 @@ logging:
   save_confusion_matrix: true
   save_roc_curves: true
 
-  # 하드 케이스 로깅 (SSD 최적화)
+  # 하드 케이스 로깅 (Native Linux SSD 최적화)
   hard_cases:
     enabled: true
-    dir: "/home/max16/ssd_pillsnap/exp/exp01/hard_cases"  # SSD 경로 사용
+    dir: "/home/max16/pillsnap_data/exp/exp01/hard_cases"  # Native Linux SSD 경로 사용
     max_per_epoch: 200
   
   # Windows 관련 경로는 스크립트에서 동적 관리 (경로 혼용 방지)
@@ -754,7 +757,7 @@ B-5. bootstrap_venv.sh (가상환경 생성·설치·GPU 감지·폴백)
   print("Capability:", torch.cuda.get_device_capability(0))
   print("Project ROOT:", os.getcwd())
   PY
-- exp 디렉토리 보장: mkdir -p /mnt/data/exp/exp01/{logs,tb,reports,checkpoints,export}
+- exp 디렉토리 보장: mkdir -p /home/max16/pillsnap_data/exp/exp01/{logs,tb,reports,checkpoints,export}
 - 마지막에 “OK: venv ready” 출력
 
 비고: torch 설치 경로는 환경마다 달라 충돌 가능성이 있으므로, 스크립트에 명확한 로그와 실패 시 폴백 메시지를 꼭 남겨.
@@ -1000,8 +1003,8 @@ B-11. Stage 대시보드 및 OptimizationAdvisor 통합
 set -euo pipefail
 
 VENV="$HOME/pillsnap/.venv"
-ROOT="/mnt/c/Users/max16/Desktop/pillsnap"
-EXP_DIR="/mnt/data/exp/exp01"
+ROOT="/home/max16/pillsnap"
+EXP_DIR="/home/max16/pillsnap_data/exp/exp01"
 
 source "$VENV/bin/activate" && cd "$ROOT"
 

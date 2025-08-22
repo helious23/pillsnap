@@ -11,9 +11,9 @@
 [전제/경로/규칙]
 
 - 코드 루트: /home/max16/pillsnap
-- 모든 데이터 경로는 **SSD 기반** (/home/max16/ssd_pillsnap/)만 사용. HDD 경로(/mnt/data/) 백업용.
-- 편집 위치는 자유(맥/윈도우/원격). **실행은 WSL 기준**으로 한다.
-- 체크포인트/로그/산출물은 **/home/max16/ssd_pillsnap/exp/**(SSD 디스크)에 저장(속도/안정성↑).
+- 모든 데이터 경로는 **Native Linux SSD** (/home/max16/pillsnap_data/)만 사용. 프로젝트와 데이터 분리.
+- 편집 위치는 자유(맥/윈도우/원격). **실행은 Native Linux 기준**으로 한다.
+- 체크포인트/로그/산출물은 **/home/max16/pillsnap_data/exp/**(Native Linux SSD)에 저장(속도/안정성↑).
 - .env(.env.example): API_KEY, LOG_LEVEL, DETECTION_MODEL_PATH, CLASSIFICATION_MODEL_PATH, CORS_ALLOW_ORIGINS 사용.
 - 기본 엔진 우선순위: **ONNX → Torch**(ONNX 미존재/실패 시 Torch 폴백).
 - 단일 우선 파이프라인: single(직접 분류) → combo(검출→크롭→분류) → auto(최소 사용).

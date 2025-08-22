@@ -3,8 +3,8 @@
 
 # 경로 설정 (SSD 최적화)
 paths:
-  exp_dir: "/home/max16/ssd_pillsnap/exp/exp01"
-  data_root: "/home/max16/ssd_pillsnap/dataset"  # SSD로 이전된 데이터셋 경로
+  exp_dir: "/home/max16/pillsnap_data/exp/exp01"
+  data_root: "/home/max16/pillsnap_data"  # Native Linux 데이터 전용 경로
   ckpt_dir: null  # exp_dir/checkpoints 자동 생성
   tb_dir: null    # exp_dir/tb 자동 생성
   reports_dir: null  # exp_dir/reports 자동 생성
@@ -88,7 +88,7 @@ pipeline:
 
 # 데이터셋 구성 (PART_B ZIP 기반 구조)
 data:
-  root: "/mnt/data/pillsnap_dataset"
+  root: "/home/max16/pillsnap_data"
   
   # ZIP 추출 구조 기반 (PART_0 설계)
   train:
@@ -209,8 +209,8 @@ optimization:
 
 # 128GB RAM 최적화 (PART_A 설계)
 dataloader:
-  num_workers: 16
-  autotune_workers: true    # Worker Autotune
+  num_workers: 8
+  autotune_workers: true    # Native Linux 최적화 (안정적인 시작점)
   pin_memory: true
   pin_memory_device: "cuda"
   prefetch_factor: 6

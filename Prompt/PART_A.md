@@ -3,19 +3,17 @@
 [프로젝트 메타/경로 + 디스크 I/O 최적화 상황]
 
 - **코드 루트**: /home/max16/pillsnap
-- **현재 환경**: WSL2 + $HOME/pillsnap/.venv (num_workers=0, DataLoader 제약)
-- **이전 계획**: Native Ubuntu + M.2 SSD (CPU 멀티프로세싱 최적화)
+- **현재 환경**: Native Ubuntu + /home/max16/pillsnap/.venv (num_workers=8, CPU 멀티프로세싱 활성화)
+- **이전 완료**: WSL 제약 해결, Native Linux 최적화
 - **데이터 루트**: 
-  - **원본**: /mnt/data/pillsnap_dataset (외장 HDD 8TB, ext4, 100MB/s) - Stage 4 전체 데이터
-  - **현재 SSD**: /home/max16/ssd_pillsnap/dataset (내장 SSD 1TB, 3,500MB/s) - Stage 1 완료, Stage 2-3 예정
-  - **미래 M.2**: /home/max16/pillsnap/dataset (Samsung 990 PRO 4TB, 7,450MB/s) - Native Ubuntu 환경
-- **실험 디렉터리**: 
-  - **SSD**: /home/max16/ssd_pillsnap/exp/exp01 (현재 Stage 1 완료)
-  - **HDD**: /mnt/data/exp/exp01 (이전 실험 기록)
-- **디스크 I/O 병목 해결 완료**:
-  - **문제**: Stage 1 학습에서 GPU 활용률 극저 (데이터 대기), 추론 시간 2,139ms (목표: 50ms, 43배 초과)
-  - **해결**: Stage 1 데이터 5,000장 완전 SSD 이전 완료 (7.0GB), HDD→SSD 35배 속도 향상
-  - **검증**: SSD에서 Stage 1 샘플링 테스트 성공
+  - **원본**: /mnt/external/pillsnap_dataset (외장 HDD 8TB, 보관용)
+  - **현재**: /home/max16/pillsnap_data (하이브리드, Linux SSD + Windows SSD 심볼릭 링크)
+  - **분리**: 프로젝트와 데이터 독립적 관리
+- **실험 디렉터리**: /home/max16/pillsnap_data/exp (로컬 Linux SSD, 데이터와 함께 분리)
+- **Native Linux 이전 완료**:
+  - **해결**: WSL 제약 완전 해결, CPU 멀티프로세싱 활성화 (num_workers=8)
+  - **데이터**: 하이브리드 스토리지 구성 (Linux SSD + Windows SSD)
+  - **Stage 1 검증**: 74.9% 정확도 (1분 완료, Native Linux)
 - **하드웨어 스펙**:
   - **CPU**: AMD Ryzen 7 7800X3D (8코어 16스레드, 최대 5.0GHz)
   - **RAM**: 128GB DDR5-5600 (삼성 32GB × 4)
@@ -23,15 +21,14 @@
   - **Storage**: 
     - **OS/Code**: 1TB NVMe SSD (937GB 여유 공간)
     - **Data**: 8TB External HDD (100MB/s) + 4TB M.2 SSD 추가 계획 (7,450MB/s)
-- **규칙**: 모든 스크립트/코드는 **항상 /mnt/** 경로만 사용(C:\ 경로 금지). Windows↔WSL 혼용 금지.
-- **예외**: Windows 운영 도구(Cloudflared 등, Part G/H)는 C:\ 표준 경로 사용 허용
-- **편집 도구/위치**는 자유(맥·윈도우·원격). **실행은 WSL 기준**이며, 모든 경로 표기는 /mnt/** 로 통일.
-- **체크포인트/로그/산출물**은 **SSD**(WSL 디스크)에 저장(속도/안정성).
+- **규칙**: 모든 스크립트/코드는 **Native Linux 절대 경로**만 사용 (/home/max16/pillsnap_data). 
+- **심볼릭 링크**: Windows SSD 데이터는 /mnt/windows 마운트 후 링크 사용
+- **체크포인트/로그/산출물**은 로컬 Linux SSD에 저장.
 - **128GB RAM 활용**: 라벨 캐시, LMDB 변환, 배치 프리페치 최적화
 - **데이터 처리 정책**:
-  - **Stage 1**: SSD 완료 (/home/max16/ssd_pillsnap/dataset)
-  - **Stage 2-3**: SSD 이전 예정 (내장 SSD 용량 충분)
-  - **Stage 4**: M.2 SSD 4TB 추가 후 전체 데이터셋 이전
+  - **Stage 1**: 완료 (Native Linux, 74.9% 정확도)
+  - **Stage 2**: 준비 완료 (하이브리드 스토리지)
+  - **Stage 3-4**: 대기 중
 
 [너의 역할]
 
@@ -97,7 +94,7 @@
 - DataLoader:
   - pin_memory=True, persistent_workers=True, prefetch_factor(기본 4)
   - PyTorch≥2.0: `pin_memory_device="cuda"` 권장(입출력 고정 시 H2D 효율↑).
-  - `num_workers=0`일 땐 `prefetch_factor`/`persistent_workers` 무시됨.
+  - Native Linux에서 `num_workers=8` 기본 사용 (16코어 중 50% 활용).
   - num_workers **오토튜닝**(후술 Annex 2)로 data_time 최소화
   - drop_last=True(고정 배치/그래프 모드 호환)
 - 텐서 전송: **non_blocking=True**로 H2D 오버랩.

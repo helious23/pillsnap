@@ -7,7 +7,7 @@
 - **목적**: 약품 이미지에서 약품 정보를 추출하여 약품을 식별하는 AI 서비스
 - **데이터셋**: AIHub 166.약품식별 인공지능 개발을 위한 경구약제 이미지 데이터
 - **데이터셋 Key**: 576
-- **작업 환경**: WSL2 Ubuntu on Windows 11
+- **작업 환경**: Native Ubuntu Linux
 - **작업자**: max16
 
 ### 하드웨어 스펙
@@ -18,23 +18,23 @@ GPU: NVIDIA GeForce RTX 5080 (16GB VRAM)
 Storage:
   - OS/Code: 1TB NVMe PCIe 4.0 (키오시아 XG7)
   - Data: 
-    - 8TB External HDD (삼성 T5 EVO, /mnt/data) - 원본 데이터셋 보관
-    - 1TB Internal SSD (현재 사용, /home/max16/ssd_pillsnap/)
-    - 4TB M.2 SSD (계획, Samsung 990 PRO, 7,450MB/s)
+    - 8TB External HDD (/mnt/external) - 원본 데이터셋 보관
+    - Windows SSD (/mnt/windows) - 일부 데이터 저장
+    - 4TB Linux SSD (현재 사용) - 메인 데이터 + 코드
 Network: Gigabit Ethernet
 Cooling: 3RSYS RC1200 ARGB
 Power: 850W 80+ Bronze ATX 3.1
 ```
 
-### 경로 구조 (디스크 I/O 병목 해결 완룼)
+### 경로 구조 (Native Linux + 하이브리드 스토리지)
 ```yaml
 코드 경로: /home/max16/pillsnap
-# 디스크 I/O 병목 해결 과정:
-# - 기존 HDD: /mnt/data/pillsnap_dataset (100MB/s, 병목)
-# - 현재 SSD: /home/max16/ssd_pillsnap/dataset (3,500MB/s, 35배 향상)
-데이터 경로: /home/max16/ssd_pillsnap/dataset  # SSD 이전 완룼
-가상환경: $HOME/pillsnap/.venv
-실험 경로: /home/max16/ssd_pillsnap/exp/exp01  # SSD 이전 완룼
+# Native Linux 이전 완료:
+# - WSL 제약 해결: CPU 멀티프로세싱 활성화 (num_workers=8)
+# - 데이터 분리: 프로젝트와 데이터 독립적 관리
+데이터 경로: /home/max16/pillsnap_data  # 프로젝트 분리
+가상환경: /home/max16/pillsnap/.venv
+실험 경로: /home/max16/pillsnap_data/exp  # 데이터와 함께 분리
 ```
 
 ## 🚀 점진적 검증 전략 (Progressive Validation Strategy)
@@ -42,12 +42,12 @@ Power: 850W 80+ Bronze ATX 3.1
 ### 단계별 데이터 샘플링 전략 (디스크 I/O 최적화 기반)
 **목표**: 디스크 I/O 병목을 해결하며 대용량 데이터셋을 단계적으로 확장
 
-| Stage | 데이터 규모 | 클래스 수 | 목적 | 예상 소요시간 |
-|-------|-----------|----------|------|------------|
-| **Stage 1** | 5,000장 | 50개 | 파이프라인 검증 | 2시간 | ✅ **SSD 완룼** (7.0GB, 35배 향상) |
-| **Stage 2** | 25,000장 | 250개 | 성능 기준선 확립 | 8시간 | 🔄 **SSD 준비완룼** |
-| **Stage 3** | 100,000장 | 1,000개 | 확장성 테스트 | 32시간 | 🔄 **SSD 준비완룼** |
-| **Stage 4** | 2,000,000장 | 4,523개 | 최종 프로덕션 학습 | 200시간 (8일) | 🔜 **M.2 SSD 4TB 계획** |
+| Stage | 데이터 규모 | 클래스 수 | 목적 | 소요시간 | 상태 |
+|-------|-----------|----------|------|----------|------|
+| **Stage 1** | 5,000장 | 50개 | 파이프라인 검증 | 1분 | ✅ **완료** (74.9%, Native Linux) |
+| **Stage 2** | 25,000장 | 250개 | 성능 기준선 확립 | 30분 예상 | 🔄 **준비완료** |
+| **Stage 3** | 100,000장 | 1,000개 | 확장성 테스트 | 3시간 예상 | ⏳ **대기** |
+| **Stage 4** | 500,000장 | 4,523개 | 최종 프로덕션 학습 | 20시간 예상 | ⏳ **대기** |
 
 #### **계층적 균형 샘플링 (Stratified Balanced Sampling)**
 

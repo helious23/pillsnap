@@ -4,9 +4,9 @@
 
 [전제/경로]
 
-- 코드 루트(WSL): /home/max16/pillsnap
-- venv(WSL): $HOME/pillsnap/.venv
-- 실험 디렉토리: **/home/max16/ssd_pillsnap/exp/exp01** (SSD 이전 완룼)
+- 코드 루트(Native Linux): /home/max16/pillsnap
+- venv(Native Linux): $HOME/pillsnap/.venv
+- 실험 디렉토리: **/home/max16/pillsnap_data/exp/exp01** (Native Linux SSD, 프로젝트 분리)
 - API 포트: 8000 (uvicorn, Part F)
 - Cloudflared(Windows): C:\ProgramData\Cloudflare\cloudflared\ (Part G)
 
@@ -30,9 +30,9 @@
 ──────────────────────────────────────────────────────────────────────────────
 H-1) 로깅·보존·로테이션 정책
 
-[WSL/API 로그]
+[Native Linux/API 로그]
 
-- 위치: **/home/max16/ssd_pillsnap/exp/exp01/logs/** (SSD 저장)
+- 위치: **/home/max16/pillsnap_data/exp/exp01/logs/** (Native Linux SSD 저장)
   • train.out|err, api.out|err, export.out|err, perf_bench.json 등
 - 보존: 7일↑ gzip 압축 → logs/archive/ 로 이동, 30일↑ 삭제(필요 시 변경)
 
@@ -194,11 +194,11 @@ H-7) 스케일링 전략
 ──────────────────────────────────────────────────────────────────────────────
 H-8) 자동화(스케줄러)
 
-[WSL(cron)]
+[Native Linux(cron)]
 
 - 매일 02:00 유지보수:
   $ crontab -e
-  0 2 \* \* \* bash /home/max16/pillsnap/scripts/maintenance.sh >> /mnt/data/exp/exp01/logs/cron_maint.out 2>&1
+  0 2 \* \* \* bash /home/max16/pillsnap/scripts/maintenance.sh >> /home/max16/pillsnap_data/exp/exp01/logs/cron_maint.out 2>&1
 
 [Windows 작업 스케줄러]
 

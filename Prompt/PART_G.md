@@ -10,20 +10,20 @@
 
 [전제/경로/역할]
 
-- 코드 루트(WSL): /home/max16/pillsnap
-- 데이터 루트(SSD): /home/max16/ssd_pillsnap/dataset
-- 실험 디렉토리(SSD): /home/max16/ssd_pillsnap/exp/exp01
-- API 실행(WSL): uvicorn on http://0.0.0.0:8000 (scripts/run_api.sh)
+- 코드 루트(Native Linux): /home/max16/pillsnap
+- 데이터 루트(Native Linux SSD): /home/max16/pillsnap_data
+- 실험 디렉토리(Native Linux SSD): /home/max16/pillsnap_data/exp/exp01
+- API 실행(Native Linux): uvicorn on http://0.0.0.0:8000 (scripts/run_api.sh)
 - Windows 사용자: max16
 - Tunnel 이름: pillsnap-tunnel
 - 운영 서브도메인(예시): api.pillsnap.co.kr
 - cloudflared 설정/로그: C:\ProgramData\Cloudflare\cloudflared\
-- 규칙: uvicorn은 **WSL에서** 실행, cloudflared는 **Windows에서** 서비스로 실행.
+- 규칙: uvicorn은 **Native Linux에서** 실행, cloudflared는 **Windows에서** 서비스로 실행.
 
 ──────────────────────────────────────────────────────────────────────────────
 G-0) 사전 점검
 
-1. WSL에서 API 구동:
+1. Native Linux에서 API 구동:
    $ bash scripts/deployment/run_api.sh --no-tmux
    # 로컬 확인:
    $ curl http://localhost:8000/health
@@ -79,7 +79,7 @@ ingress:
   - service: http_status:404
 ```
 
-# 주의: <WSL_IP>는 cf_start.ps1 스크립트가 자동으로 감지하여 주입합니다.
+# 주의: <Linux_IP>는 cf_start.ps1 스크립트가 자동으로 감지하여 주입합니다.
 
 (5) Windows 서비스로 등록/시작 + 부팅 자동 시작
 PS> cloudflared service install
@@ -104,7 +104,7 @@ PS> Get-Content -Wait C:\ProgramData\Cloudflare\cloudflared\cloudflared.log
 # /predict는 X-API-Key 헤더 필요(Part F 보안 규칙 준수)
 
 ──────────────────────────────────────────────────────────────────────────────
-G-3) WSL IP 동적 감지 및 자동 주입
+G-3) Native Linux IP 동적 감지 및 자동 주입
 
 # WSL IP 동적 감지 함수 (강화된 안정성)
 [scripts/get_wsl_ip.ps1]

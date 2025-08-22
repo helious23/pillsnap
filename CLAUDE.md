@@ -28,8 +28,8 @@ PillSnap ML 프로젝트의 Claude Code 종합 가이드입니다. 프로젝트 
 ## 핵심 규칙
 
 - **언어:** 별도 지시가 없는 한 모든 응답은 **한국어**로 작성
-- **경로 사용:** **SSD 기반 절대 경로만 사용** (`/home/max16/ssd_pillsnap/`). Windows 스타일 경로(예: `C:\`) 금지  
-- **데이터 위치:** 모든 데이터셋과 실험은 성능을 위해 **SSD 기반 경로** 사용 (`/home/max16/ssd_pillsnap/dataset`)
+- **경로 사용:** **Native Linux 절대 경로만 사용** (`/home/max16/pillsnap_data/`). Windows 스타일 경로(예: `C:\`) 금지  
+- **데이터 위치:** 모든 데이터셋은 프로젝트와 분리된 전용 경로 사용 (`/home/max16/pillsnap_data`)
 - **Two-Stage Pipeline 강제:** 조건부 파이프라인 로직 준수:
   - Single pills → EfficientNetV2-S 직접 분류 (384px)
   - Combination pills → YOLOv11m 검출 → crop → 분류 (640px→384px)  
@@ -40,8 +40,8 @@ PillSnap ML 프로젝트의 Claude Code 종합 가이드입니다. 프로젝트 
 - **Hardware Optimization:**  
   - Use mixed precision (TF32) and channels_last memory format on RTX 5080 (16GB) GPUs.  
   - Enable `torch.compile(model, mode='max-autotune')` for training speedups.  
-  - **현재 WSL 제약**: num_workers=0 (DataLoader 멀티프로세싱 비활성화)
-  - **Native Ubuntu 이전 계획**: CPU 멀티프로세싱 최적화를 위한 전면 이전 예정
+  - **Native Linux 환경**: num_workers=8-12 (16 CPU 코어 활용)
+  - **2025-08-22 업데이트**: Native Ubuntu 이전 완료, CPU 멀티프로세싱 최적화 활성화
   - Monitor VRAM usage to stay under 14GB.  
 
 ---
@@ -51,8 +51,8 @@ PillSnap ML 프로젝트의 Claude Code 종합 가이드입니다. 프로젝트 
 1. **Initialize session:** Run `/ .claude/commands/initial-prompts.md` first.  
 2. **Environment setup:**  
    ```bash
-   bash scripts/core/setup_venv.sh
-   source $HOME/pillsnap/.venv/bin/activate
+   source /home/max16/pillsnap/.venv/bin/activate
+   # Python 3.11.13, PyTorch 2.8.0+cu128, CUDA 12.8
    ```  
 3. **Training:**  
    ```bash
@@ -106,32 +106,30 @@ Input Image → Auto Mode Detection
 
 ### Critical Paths
 
-| Purpose            | Current (WSL)                             | Future (Native Ubuntu)                   |
-|--------------------|-------------------------------------------|-------------------------------------------|
-| Codebase           | `/home/max16/pillsnap`                    | `/home/max16/pillsnap` (M.2 SSD)         |
-| Dataset            | `/home/max16/ssd_pillsnap/dataset`        | `/home/max16/pillsnap/dataset` (M.2 SSD) |
-| Virtual Environment | `$HOME/pillsnap/.venv`                     | `$HOME/pillsnap/.venv` (Native)          |
-| Experiment Outputs | `/home/max16/ssd_pillsnap/exp`            | `/home/max16/pillsnap/exp` (M.2 SSD)     |
+| Purpose            | Native Linux (2025-08-22)                  |
+|--------------------|--------------------------------------------|
+| Codebase           | `/home/max16/pillsnap`                     |
+| Dataset            | `/home/max16/pillsnap_data` (분리된 경로)    |
+| Virtual Environment | `/home/max16/pillsnap/.venv`               |
+| Experiment Outputs | `/home/max16/pillsnap/exp`                 |
 
 ---
 
 ## Hardware Optimization Settings
 
-### 🖥️ **Current Environment (WSL)**
+### 🖥️ **Current Environment (Native Linux)**
 - **GPU:** RTX 5080 (16GB)  
   - Use mixed precision (TF32)  
   - Apply `channels_last` memory format  
   - Utilize `torch.compile(model, mode='max-autotune')` for training  
 - **System RAM:** 128GB  
-  - **WSL 제약**: num_workers=0 (CPU 멀티프로세싱 비활성화)
-  - 안정성 우선: 데드락 없는 안정적 학습
+  - **Native Linux**: num_workers=8-12 (CPU 멀티프로세싱 활성화)
+  - WSL 제약 완전 해결: 안정적이고 빠른 데이터 로딩
 - **Current Performance:**  
-  - Stage 1: ✅ 완료 (83.2% 정확도, 6분 완료)
-  - Stage 2: ✅ 완료 (83.1% 정확도, 10.9분, 237클래스/23,700샘플)
-  - 데이터 이전: 307,152개 이미지 + 112,365개 라벨 SSD 완료
-  - 디스크 I/O 병목 해결: 35배 성능 향상 (100MB/s → 3,500MB/s)
-  - Manifest 기반 훈련: Lazy Loading으로 메모리 최적화
-  - Albumentations 2.0.8 완전 호환
+  - Stage 1: ✅ 완료 (74.9% 정확도, 1분, Native Linux)
+  - 데이터 구조: `/home/max16/pillsnap_data` 분리 완료
+  - 심볼릭 링크: Windows SSD + Linux SSD 하이브리드 구성
+  - Albumentations 2.0.8 업그레이드 완료
 
 ### 🚀 **Planned Environment (Native Ubuntu on M.2 SSD)**
 - **Storage:** Samsung 990 PRO 4TB M.2 SSD (7,450MB/s)
@@ -148,10 +146,10 @@ Input Image → Auto Mode Detection
 
 | Stage | Images  | Classes | Purpose              | Accuracy | Status |
 |-------|---------|---------|----------------------|----------|--------|
-| 1     | 5,000   | 50      | Pipeline verification | 83.2%    | ✅ **완료** |
-| 2     | 23,700  | 237     | Performance baseline  | 83.1%    | ✅ **완료** |
-| 3     | 100,000 | 1,000   | Scalability test      | 목표85%  | ⚠️ M.2 SSD 필요 |
-| 4     | 500,000 | 4,523   | Production deployment | 목표85%  | ⏳ 대기 |
+| 1     | 5,000   | 50      | Pipeline verification | 74.9%    | ✅ **완료** (Native) |
+| 2     | 25,000  | 250     | Performance baseline  | 진행예정  | 🔄 준비됨 |
+| 3     | 100,000 | 1,000   | Scalability test      | 목표85%  | ⏳ 대기 |
+| 4     | 500,000 | 4,523   | Production deployment | 목표92%  | ⏳ 대기 |
 
 ---
 
