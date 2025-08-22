@@ -54,7 +54,9 @@
       "Bash(git add:*)",
       "Bash(for script in *.sh)",
       "Bash(do echo \"=== $script ===\")",
-      "Bash(./scripts/monitoring/universal_training_monitor.sh:*)"
+      "Bash(./scripts/monitoring/universal_training_monitor.sh:*)",
+      "Bash(nvidia-smi:*)",
+      "Bash(./scripts/monitoring/quick_status.sh:*)"
     ],
     "deny": [],
     "ask": [],

@@ -597,3 +597,52 @@ A10. summarize_dataset(): 분포/해상도/종횡비/손상 로그
 - `lmdb_converter`: 대용량 데이터 I/O 최적화
 
 **✅ PART_C 완료: 하드웨어 최적화된 조건부 Two-Stage 데이터 파이프라인 설계**
+
+---
+
+## 🎯 **Stage 3-4 Manifest 기반 접근법 (2025-08-22 업데이트)**
+
+### **⭐ 중요한 정책 변경**
+**Stage 3-4는 반드시 manifest 기반으로만 진행합니다.**
+
+- **물리적 데이터 복사**: ❌ 금지 (SSD 용량 부족)
+- **Manifest CSV 파일**: ✅ 권장 (용량 절약)
+- **원본 직접 로딩**: ✅ 하이브리드 스토리지 활용
+
+### **용량 절약 효과**
+```
+Stage 3 (100K 샘플): 14.6GB → 50MB (99.7% 절약)
+Stage 4 (500K 샘플): 73.0GB → 200MB (99.7% 절약)
+총 절약량: 87.6GB → 250MB (99.7% 절약)
+```
+
+### **기술적 근거**
+1. **Native Linux + 128GB RAM**: 실시간 고속 로딩 가능
+2. **하이브리드 스토리지**: Linux SSD (3.5GB/s) + Windows SSD (1GB/s)
+3. **기존 코드 호환성**: `src/data.py` 데이터로더 그대로 사용
+4. **성능 손실 없음**: 메모리 캐시 + 빠른 SSD I/O
+
+### **구현 방향**
+- **Stage 1-2**: 기존 config 기반 방식 유지
+- **Stage 3-4**: manifest 생성 스크립트 + 기존 `src/data.py` Dataset 활용
+- **코드 변경 최소화**: 새로운 데이터로더 구현 불필요
+- **기존 컨벤션 준수**: `src/training/train_classification_stage.py` 활용
+
+### **Stage 3-4 학습 명령어 (기존 컨벤션)**
+```bash
+# Stage 3 manifest 기반 학습 (기존 trainer 활용)
+python -m src.training.train_classification_stage \
+    --manifest artifacts/stage3/manifest_train.csv \
+    --num-classes 1000 \
+    --target-accuracy 0.85 \
+    --epochs 50 \
+    --batch-size 16
+
+# Stage 4 manifest 기반 학습 (기존 trainer 활용)  
+python -m src.training.train_classification_stage \
+    --manifest artifacts/stage4/manifest_train.csv \
+    --num-classes 4523 \
+    --target-accuracy 0.92 \
+    --epochs 100 \
+    --batch-size 8
+```

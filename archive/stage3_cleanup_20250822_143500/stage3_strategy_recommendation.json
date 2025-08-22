@@ -1,0 +1,23 @@
+{
+  "recommendation": "전략 3: 적응적 샘플링",
+  "available_space_gb": 139,
+  "strategies": {
+    "equal_distribution": {
+      "images": 100000,
+      "size_gb": 14.6
+    },
+    "weighted_distribution": {
+      "images": 96000,
+      "size_gb": 14.0625
+    },
+    "adaptive_sampling": {
+      "images": 100000,
+      "size_gb": 14.6484375
+    },
+    "phased_expansion": {
+      "phase1": 50000,
+      "phase2": 75000,
+      "phase3": 100000
+    }
+  }
+}

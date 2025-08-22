@@ -108,10 +108,16 @@ class OptimizationAdvisor:
             
             if stage2_model.exists():
                 # 모델 로드해서 정확도 확인
-                checkpoint = torch.load(stage2_model, map_location='cpu')
-                best_acc = checkpoint.get("best_accuracy", 0.0)
+                checkpoint = torch.load(stage2_model, map_location='cpu', weights_only=False)
+                best_acc = checkpoint.get("best_val_accuracy", checkpoint.get("best_accuracy", 0.0))  # 새 형식 우선
                 results["training_completed"] = best_acc > 0.1  # 최소한의 학습이 이루어졌는지
                 self.logger.info(f"Stage 2 모델 정확도: {best_acc:.1%}")
+                
+                # Train-Val Gap 건강도 체크
+                train_acc = checkpoint.get("best_train_accuracy", 0.0)
+                if train_acc > 0:
+                    gap = train_acc - best_acc
+                    self.logger.info(f"Train-Val Gap: {gap:.1%} ({'건강' if gap < 0.1 else 'Overfitting 위험'})")
             else:
                 results["training_completed"] = False
                 self.logger.warning("Stage 2 모델 파일 없음")
@@ -147,13 +153,27 @@ class OptimizationAdvisor:
             stage2_model = artifacts_dir / "best_classifier_250classes.pt"
             
             if stage2_model.exists():
-                checkpoint = torch.load(stage2_model, map_location='cpu')
+                checkpoint = torch.load(stage2_model, map_location='cpu', weights_only=False)
                 
-                # 실제 저장된 성능 지표들
-                metrics["classification_accuracy"] = checkpoint.get("best_accuracy", 0.0)
+                # 확장된 성능 지표들
+                val_acc = checkpoint.get("best_val_accuracy", checkpoint.get("best_accuracy", 0.0))
+                train_acc = checkpoint.get("best_train_accuracy", 0.0)
+                
+                metrics["classification_accuracy"] = val_acc
+                metrics["training_accuracy"] = train_acc
+                metrics["train_val_gap"] = train_acc - val_acc if train_acc > 0 else 0.0
                 metrics["classification_top3_accuracy"] = checkpoint.get("top3_accuracy", 0.0)
                 metrics["classification_top5_accuracy"] = checkpoint.get("top5_accuracy", 0.0)
+                
+                # 모델 및 학습 정보
+                metrics["model_size_mb"] = checkpoint.get("model_size_mb", 0.0)
+                metrics["model_params_count"] = checkpoint.get("model_params_count", 0)
+                metrics["training_time_minutes"] = checkpoint.get("total_training_time_minutes", 0.0)
+                metrics["gpu_max_memory_gb"] = checkpoint.get("max_gpu_memory_gb", 0.0)
+                metrics["epochs_to_best"] = checkpoint.get("epochs_to_best", 0)
                 metrics["classification_f1_macro"] = checkpoint.get("f1_macro", 0.0)
+                metrics["optimizer_name"] = checkpoint.get("optimizer_name", "Unknown")
+                metrics["scheduler_name"] = checkpoint.get("scheduler_name", "None")
                 
                 # 학습 메타데이터
                 metrics["total_epochs_completed"] = checkpoint.get("epoch", 0)

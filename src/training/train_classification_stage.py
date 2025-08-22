@@ -37,6 +37,14 @@ class ClassificationStageTrainer:
         self.device = torch.device(device)
         self.logger = PillSnapLogger(__name__)
         
+        # RTX 5080 GPU 최적화 설정
+        if torch.cuda.is_available():
+            torch.backends.cuda.matmul.allow_tf32 = True
+            torch.backends.cudnn.allow_tf32 = True
+            torch.backends.cudnn.benchmark = True
+            torch.backends.cudnn.deterministic = False
+            self.logger.info("🚀 RTX 5080 GPU 최적화 활성화 (TF32 + cuDNN benchmark)")
+        
         # 모니터링 시스템
         self.memory_monitor = GPUMemoryMonitor()
         self.metrics_evaluator = ClassificationMetricsEvaluator(num_classes)
@@ -47,7 +55,12 @@ class ClassificationStageTrainer:
         self.scheduler = None
         self.scaler = None
         self.best_accuracy = 0.0
+        self.best_train_accuracy = 0.0
+        self.best_val_loss = float('inf')
+        self.best_train_loss = float('inf')
         self.training_history = []
+        self.training_start_time = None
+        self.max_gpu_memory = 0.0
         
         self.logger.info(f"ClassificationStageTrainer 초기화")
         self.logger.info(f"클래스 수: {num_classes}, 목표 정확도: {target_accuracy:.1%}")
@@ -228,6 +241,7 @@ class ClassificationStageTrainer:
         self.logger.step("분류 Stage 학습", f"{max_epochs} 에포크 목표 정확도 {self.target_accuracy:.1%}")
         
         start_time = time.time()
+        self.training_start_time = start_time
         patience_counter = 0
         
         for epoch in range(1, max_epochs + 1):
@@ -248,6 +262,9 @@ class ClassificationStageTrainer:
             # 최고 성능 업데이트
             if val_results['accuracy'] > self.best_accuracy:
                 self.best_accuracy = val_results['accuracy']
+                self.best_train_accuracy = train_results['accuracy']  # 해당 에포크의 train accuracy
+                self.best_val_loss = val_results['loss']
+                self.best_train_loss = train_results['loss']
                 patience_counter = 0
                 self.logger.metric("best_accuracy", self.best_accuracy, "%")
                 
@@ -296,19 +313,76 @@ class ClassificationStageTrainer:
         return final_results
     
     def _save_best_model(self) -> None:
-        """최고 성능 모델 저장"""
+        """최고 성능 모델 저장 (확장된 지표 포함)"""
         try:
             save_dir = Path("artifacts/models/classification")
             save_dir.mkdir(parents=True, exist_ok=True)
             
-            model_path = save_dir / f"best_classifier_{self.num_classes}classes.pt"
-            torch.save({
-                'model_state_dict': self.model.state_dict(),
-                'best_accuracy': self.best_accuracy,
-                'num_classes': self.num_classes
-            }, model_path)
+            # 현재 GPU 메모리 사용량 체크
+            if torch.cuda.is_available():
+                current_memory = torch.cuda.memory_allocated() / 1024**3
+                self.max_gpu_memory = max(self.max_gpu_memory, current_memory)
             
-            self.logger.info(f"최고 성능 모델 저장: {model_path}")
+            # 모델 파라미터 수 계산
+            total_params = sum(p.numel() for p in self.model.parameters())
+            trainable_params = sum(p.numel() for p in self.model.parameters() if p.requires_grad)
+            
+            # 현재 최고 성능시점의 history 찾기
+            best_epoch_data = None
+            for history in self.training_history:
+                if history.get('val_accuracy', 0) == self.best_accuracy:
+                    best_epoch_data = history
+                    break
+            
+            # 확장된 체크포인트 저장
+            model_path = save_dir / f"best_classifier_{self.num_classes}classes.pt"
+            checkpoint = {
+                # 모델 정보
+                'model_state_dict': self.model.state_dict(),
+                'num_classes': self.num_classes,
+                'model_params_count': total_params,
+                'trainable_params_count': trainable_params,
+                'model_size_mb': sum(p.numel() * p.element_size() for p in self.model.parameters()) / 1024**2,
+                
+                # 성능 지표
+                'best_val_accuracy': self.best_accuracy,
+                'best_train_accuracy': self.best_train_accuracy,
+                'train_val_gap': self.best_train_accuracy - self.best_accuracy,
+                'best_val_loss': self.best_val_loss,
+                'best_train_loss': self.best_train_loss,
+                
+                # Top-K 정확도 (추후 구현시 사용)
+                'top3_accuracy': best_epoch_data.get('top3_accuracy', 0.0) if best_epoch_data else 0.0,
+                'top5_accuracy': best_epoch_data.get('top5_accuracy', 0.0) if best_epoch_data else 0.0,
+                
+                # 학습 효율성
+                'epochs_to_best': len([h for h in self.training_history if h.get('val_accuracy', 0) <= self.best_accuracy]),
+                'total_training_time_minutes': (time.time() - self.training_start_time) / 60 if self.training_start_time else 0,
+                'max_gpu_memory_gb': self.max_gpu_memory,
+                
+                # 하이퍼파라미터
+                'learning_rate': self.optimizer.param_groups[0]['lr'] if self.optimizer else 0,
+                'batch_size': best_epoch_data.get('batch_size', 0) if best_epoch_data else 0,
+                'optimizer_name': self.optimizer.__class__.__name__ if self.optimizer else 'Unknown',
+                'scheduler_name': self.scheduler.__class__.__name__ if self.scheduler else 'None',
+                
+                # 메타데이터
+                'stage': getattr(self, 'stage', 'Unknown'),
+                'target_accuracy': self.target_accuracy,
+                'timestamp': time.time(),
+                'pytorch_version': torch.__version__,
+                'full_training_history': self.training_history,
+                
+                # 레거시 호환성
+                'best_accuracy': self.best_accuracy  # 기존 코드 호환성 위해 유지
+            }
+            
+            torch.save(checkpoint, model_path)
+            
+            self.logger.info(f"확장된 체크포인트 저장: {model_path}")
+            self.logger.info(f"   파라미터: {total_params:,}개, 크기: {checkpoint['model_size_mb']:.1f}MB")
+            self.logger.info(f"   Train-Val Gap: {checkpoint['train_val_gap']:.1%}")
+            
         except Exception as e:
             self.logger.error(f"모델 저장 실패: {e}")
     

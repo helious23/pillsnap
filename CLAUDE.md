@@ -54,12 +54,18 @@ PillSnap ML 프로젝트의 Claude Code 종합 가이드입니다. 프로젝트 
    source /home/max16/pillsnap/.venv/bin/activate
    # Python 3.11.13, PyTorch 2.8.0+cu128, CUDA 12.8
    ```  
-3. **Training:**  
+3. **Training (Manifest 기반 - Stage 3-4 표준):**  
    ```bash
-   # Stage별 훈련 (Manifest 기반)
-   python -m src.training.train_classification_stage --manifest artifacts/stage2/manifest_ssd.csv --epochs 1 --batch-size 32
+   # ⭐ IMPORTANT: Stage 3-4는 반드시 manifest 기반으로만 진행
+   # 물리적 데이터 복사 없이 원본에서 직접 로딩 (용량 절약)
    
-   # 기존 Config 기반 (일반적)
+   # Stage 3 (100K 샘플, 1000 클래스)
+   python -m src.training.train_classification_stage --manifest artifacts/stage3/manifest_train.csv --epochs 50 --batch-size 16
+   
+   # Stage 4 (500K 샘플, 4523 클래스) 
+   python -m src.training.train_classification_stage --manifest artifacts/stage4/manifest_train.csv --epochs 100 --batch-size 8
+   
+   # Stage 1-2 (기존 방식)
    python -m src.train --cfg config.yaml
    python -m src.train --cfg config.yaml train.resume=last
    ```  
@@ -157,14 +163,20 @@ Input Image → Auto Mode Detection
 
 ---
 
-## Progressive Validation Stages
+## Progressive Validation Stages (Manifest 기반)
 
-| Stage | Images  | Classes | Purpose              | Accuracy | Status |
-|-------|---------|---------|----------------------|----------|--------|
-| 1     | 5,000   | 50      | Pipeline verification | 74.9%    | ✅ **완료** (Native) |
-| 2     | 25,000  | 250     | Performance baseline  | 진행예정  | 🔄 준비됨 |
-| 3     | 100,000 | 1,000   | Scalability test      | 목표85%  | ⏳ 대기 |
-| 4     | 500,000 | 4,523   | Production deployment | 목표92%  | ⏳ 대기 |
+| Stage | Images  | Classes | Purpose              | Accuracy | Status | Method |
+|-------|---------|---------|----------------------|----------|--------|---------|
+| 1     | 5,000   | 50      | Pipeline verification | 74.9%    | ✅ **완료** (Native) | Config 기반 |
+| 2     | 25,000  | 250     | Performance baseline  | 진행예정  | 🔄 준비됨 | Config 기반 |
+| 3     | 100,000 | 1,000   | Scalability test      | 목표85%  | 🎯 **Manifest 기반** | **원본 직접로딩** |
+| 4     | 500,000 | 4,523   | Production deployment | 목표92%  | 🎯 **Manifest 기반** | **원본 직접로딩** |
+
+### **⭐ Stage 3-4 핵심 변경사항:**
+- **물리적 복사 없음**: 14.6GB → 50MB (manifest CSV 파일만)
+- **하이브리드 스토리지**: Linux SSD + Windows SSD 심볼릭 링크 활용
+- **Native Linux 최적화**: 128GB RAM + 빠른 SSD I/O로 실시간 로딩
+- **용량 절약**: Stage 4까지 총 ~73GB → ~200MB 절약
 
 ---
 

@@ -229,6 +229,10 @@ def set_seed(seed: int = 42, deterministic: bool = False) -> None:
         torch.use_deterministic_algorithms(True, warn_only=True)
     else:
         torch.backends.cudnn.benchmark = True
+        # RTX 5080 추가 최적화
+        if torch.cuda.is_available():
+            torch.backends.cuda.matmul.allow_tf32 = True
+            torch.backends.cudnn.allow_tf32 = True
 
 
 def ensure_dir(path: Union[str, Path]) -> Path:

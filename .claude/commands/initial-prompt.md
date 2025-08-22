@@ -14,14 +14,19 @@
 - **CPU 최적화**: num_workers=8 (Native Linux, WSL 제약 해결)
 - **데이터 구조**: `/home/max16/pillsnap_data` (프로젝트와 분리)
 
-### **Progressive Validation 현황**
+### **Progressive Validation 현황 (Manifest 기반)**
 - ✅ **Stage 1**: 완료 (5K 샘플, 50 클래스, 74.9% 정확도, Native Linux)
 - 🔄 **Stage 2**: 준비 완료 (25K 샘플, 250 클래스)
   - 데이터 구조: Linux SSD + Windows SSD 하이브리드
   - 심볼릭 링크: 81개 폴더 완전 설정
   - Albumentations 2.0.8 업그레이드 완료
-- ⏳ **Stage 3**: 대기 (100K 샘플, 1K 클래스)
-- ⏳ **Stage 4**: 대기 (500K 샘플, 4.5K 클래스)
+- 🎯 **Stage 3**: **Manifest 기반 진행** (100K 샘플, 1K 클래스)
+  - ⭐ **중요**: 물리적 데이터 복사 없이 manifest CSV로만 진행
+  - 용량 절약: ~14.6GB → ~50MB (manifest 파일만)
+  - 원본 하이브리드 스토리지에서 직접 로딩
+- 🎯 **Stage 4**: **Manifest 기반 진행** (500K 샘플, 4.5K 클래스)
+  - 동일한 manifest 방식으로 확장성 보장
+  - 용량 절약: ~73GB → ~200MB (전체 절약)
 
 ### **최근 완료 작업 (2025-08-22)**
 - ✅ Native Linux 이전 완료 (WSL 제약 완전 해결)

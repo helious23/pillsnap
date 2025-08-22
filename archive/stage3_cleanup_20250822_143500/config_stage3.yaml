@@ -1,0 +1,161 @@
+# Stage 3 Configuration (100K 이미지, 1000 클래스)
+# 목표: 85% 정확도, 확장성 테스트
+
+# 실험 설정
+experiment:
+  name: "stage3_100k_1000classes"
+  description: "Stage 3 - 확장성 테스트 (100K 이미지, 1000 클래스)"
+  version: "v1.0"
+  tags: ["stage3", "efficientnetv2-l", "rtx5080"]
+
+# 데이터셋 경로
+data:
+  root: "/home/max16/pillsnap_data"
+  train_manifest: "artifacts/stage3/manifest_train.csv"
+  val_manifest: "artifacts/stage3/manifest_val.csv"
+  num_classes: 1000
+  
+  # 데이터 로딩 최적화 (Native Linux)
+  num_workers: 12  # 16 CPU 코어의 75%
+  pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 4
+
+# 모델 설정 - Stage 3용 EfficientNetV2-L
+model:
+  name: "tf_efficientnetv2_l"  # S → L로 업그레이드
+  num_classes: 1000
+  input_size: 384
+  pretrained: true
+  
+  # 정규화 강화 (1000 클래스 대응)
+  dropout_rate: 0.2  # 0.1 → 0.2
+  drop_path_rate: 0.3  # 0.1 → 0.3
+  label_smoothing: 0.15  # 0.1 → 0.15
+
+# 훈련 설정
+train:
+  batch_size: 16  # RTX 5080 16GB에 맞춤 (L모델)
+  accumulation_steps: 2  # 효과적 배치크기: 32
+  epochs: 50  # Stage 3는 더 오래 훈련
+  
+  # 옵티마이저
+  optimizer:
+    name: "adamw"
+    lr: 0.0003  # 더 큰 모델에 맞춰 조정
+    weight_decay: 0.05  # 정규화 강화
+    betas: [0.9, 0.999]
+    eps: 1e-8
+  
+  # 스케줄러
+  scheduler:
+    name: "cosine_with_warmup"
+    warmup_epochs: 5
+    min_lr: 1e-6
+    
+  # 손실 함수
+  criterion:
+    name: "cross_entropy"
+    label_smoothing: 0.15
+
+# RTX 5080 최적화
+optimization:
+  mixed_precision: true
+  torch_compile: true
+  channels_last: true
+  
+  # GPU 메모리 관리
+  gradient_checkpointing: true  # L모델용 메모리 절약
+  max_norm: 1.0  # 그래디언트 클리핑
+  
+  # TF32 활성화 (RTX 5080)
+  tf32: true
+  cudnn_benchmark: true
+
+# 검증 설정
+validation:
+  batch_size: 24  # 추론 시 더 큰 배치
+  frequency: 1  # 매 에포크마다
+  metrics: ["accuracy", "top5", "macro_f1"]
+  
+  # 조기 종료
+  early_stopping:
+    patience: 10
+    min_delta: 0.001
+    monitor: "val_accuracy"
+
+# 체크포인트 설정
+checkpoint:
+  save_best: true
+  save_last: true
+  monitor: "val_accuracy"
+  mode: "max"
+  
+  # Stage 3 목표
+  target_accuracy: 0.85  # 85% 목표
+  
+  # 확장된 메트릭 저장
+  save_metrics:
+    - "train_accuracy"
+    - "val_accuracy" 
+    - "train_loss"
+    - "val_loss"
+    - "learning_rate"
+    - "gpu_memory"
+    - "training_time"
+
+# 로깅
+logging:
+  level: "INFO"
+  tensorboard: true
+  wandb: false  # 선택적
+  
+  # 출력 경로
+  exp_dir: "/home/max16/pillsnap_data/exp/stage3"
+  log_frequency: 50  # 50 스텝마다
+
+# 데이터 증강 (Stage 3 강화)
+transforms:
+  train:
+    - name: "resize"
+      size: 400  # 384보다 크게
+    - name: "random_crop"
+      size: 384
+    - name: "horizontal_flip"
+      prob: 0.5
+    - name: "vertical_flip"  # 약품용 추가
+      prob: 0.3
+    - name: "rotate"
+      degrees: 15
+    - name: "color_jitter"
+      brightness: 0.3
+      contrast: 0.3
+      saturation: 0.3
+      hue: 0.1
+    - name: "normalize"
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+      
+  val:
+    - name: "resize"
+      size: 384
+    - name: "center_crop"
+      size: 384
+    - name: "normalize"
+      mean: [0.485, 0.456, 0.406]
+      std: [0.229, 0.224, 0.225]
+
+# 시스템 설정
+system:
+  seed: 42
+  deterministic: false  # 속도 우선
+  benchmark: true
+  
+  # Stage 3 특화 설정
+  stage: 3
+  target_samples: 100000
+  target_classes: 1000
+  
+  # 하드웨어 프로파일링
+  profile_gpu: true
+  profile_dataloader: true

@@ -48,6 +48,10 @@ progressive_validation:
       max_classes: 1000
       target_ratio: {single: 0.7, combination: 0.3}
       time_limit_hours: 32
+      # ⭐ IMPORTANT: Stage 3는 반드시 manifest 기반으로 진행
+      data_method: "manifest_based"         # 물리적 복사 없이 원본 직접 로딩
+      manifest_path: "artifacts/stage3/manifest_train.csv"
+      storage_savings_gb: 14.6              # 용량 절약 (복사 시 대비)
       target_metrics:
         classification_accuracy: 0.75      # 1000클래스 대상
         detection_map_0_5: 0.70           # 높은 검출 성능
@@ -61,6 +65,10 @@ progressive_validation:
       max_classes: 5000
       target_ratio: {single: 0.7, combination: 0.3}
       time_limit_hours: 120
+      # ⭐ IMPORTANT: Stage 4도 반드시 manifest 기반으로 진행
+      data_method: "manifest_based"         # 물리적 복사 없이 원본 직접 로딩
+      manifest_path: "artifacts/stage4/manifest_train.csv"
+      storage_savings_gb: 73.0              # 용량 절약 (복사 시 대비)
       target_metrics:
         classification_accuracy: 0.92      # 최종 목표
         detection_map_0_5: 0.85           # 조합약품 최종 목표

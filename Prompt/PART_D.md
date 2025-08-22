@@ -110,6 +110,24 @@ D-3) 모드별 데이터로더 구성(Part C 연동)
 - Classification (주력): 단일 약품 직접 분류용 데이터로더
 - Detection (즉시 로드): 조합 약품용 YOLO 포맷 데이터로더 (128GB RAM으로 즉시 로드)
 - 중요: test_loader들은 Stage 4 완료 전에는 None 반환, Stage 4 완료 후에만 생성하여 최종 평가시 사용
+
+### **⭐ Stage 3-4 Manifest 기반 데이터로더 (2025-08-22 업데이트)**
+- **Stage 1-2**: 기존 `build_dataloaders_twostage()` 방식 유지
+- **Stage 3-4**: **Manifest CSV 기반** 데이터로더 활용
+  ```python
+  # 기존 코드 컨벤션 준수 - src/training/train_classification_stage.py
+  from src.data import build_manifest_dataloaders
+  
+  # Stage 3 manifest 기반 로더 (물리적 복사 없음)
+  train_loader, val_loader = build_manifest_dataloaders(
+      manifest_path="artifacts/stage3/manifest_train.csv",
+      batch_size=16,
+      num_workers=8,  # Native Linux 최적화
+      pin_memory=True
+  )
+  ```
+- **용량 절약**: 87.6GB → 250MB (99.7% 절약)
+- **성능 보장**: 하이브리드 스토리지 + 128GB RAM으로 실시간 로딩
 - cfg.dataloader.autotune_workers=True면 autotune_num_workers()로 후보 [4,8,12,16] 중 선택 → 최종 로더 재생성
 - class_weights: cfg.loss.use_class_weights=True면 분류 단계에서만 compute_class_weights(...) 적용
 - 로더 공통: pin_memory, persistent_workers, prefetch_factor, drop_last, safe_collate

@@ -25,6 +25,7 @@ class SystemOptimizer:
         self.logger = PillSnapLogger(__name__)
         self._setup_thread_limiting()
         self._system_info = self._detect_system()
+        self._setup_gpu_optimizations()
         
     def _setup_thread_limiting(self):
         """OMP/MKL 스레드 제한 설정"""
@@ -33,6 +34,27 @@ class SystemOptimizer:
         os.environ['MKL_NUM_THREADS'] = '1'
         os.environ['NUMEXPR_NUM_THREADS'] = '1'
         self.logger.info("🔧 OMP/MKL 스레드 1로 제한 설정")
+        
+    def _setup_gpu_optimizations(self):
+        """GPU 최적화 설정 (RTX 5080 전용)"""
+        if not torch.cuda.is_available():
+            return
+            
+        # RTX 5080 TensorFloat-32 가속 (RTX 30/40/50 series)
+        torch.backends.cuda.matmul.allow_tf32 = True
+        torch.backends.cudnn.allow_tf32 = True
+        
+        # cuDNN 최적화 (고정 입력 크기용)
+        torch.backends.cudnn.benchmark = True
+        torch.backends.cudnn.deterministic = False  # 성능 우선
+        
+        # GPU 메모리 효율성
+        torch.cuda.empty_cache()
+        
+        gpu_name = torch.cuda.get_device_name(0) if torch.cuda.device_count() > 0 else "Unknown"
+        self.logger.info(f"🚀 GPU 최적화 활성화: {gpu_name}")
+        self.logger.info("   - TF32 가속 활성화 (MatMul + cuDNN)")
+        self.logger.info("   - cuDNN 벤치마크 모드 활성화")
         
     def _detect_system(self) -> Dict[str, Any]:
         """시스템 환경 감지"""
