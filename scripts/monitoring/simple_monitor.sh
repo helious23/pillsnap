@@ -1,7 +1,19 @@
 #!/bin/bash
-# 간단한 Stage 2 훈련 모니터링
+# 간단한 학습 모니터링 (레거시)
+# 새 버전: universal_training_monitor.sh 사용 권장
 
-echo "🔍 Stage 2 훈련 모니터링 시작"
+echo "⚠️  이 스크립트는 레거시입니다."
+echo "새 통합 모니터링 스크립트를 사용하세요:"
+echo "./scripts/monitoring/universal_training_monitor.sh"
+echo
+read -p "계속 진행하시겠습니까? (y/N): " -n 1 -r
+echo
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+    echo "새 모니터링 스크립트를 시작합니다..."
+    exec ./scripts/monitoring/universal_training_monitor.sh
+fi
+
+echo "🔍 레거시 모니터링 시작"
 echo "==================================="
 
 # 실행 중인 프로세스 찾기
@@ -16,7 +28,7 @@ echo "✅ 훈련 프로세스: PID $TRAINING_PID"
 
 while true; do
     clear
-    echo "🚀 PillSnap Stage 2 실시간 모니터링"
+    echo "🚀 PillSnap 레거시 모니터링"
     echo "=================================="
     echo "$(date '+%Y-%m-%d %H:%M:%S')"
     echo ""

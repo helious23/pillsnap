@@ -78,21 +78,89 @@ class Stage2SamplingStrategy:
             print(f"⚠️  Stage 2 이미지 수 조정: {self.images_per_class}개/클래스 + {remaining}개 추가")
 
 
+@dataclass
+class Stage3SamplingStrategy:
+    """Stage 3 샘플링 전략 설정 (100K 샘플, 1000 클래스)"""
+    target_images: int = 100000
+    target_classes: int = 1000
+    images_per_class: int = 100  # 100000 / 1000 = 100
+    min_images_per_class: int = 80  # 클래스당 최소 이미지 수
+    max_images_per_class: int = 120  # 클래스당 최대 이미지 수
+    quality_threshold: float = 0.95  # 품질 통과 비율 임계값
+    seed: int = 42  # 재현 가능성을 위한 시드
+    
+    single_combo_ratio: float = 0.6  # Single:Combo = 6:4 비율 (Combo 비중 증가)
+    prefer_balanced_distribution: bool = True
+    
+    def __post_init__(self):
+        """설정 유효성 검증"""
+        assert self.target_images > 0, "target_images는 양수여야 함"
+        assert self.target_classes > 0, "target_classes는 양수여야 함"
+        assert self.images_per_class > 0, "images_per_class는 양수여야 함"
+        assert 0 < self.quality_threshold <= 1, "quality_threshold는 0~1 사이"
+        assert 0 < self.single_combo_ratio < 1, "single_combo_ratio는 0~1 사이"
+        
+        # 계산된 이미지 수가 목표와 일치하는지 확인
+        calculated_images = self.target_classes * self.images_per_class
+        if calculated_images != self.target_images:
+            self.images_per_class = self.target_images // self.target_classes
+            remaining = self.target_images % self.target_classes
+            print(f"⚠️  Stage 3 이미지 수 조정: {self.images_per_class}개/클래스 + {remaining}개 추가")
+
+
+@dataclass
+class Stage4SamplingStrategy:
+    """Stage 4 샘플링 전략 설정 (500K 샘플, 4523 클래스)"""
+    target_images: int = 500000
+    target_classes: int = 4523
+    images_per_class: int = 110  # 500000 / 4523 ≈ 110
+    min_images_per_class: int = 80  # 클래스당 최소 이미지 수
+    max_images_per_class: int = 150  # 클래스당 최대 이미지 수
+    quality_threshold: float = 0.95  # 품질 통과 비율 임계값
+    seed: int = 42  # 재현 가능성을 위한 시드
+    
+    single_combo_ratio: float = 0.5  # Single:Combo = 5:5 비율 (균등 분배)
+    prefer_balanced_distribution: bool = True
+    
+    def __post_init__(self):
+        """설정 유효성 검증"""
+        assert self.target_images > 0, "target_images는 양수여야 함"
+        assert self.target_classes > 0, "target_classes는 양수여야 함"
+        assert self.images_per_class > 0, "images_per_class는 양수여야 함"
+        assert 0 < self.quality_threshold <= 1, "quality_threshold는 0~1 사이"
+        assert 0 < self.single_combo_ratio < 1, "single_combo_ratio는 0~1 사이"
+        
+        # 계산된 이미지 수가 목표와 일치하는지 확인
+        calculated_images = self.target_classes * self.images_per_class
+        if calculated_images != self.target_images:
+            self.images_per_class = self.target_images // self.target_classes
+            remaining = self.target_images % self.target_classes
+            print(f"⚠️  Stage 4 이미지 수 조정: {self.images_per_class}개/클래스 + {remaining}개 추가")
+
+
 class ProgressiveValidationSampler:
     """Progressive Validation을 위한 샘플러 클래스"""
     
-    def __init__(self, data_root: str, strategy: Stage1SamplingStrategy):
+    def __init__(self, data_root: str, strategy):
         self.data_root = Path(data_root)
         self.strategy = strategy
         self.logger = PillSnapLogger(__name__)
         self.config = load_config()
         
         # 샘플링 결과 저장 경로 (동적으로 결정)
-        if hasattr(strategy, 'target_classes') and strategy.target_classes == 250:
-            # Stage 2인 경우
-            self.artifacts_dir = Path("artifacts/stage2/sampling")
+        if hasattr(strategy, 'target_classes'):
+            if strategy.target_classes == 50:
+                self.artifacts_dir = Path("artifacts/stage1/sampling")
+            elif strategy.target_classes == 250:
+                self.artifacts_dir = Path("artifacts/stage2/sampling")
+            elif strategy.target_classes == 1000:
+                self.artifacts_dir = Path("artifacts/stage3/sampling")
+            elif strategy.target_classes == 4523:
+                self.artifacts_dir = Path("artifacts/stage4/sampling")
+            else:
+                self.artifacts_dir = Path(f"artifacts/stage_custom_{strategy.target_classes}/sampling")
         else:
-            # Stage 1인 경우
+            # 기본값
             self.artifacts_dir = Path("artifacts/stage1/sampling")
         self.artifacts_dir.mkdir(parents=True, exist_ok=True)
         
@@ -155,7 +223,7 @@ class ProgressiveValidationSampler:
         }
     
     def select_target_classes(self, k_code_counts: Dict[str, int]) -> List[str]:
-        """Stage 1용 50개 클래스 선택"""
+        """모든 Stage용 클래스 선택 (범용)"""
         self.logger.info(f"목표 {self.strategy.target_classes}개 클래스 선택...")
         
         # 충분한 이미지가 있는 K-코드만 필터링
@@ -182,33 +250,6 @@ class ProgressiveValidationSampler:
         
         return selected_classes
     
-    def select_target_classes_stage2(self, k_code_counts: Dict[str, int]) -> List[str]:
-        """Stage 2용 250개 클래스 선택"""
-        self.logger.info(f"목표 {self.strategy.target_classes}개 클래스 선택 (Stage 2)...")
-        
-        # 충분한 이미지가 있는 K-코드만 필터링
-        valid_k_codes = [
-            k_code for k_code, count in k_code_counts.items()
-            if count >= self.strategy.min_images_per_class
-        ]
-        
-        if len(valid_k_codes) < self.strategy.target_classes:
-            raise ValueError(
-                f"충분한 이미지가 있는 K-코드가 부족합니다. "
-                f"필요: {self.strategy.target_classes}, 사용 가능: {len(valid_k_codes)}"
-            )
-        
-        # 이미지 수 기준으로 정렬하여 균등 분포 유지
-        sorted_k_codes = sorted(valid_k_codes, key=lambda k: k_code_counts[k], reverse=True)
-        
-        # 상위 클래스들을 균등하게 선택
-        selected_classes = sorted_k_codes[:self.strategy.target_classes]
-        
-        self.logger.info(f"선택된 {len(selected_classes)}개 클래스 (Stage 2):")
-        for k_code in selected_classes[:10]:  # 상위 10개만 로깅
-            self.logger.info(f"  {k_code}: {k_code_counts[k_code]}개 이미지")
-        
-        return selected_classes
     
     def validate_image_quality(self, image_path: Path) -> bool:
         """이미지 품질 검증"""

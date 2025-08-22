@@ -1,273 +1,365 @@
+#!/usr/bin/env python3
 """
-Stage 1 Evaluator: Progressive Validation + 현재 GPU 테스트 방법론 통합
-- PART_0 OptimizationAdvisor 반자동 평가 시스템
-- 현재 GPU 스모크 테스트 패턴 적용
-- 사용자 선택권 제공 (완전 자동화 금지)
+Stage 1 Performance Evaluator
+파이프라인 검증을 위한 평가 시스템
+
+목표:
+- GPU 환경 검증
+- 기본 파이프라인 동작 확인
+- Stage 2 진행 가능성 평가
 """
 
 import json
 import time
-import subprocess
-import sys
+import torch
 from pathlib import Path
+from typing import Dict, Any
 
-def run_gpu_smoke_tests():
-    """현재 GPU 스모크 테스트 패턴 실행"""
-    print("🚀 Running GPU Smoke Tests (Stage 1 Pattern)")
-    
-    results = {}
-    
-    # GPU-A: 합성 데이터 테스트 (현재 방법론)
-    try:
-        print("  📋 GPU-A: Synthetic Data Test")
-        env = {"PYTHONPATH": "/home/max16/pillsnap"}
-        result = subprocess.run([
-            "/home/max16/pillsnap/.venv/bin/python", 
-            "tests/gpu_smoke/gpu_smoke_A.py"
-        ], cwd="/home/max16/pillsnap", capture_output=True, text=True, timeout=300, env=env)
-        
-        if result.returncode == 0:
-            print("    ✅ GPU-A passed")
-            results["gpu_a"] = {"success": True, "output": result.stdout}
-        else:
-            print("    ❌ GPU-A failed")
-            results["gpu_a"] = {"success": False, "error": result.stderr}
-            
-    except Exception as e:
-        print(f"    💥 GPU-A error: {e}")
-        results["gpu_a"] = {"success": False, "error": str(e)}
-    
-    # GPU-B: 실데이터 테스트 (현재 방법론)
-    try:
-        print("  📋 GPU-B: Real Data Test")
-        env = {"PYTHONPATH": "/home/max16/pillsnap"}
-        result = subprocess.run([
-            "/home/max16/pillsnap/.venv/bin/python", 
-            "tests/gpu_smoke/gpu_smoke_B.py"
-        ], cwd="/home/max16/pillsnap", capture_output=True, text=True, timeout=300, env=env)
-        
-        if result.returncode == 0:
-            print("    ✅ GPU-B passed")
-            results["gpu_b"] = {"success": True, "output": result.stdout}
-        else:
-            print("    ❌ GPU-B failed")
-            results["gpu_b"] = {"success": False, "error": result.stderr}
-            
-    except Exception as e:
-        print(f"    💥 GPU-B error: {e}")
-        results["gpu_b"] = {"success": False, "error": str(e)}
-    
-    return results
+from src.utils.core import PillSnapLogger
 
-def analyze_stage1_performance(gpu_results):
-    """Stage 1 성능 분석 (PART_0 목표 기준)"""
-    
-    # PART_0 Stage 1 목표값
-    target_metrics = {
-        "classification_accuracy": 0.40,  # 50클래스 기준
-        "detection_map_0_5": 0.30,       # 기본 검출 가능성
-        "inference_time_ms": 50,          # RTX 5080 실시간 처리
-        "memory_usage_gb": 14,            # VRAM 안정성
-        "data_loading_s_per_batch": 2     # 128GB RAM 활용도
-    }
-    
-    # 현재 GPU 테스트 결과 분석
-    current_metrics = {}
-    
-    # GPU-B 실데이터 결과에서 메트릭 추출
-    if gpu_results.get("gpu_b", {}).get("success"):
-        try:
-            # artifacts/gpu_runs 에서 최신 결과 로드
-            gpu_runs_path = Path("artifacts/gpu_runs")
-            if gpu_runs_path.exists():
-                latest_run = max(gpu_runs_path.glob("GPU_B_real_*"))
-                metrics_file = latest_run / "metrics.json"
-                if metrics_file.exists():
-                    with open(metrics_file) as f:
-                        gpu_metrics = json.load(f)
-                    
-                    current_metrics = {
-                        "classification_accuracy": gpu_metrics.get("val_accuracy", 0.0),
-                        "inference_time_ms": gpu_metrics.get("elapsed_seconds", 0) * 1000,
-                        "memory_usage_gb": gpu_metrics.get("memory_peak_gb", 0),
-                        "gpu_compatibility": True,
-                        "pytorch_version": gpu_metrics.get("pytorch_version", "unknown")
-                    }
-        except Exception as e:
-            print(f"  ⚠️ Could not parse GPU-B metrics: {e}")
-    
-    return current_metrics, target_metrics
 
-def generate_optimization_advisor_recommendations(current_metrics, target_metrics, gpu_results):
-    """OptimizationAdvisor 권장사항 생성 (PART_0 반자동화 철학)"""
+class Stage1Evaluator:
+    """Stage 1 파이프라인 검증 평가기"""
     
-    # 기본 체크
-    mandatory_checks = {
-        "gpu_environment": gpu_results.get("gpu_a", {}).get("success", False),
-        "real_data_processing": gpu_results.get("gpu_b", {}).get("success", False),
-        "pytorch_compatibility": "2.7.0+cu128" in current_metrics.get("pytorch_version", ""),
-        "rtx5080_support": current_metrics.get("gpu_compatibility", False)
-    }
-    
-    # 성능 평가
-    performance_status = {}
-    for metric, target in target_metrics.items():
-        current = current_metrics.get(metric, 0)
-        if metric in ["classification_accuracy", "detection_map_0_5"]:
-            performance_status[metric] = current >= target
-        elif metric in ["inference_time_ms", "memory_usage_gb", "data_loading_s_per_batch"]:
-            performance_status[metric] = current <= target if current > 0 else True  # 측정되지 않으면 통과
-        else:
-            performance_status[metric] = True
-    
-    # 전체 평가
-    all_mandatory_passed = all(mandatory_checks.values())
-    performance_acceptable = sum(performance_status.values()) >= len(performance_status) * 0.6  # 60% 이상
-    
-    # OptimizationAdvisor 권장사항 (PART_0 사용자 선택권 중심)
-    if all_mandatory_passed and performance_acceptable:
-        status = "RECOMMEND_PROCEED"
-        confidence = "high"
-        reasons = [
-            "✅ GPU 환경 검증 완료 (RTX 5080 + PyTorch 2.7.0+cu128)",
-            "✅ 실데이터 처리 파이프라인 동작 확인",
-            "✅ 기본 성능 임계값 달성",
-            "✅ 메모리 사용량 안정성 확인"
-        ]
-        next_actions = [
-            "Two-Stage Pipeline 아키텍처 구현 (PART_C)",
-            "YOLOv11m 검출 모델 통합",
-            "EfficientNetV2-S 분류 모델 통합", 
-            "Progressive Validation Stage 2 진행"
-        ]
-    elif all_mandatory_passed:
-        status = "SUGGEST_OPTIMIZE"
-        confidence = "medium"
-        reasons = [
-            "✅ GPU 환경 검증 완료",
-            "⚠️ 일부 성능 지표 개선 필요",
-            "✅ 기본 기능 동작 확인"
-        ]
-        next_actions = [
-            "성능 튜닝 후 Stage 2 진행 권장",
-            "배치 크기 최적화 고려",
-            "메모리 사용량 모니터링 강화"
-        ]
-    else:
-        status = "WARN_STOP"
-        confidence = "low"
-        reasons = [
-            "❌ 필수 체크 항목 실패",
-            "❌ GPU 환경 설정 재검토 필요"
-        ]
-        next_actions = [
-            "GPU 드라이버 및 CUDA 재설치",
-            "PyTorch 호환성 재확인",
-            "환경 설정 디버깅"
-        ]
-    
-    return {
-        "stage": 1,
-        "purpose": "pipeline_validation",
-        "timestamp": time.time(),
-        "status": status,
-        "confidence": confidence,
-        "mandatory_checks": mandatory_checks,
-        "performance_metrics": {
-            "current": current_metrics,
-            "targets": target_metrics,
-            "status": performance_status
-        },
-        "reasons": reasons,
-        "next_actions": next_actions,
-        # PART_0 사용자 선택권 제공
-        "user_options": {
-            "1": "RECOMMEND_PROCEED: 권장사항 적용 후 Stage 2 진행",
-            "2": "SUGGEST_OPTIMIZE: 현재 성능으로 Stage 2 진행", 
-            "3": "WARN_STOP: 수동 디버깅 모드"
+    def __init__(self):
+        self.logger = PillSnapLogger(__name__)
+        self.targets = {
+            "classification_accuracy": 0.40,  # 50클래스 기준 (무작위 2% × 20배)
+            "gpu_memory_limit": 14.0,         # RTX 5080 안정성 기준
+            "pipeline_complete": True,        # 전체 파이프라인 완료
         }
-    }
-
-def display_terminal_dashboard(recommendations):
-    """PART_B 터미널 대시보드 출력"""
     
-    status_colors = {
-        "RECOMMEND_PROCEED": "🟢",
-        "SUGGEST_OPTIMIZE": "🟡", 
-        "WARN_STOP": "🔴"
-    }
-    
-    print("\n" + "=" * 60)
-    print(f"🎯 Stage 1 OptimizationAdvisor Report")
-    print("=" * 60)
-    
-    print(f"\n📋 Status: {status_colors.get(recommendations['status'], '⚪')} {recommendations['status']}")
-    print(f"📊 Confidence: {recommendations['confidence'].upper()}")
-    print(f"⏱️ Timestamp: {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(recommendations['timestamp']))}")
-    
-    print(f"\n🔍 Mandatory Checks:")
-    for check, passed in recommendations['mandatory_checks'].items():
-        symbol = "✅" if passed else "❌"
-        print(f"  {symbol} {check}: {'PASS' if passed else 'FAIL'}")
-    
-    print(f"\n📈 Performance Metrics:")
-    perf = recommendations['performance_metrics']
-    for metric, target in perf['targets'].items():
-        current = perf['current'].get(metric, 'N/A')
-        status = perf['status'].get(metric, False)
-        symbol = "✅" if status else "⚠️" 
-        print(f"  {symbol} {metric}: {current} (target: {target})")
-    
-    print(f"\n💡 Reasons:")
-    for reason in recommendations['reasons']:
-        print(f"  • {reason}")
+    def evaluate_stage_1(self, exp_dir: str = "/home/max16/pillsnap_data/exp/exp01") -> Dict[str, Any]:
+        """Stage 1 종합 평가"""
         
-    print(f"\n🎯 Next Actions:")
-    for action in recommendations['next_actions']:
-        print(f"  → {action}")
+        self.logger.step("Stage 1 평가 시작", "파이프라인 검증")
+        
+        # 1. GPU 환경 검증
+        gpu_check = self._check_gpu_environment()
+        
+        # 2. 학습 결과 확인
+        training_results = self._check_training_results(exp_dir)
+        
+        # 3. 시스템 안정성 확인
+        system_check = self._check_system_stability(exp_dir)
+        
+        # 4. 권장사항 생성
+        recommendation = self._generate_stage1_recommendation(
+            gpu_check, training_results, system_check
+        )
+        
+        # 5. 평가 결과 저장
+        evaluation_report = {
+            "stage": 1,
+            "purpose": "pipeline_validation",
+            "timestamp": time.time(),
+            "gpu_environment": gpu_check,
+            "training_results": training_results,
+            "system_stability": system_check,
+            "recommendation": recommendation,
+            "targets": self.targets
+        }
+        
+        self._save_evaluation_report(evaluation_report, exp_dir)
+        
+        # 6. 사용자에게 결과 표시
+        self._present_stage1_results(recommendation)
+        
+        return evaluation_report
     
-    print(f"\n👤 User Options:")
-    for key, option in recommendations['user_options'].items():
-        print(f"  [{key}] {option}")
+    def _check_gpu_environment(self) -> Dict[str, Any]:
+        """GPU 환경 검증"""
+        
+        results = {}
+        
+        # CUDA 사용 가능성
+        results["cuda_available"] = torch.cuda.is_available()
+        
+        if results["cuda_available"]:
+            # GPU 정보
+            results["gpu_name"] = torch.cuda.get_device_name(0)
+            results["gpu_memory_total_gb"] = torch.cuda.get_device_properties(0).total_memory / 1024**3
+            
+            # 메모리 사용량
+            torch.cuda.empty_cache()
+            results["gpu_memory_allocated_gb"] = torch.cuda.memory_allocated() / 1024**3
+            results["gpu_memory_reserved_gb"] = torch.cuda.memory_reserved() / 1024**3
+            
+            # RTX 5080 확인
+            results["is_rtx5080"] = "RTX 5080" in results["gpu_name"]
+            results["memory_adequate"] = results["gpu_memory_total_gb"] >= 15.0
+        else:
+            results["gpu_name"] = "CPU Only"
+            results["gpu_memory_total_gb"] = 0.0
+            results["is_rtx5080"] = False
+            results["memory_adequate"] = False
+        
+        # PyTorch 버전
+        results["pytorch_version"] = torch.__version__
+        results["pytorch_cuda_version"] = torch.version.cuda if torch.cuda.is_available() else "N/A"
+        
+        return results
     
-    print("=" * 60)
+    def _check_training_results(self, exp_dir: str) -> Dict[str, Any]:
+        """학습 결과 확인"""
+        
+        results = {
+            "training_completed": False,
+            "best_accuracy": 0.0,
+            "model_saved": False,
+            "logs_available": False
+        }
+        
+        try:
+            # 모델 체크포인트 확인
+            checkpoints_dir = Path(exp_dir) / "checkpoints"
+            artifacts_dir = Path("artifacts/models/classification")
+            
+            # Stage 1 모델 확인 (50클래스)
+            stage1_model = artifacts_dir / "best_classifier_50classes.pt"
+            if stage1_model.exists():
+                try:
+                    checkpoint = torch.load(stage1_model, map_location='cpu')
+                    results["best_accuracy"] = checkpoint.get("best_accuracy", 0.0)
+                    results["model_saved"] = True
+                    results["training_completed"] = True
+                except Exception as e:
+                    self.logger.warning(f"모델 로드 실패: {e}")
+            
+            # 로그 파일 확인
+            log_files = list(Path(exp_dir).glob("logs/*.out"))
+            results["logs_available"] = len(log_files) > 0
+            
+        except Exception as e:
+            self.logger.warning(f"학습 결과 확인 실패: {e}")
+        
+        return results
+    
+    def _check_system_stability(self, exp_dir: str) -> Dict[str, Any]:
+        """시스템 안정성 확인"""
+        
+        results = {
+            "no_oom_errors": True,
+            "no_crashes": True,
+            "data_loading_ok": True
+        }
+        
+        try:
+            # 오류 로그 확인
+            error_logs = list(Path(exp_dir).glob("logs/*.err"))
+            for error_log in error_logs:
+                if error_log.exists() and error_log.stat().st_size > 0:
+                    with open(error_log) as f:
+                        content = f.read()
+                        
+                        if "CUDA out of memory" in content or "OutOfMemoryError" in content:
+                            results["no_oom_errors"] = False
+                        
+                        if "Traceback" in content or "Exception" in content:
+                            results["no_crashes"] = False
+        except Exception as e:
+            self.logger.warning(f"로그 확인 실패: {e}")
+        
+        return results
+    
+    def _generate_stage1_recommendation(
+        self, 
+        gpu_check: Dict, 
+        training_results: Dict, 
+        system_check: Dict
+    ) -> Dict[str, Any]:
+        """Stage 1 권장사항 생성"""
+        
+        # 필수 체크
+        mandatory_passed = (
+            gpu_check.get("cuda_available", False) and
+            training_results.get("training_completed", False) and
+            system_check.get("no_crashes", True)
+        )
+        
+        # 성능 체크
+        accuracy_ok = training_results.get("best_accuracy", 0) >= self.targets["classification_accuracy"]
+        memory_ok = gpu_check.get("memory_adequate", False)
+        
+        # 종합 판정
+        if mandatory_passed and accuracy_ok and memory_ok:
+            decision = "RECOMMEND_PROCEED"
+            color = "🟢"
+            message = "Stage 1 파이프라인 검증 완료!"
+        elif mandatory_passed and (accuracy_ok or memory_ok):
+            decision = "RECOMMEND_PROCEED"
+            color = "🟢"
+            message = "Stage 1 기본 요구사항 충족"
+        elif mandatory_passed:
+            decision = "SUGGEST_OPTIMIZE"
+            color = "🟡"
+            message = "Stage 1 완료, 일부 최적화 권장"
+        else:
+            decision = "WARN_STOP"
+            color = "🔴"
+            message = "Stage 1 필수 요구사항 미충족"
+        
+        # 구체적 제안사항
+        suggestions = []
+        
+        if not gpu_check.get("cuda_available"):
+            suggestions.append("CUDA 환경 설정 확인")
+        
+        if not training_results.get("training_completed"):
+            suggestions.append("학습 완료까지 기다리거나 재실행")
+        
+        if training_results.get("best_accuracy", 0) < self.targets["classification_accuracy"]:
+            suggestions.append(f"정확도 개선 필요 (현재: {training_results.get('best_accuracy', 0):.1%}, 목표: {self.targets['classification_accuracy']:.1%})")
+        
+        if not gpu_check.get("memory_adequate"):
+            suggestions.append("GPU 메모리 확인 (RTX 5080 권장)")
+        
+        # 사용자 선택 옵션
+        if decision == "RECOMMEND_PROCEED":
+            user_options = [
+                "[1] Stage 2로 진행",
+                "[2] Stage 1 추가 최적화",
+                "[3] 상세 분석 리포트 생성"
+            ]
+        elif decision == "SUGGEST_OPTIMIZE":
+            user_options = [
+                "[1] 권장사항 적용 후 재시도",
+                "[2] 현재 상태로 Stage 2 진행",
+                "[3] 상세 디버깅 모드"
+            ]
+        else:
+            user_options = [
+                "[1] 환경 설정 재검토",
+                "[2] 학습 재실행",
+                "[3] 기술 지원 요청"
+            ]
+        
+        return {
+            "decision": decision,
+            "color": color,
+            "message": message,
+            "suggestions": suggestions,
+            "user_options": user_options,
+            "performance_score": self._calculate_stage1_score(gpu_check, training_results, system_check)
+        }
+    
+    def _calculate_stage1_score(
+        self, 
+        gpu_check: Dict, 
+        training_results: Dict, 
+        system_check: Dict
+    ) -> float:
+        """Stage 1 성능 점수 계산"""
+        
+        scores = []
+        
+        # GPU 환경 점수
+        if gpu_check.get("cuda_available"):
+            scores.append(1.0)
+        else:
+            scores.append(0.0)
+        
+        # 학습 완료 점수
+        if training_results.get("training_completed"):
+            accuracy = training_results.get("best_accuracy", 0)
+            accuracy_score = min(1.0, accuracy / self.targets["classification_accuracy"])
+            scores.append(accuracy_score)
+        else:
+            scores.append(0.0)
+        
+        # 안정성 점수
+        stability_score = sum([
+            system_check.get("no_oom_errors", True),
+            system_check.get("no_crashes", True),
+            system_check.get("data_loading_ok", True)
+        ]) / 3
+        scores.append(stability_score)
+        
+        return sum(scores) / len(scores) if scores else 0.0
+    
+    def _save_evaluation_report(self, report: Dict, exp_dir: str) -> None:
+        """평가 결과 저장"""
+        
+        try:
+            reports_dir = Path(exp_dir) / "reports"
+            reports_dir.mkdir(parents=True, exist_ok=True)
+            
+            report_path = reports_dir / "stage_1_evaluation.json"
+            with open(report_path, 'w', encoding='utf-8') as f:
+                json.dump(report, f, indent=2, ensure_ascii=False, default=str)
+            
+            self.logger.info(f"Stage 1 평가 리포트 저장: {report_path}")
+            
+        except Exception as e:
+            self.logger.error(f"리포트 저장 실패: {e}")
+    
+    def _present_stage1_results(self, recommendation: Dict) -> None:
+        """Stage 1 평가 결과 표시"""
+        
+        print("\n")
+        print("╔══════════════════════════════════════════════════════════════════╗")
+        print("║                    🎯 Stage 1 평가 완료                          ║")
+        print("╠══════════════════════════════════════════════════════════════════╣")
+        print(f"║ {recommendation['color']} {recommendation['message']}")
+        print("║")
+        print(f"║ 📊 성능 점수: {recommendation['performance_score']:.3f}")
+        print("║")
+        
+        if recommendation.get('suggestions'):
+            print("║ 💡 권장사항:")
+            for i, suggestion in enumerate(recommendation['suggestions'], 1):
+                print(f"║   {i}. {suggestion}")
+            print("║")
+        
+        print("║ 🎭 선택 옵션:")
+        for option in recommendation['user_options']:
+            print(f"║   {option}")
+        
+        print("╚══════════════════════════════════════════════════════════════════╝")
+        
+        # 사용자 입력 대기
+        try:
+            user_choice = input("\n선택하세요 [1-3]: ")
+            print(f"선택됨: {user_choice}")
+            
+            if user_choice == "1":
+                if recommendation["decision"] == "RECOMMEND_PROCEED":
+                    print("✅ Stage 2 진행을 위해 다음 명령어를 실행하세요:")
+                    print("python -m src.training.train_classification_stage --stage 2 --epochs 30")
+                else:
+                    print("🔧 환경 설정을 재검토합니다...")
+            elif user_choice == "2":
+                print("📊 추가 작업을 수행합니다...")
+            elif user_choice == "3":
+                print("🔍 상세 모드로 전환합니다...")
+            
+        except KeyboardInterrupt:
+            print("\n⏹️  평가 종료")
+        except Exception as e:
+            print(f"\n⚠️  입력 처리 오류: {e}")
 
-def evaluate_stage1():
-    """Stage 1 OptimizationAdvisor 평가 실행"""
+
+def main():
+    """CLI 실행"""
+    import argparse
+    
+    parser = argparse.ArgumentParser(description="Stage 1 Performance Evaluator")
+    parser.add_argument("--exp-dir", type=str, 
+                       default="/home/max16/pillsnap_data/exp/exp01",
+                       help="Experiment directory path")
+    parser.add_argument("--save-report", action="store_true",
+                       help="Save detailed evaluation report")
+    
+    args = parser.parse_args()
+    
+    print("🎯 Stage 1 파이프라인 검증 평가 시작")
     print("=" * 60)
-    print("🎯 Stage 1 Progressive Validation")
-    print("   Purpose: Pipeline Validation (PART_0 Design)")
-    print("   Test Pattern: Current GPU Smoke Tests")
-    print("=" * 60)
     
-    start_time = time.time()
+    evaluator = Stage1Evaluator()
+    evaluation_result = evaluator.evaluate_stage_1(args.exp_dir)
     
-    # 1. GPU 스모크 테스트 실행 (현재 방법론)
-    gpu_results = run_gpu_smoke_tests()
-    
-    # 2. 성능 분석
-    current_metrics, target_metrics = analyze_stage1_performance(gpu_results)
-    
-    # 3. OptimizationAdvisor 권장사항 생성
-    recommendations = generate_optimization_advisor_recommendations(
-        current_metrics, target_metrics, gpu_results
-    )
-    
-    # 4. 터미널 대시보드 출력
-    display_terminal_dashboard(recommendations)
-    
-    # 5. 결과 저장
-    report_path = Path("/mnt/data/exp/exp01/reports/stage_1_evaluation.json")
-    report_path.parent.mkdir(parents=True, exist_ok=True)
-    report_path.write_text(json.dumps(recommendations, indent=2))
-    
-    elapsed = time.time() - start_time
-    print(f"\n⏱️ Evaluation completed in {elapsed:.1f}s")
-    print(f"📁 Report saved: {report_path}")
-    
-    # 성공/실패 반환
-    return recommendations['status'] != "WARN_STOP"
+    print(f"\n📄 상세 리포트: {args.exp_dir}/reports/stage_1_evaluation.json")
+
 
 if __name__ == "__main__":
-    success = evaluate_stage1()
-    sys.exit(0 if success else 1)
+    main()

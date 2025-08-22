@@ -54,7 +54,7 @@ source .venv/bin/activate
 - 데이터 루트: `/home/max16/pillsnap_data` (프로젝트와 분리된 경로)
 
 ### **프롬프트 참조**
-상세 설계는 다음 문서 참조:
+상세 설계는 다음 문서에 있으니 모든 문서를 반드시 읽는다:
 - `Prompt/PART_0.md` - Progressive Validation Strategy
 - `Prompt/PART_A.md` - 아키텍처 + 경로 정책
 - `Prompt/PART_B.md` - 프로젝트 구조 + RTX 5080 최적화
@@ -90,12 +90,16 @@ source .venv/bin/activate
 
 ## 🚀 즉시 실행 가능 명령어
 
+### **환경 확인**
 ```bash
-# 환경 확인
+# 기본 환경 확인
 source .venv/bin/activate
 python --version  # Python 3.11.13
 python -c "import torch; print(f'CUDA: {torch.cuda.is_available()}, PyTorch: {torch.__version__}')"  # PyTorch 2.8.0+cu128
+```
 
+### **학습 실행**
+```bash
 # Stage 1 테스트 (완료됨)
 python -m src.training.train_classification_stage --stage 1 --epochs 1 --batch-size 32
 
@@ -104,6 +108,37 @@ python -m src.training.train_classification_stage --stage 2 --epochs 30 --batch-
 
 # 통합 테스트
 python -m pytest tests/integration/ -v
+```
+
+### **⌨️ 모니터링 별칭 (추천)**
+```bash
+# 현재 상태 빠른 확인
+status       # GPU 사용률, 완료된 Stage, 디스크 공간
+
+# 실시간 모니터링 
+monitor      # 자동 Stage 감지 실시간 모니터링
+mon2         # Stage 2 전용 모니터링  
+mon3         # Stage 3 전용 모니터링
+mon4         # Stage 4 전용 모니터링
+monfast      # 1초마다 빠른 새로고침
+
+# GPU 상태
+gpu          # nvidia-smi 한 번 실행
+gpuw         # nvidia-smi 실시간 감시 (1초마다)
+```
+
+### **별칭 설정되지 않은 경우**
+```bash
+# 빠른 상태 확인
+./scripts/monitoring/quick_status.sh
+
+# 실시간 모니터링
+./scripts/monitoring/universal_training_monitor.sh
+./scripts/monitoring/universal_training_monitor.sh --stage 2
+./scripts/monitoring/universal_training_monitor.sh --interval 1  # 빠른 새로고침
+
+# 별칭 자동 설정
+./scripts/monitoring/setup_aliases.sh
 ```
 
 ---

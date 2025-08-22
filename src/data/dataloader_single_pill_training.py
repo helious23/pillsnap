@@ -134,9 +134,20 @@ class SinglePillTrainingDataLoader:
         # 샘플링 전략
         if stage == 1:
             self.strategy = Stage1SamplingStrategy(target_images=5000, target_classes=50)
+        elif stage == 2:
+            # Stage 2: 25K 샘플, 250 클래스
+            from src.data.progressive_validation_sampler import Stage2SamplingStrategy
+            self.strategy = Stage2SamplingStrategy(target_images=25000, target_classes=250)
+        elif stage == 3:
+            # Stage 3: 100K 샘플, 1000 클래스  
+            from src.data.progressive_validation_sampler import Stage3SamplingStrategy
+            self.strategy = Stage3SamplingStrategy(target_images=100000, target_classes=1000)
+        elif stage == 4:
+            # Stage 4: 500K 샘플, 4523 클래스
+            from src.data.progressive_validation_sampler import Stage4SamplingStrategy
+            self.strategy = Stage4SamplingStrategy(target_images=500000, target_classes=4523)
         else:
-            # 다른 Stage는 추후 구현
-            raise NotImplementedError(f"Stage {stage} 아직 구현되지 않음")
+            raise NotImplementedError(f"Stage {stage} 지원하지 않음 (1-4만 지원)")
         
         self.logger.info(f"SinglePillTrainingDataLoader 초기화 (Stage {stage})")
         

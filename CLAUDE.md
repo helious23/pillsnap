@@ -63,19 +63,34 @@ PillSnap ML 프로젝트의 Claude Code 종합 가이드입니다. 프로젝트 
    python -m src.train --cfg config.yaml
    python -m src.train --cfg config.yaml train.resume=last
    ```  
-4. **Testing & Evaluation:**  
+4. **Monitoring & Status Check:**  
+   ```bash
+   # 빠른 상태 확인 (별칭 사용 - 추천)
+   status       # GPU, Stage 완료 현황, 디스크 공간
+   
+   # 실시간 모니터링 (별칭 사용 - 추천) 
+   monitor      # 자동 Stage 감지 실시간 모니터링
+   mon2         # Stage 2 전용 모니터링
+   monfast      # 1초마다 빠른 새로고침
+   gpu          # nvidia-smi
+   
+   # 전체 경로 (별칭 미설정시)
+   ./scripts/monitoring/quick_status.sh
+   ./scripts/monitoring/universal_training_monitor.sh --stage 2
+   ```
+5. **Testing & Evaluation:**  
    ```bash
    pytest tests/
    bash tests/evaluate_stage.sh 1  # Replace with appropriate stage number (1-4)
    python -m tests.stage_1_evaluator  # Replace with stage 1-4 as needed
    python -m tests.stage_progress_tracker
    ```  
-5. **Inference:**  
+6. **Inference:**  
    ```bash
    python -m src.infer --engine torch --model /mnt/data/exp/exp01/checkpoints/best.pt --inputs "/path/to/images/*.jpg" --batch 16
    python -m src.infer --engine onnx --model /mnt/data/exp/exp01/export/model.onnx --inputs "/path/to/images/*.jpg" --batch 16
    ```  
-6. **API & Deployment:**  
+7. **API & Deployment:**  
    ```bash
    bash scripts/deployment/run_api.sh
    bash scripts/deployment/export_onnx.sh
