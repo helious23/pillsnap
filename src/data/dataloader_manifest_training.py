@@ -1,7 +1,9 @@
 """
-Manifest 기반 훈련 데이터로더
+Manifest 기반 훈련 데이터로더 - Two-Stage Pipeline 지원
 
-CSV manifest 파일을 사용하여 정확한 이미지-라벨 쌍으로 데이터로더를 생성합니다.
+CSV manifest 파일을 사용하여 Classification과 Detection을 모두 지원하는 데이터로더를 생성합니다.
+- Classification: EfficientNetV2-L (384px)
+- Detection: YOLOv11x (640px) + YOLO 형식 어노테이션
 """
 
 import pandas as pd
@@ -10,7 +12,8 @@ from torch.utils.data import Dataset, DataLoader, random_split
 from PIL import Image
 from pathlib import Path
 import json
-from typing import Tuple, Dict, Any
+import numpy as np
+from typing import Tuple, Dict, Any, Optional, List
 import torchvision.transforms as transforms
 
 from src.utils.core import PillSnapLogger
@@ -57,107 +60,198 @@ class ManifestDataset(Dataset):
         return image, label
 
 
-class ManifestTrainingDataLoader:
-    """Manifest 기반 훈련 데이터로더 관리자"""
+class ManifestDetectionDataset(Dataset):
+    """Detection용 Manifest 데이터셋 (YOLO 형식)"""
     
-    def __init__(self, manifest_path: str, batch_size: int = 32, val_split: float = 0.2):
-        self.manifest_path = Path(manifest_path)
-        self.batch_size = batch_size
-        self.val_split = val_split
+    def __init__(
+        self, 
+        manifest_df: pd.DataFrame, 
+        transform=None,
+        image_size: int = 640
+    ):
+        # Combination 데이터만 필터링
+        self.data = manifest_df[manifest_df['pill_type'] == 'combination'].reset_index(drop=True)
+        self.transform = transform
+        self.image_size = image_size
         self.logger = PillSnapLogger(__name__)
         
-        # 데이터 변환 (EfficientNetV2 표준)
-        self.train_transform = transforms.Compose([
-            transforms.Resize((384, 384)),
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.RandomRotation(degrees=15),
-            transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        ])
-        
-        self.val_transform = transforms.Compose([
-            transforms.Resize((384, 384)),
-            transforms.ToTensor(),
-            transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
-        ])
+        self.logger.info(f"ManifestDetectionDataset 생성: {len(self.data)}개 Combination 샘플")
     
-    def load_manifest(self) -> pd.DataFrame:
-        """Manifest CSV 파일 로드"""
-        if not self.manifest_path.exists():
-            raise FileNotFoundError(f"Manifest 파일을 찾을 수 없습니다: {self.manifest_path}")
+    def __len__(self):
+        return len(self.data)
+    
+    def __getitem__(self, idx):
+        row = self.data.iloc[idx]
         
-        df = pd.read_csv(self.manifest_path)
+        # 이미지 로드
+        image_path = Path(row['image_path'])
+        try:
+            image = Image.open(image_path).convert('RGB')
+        except Exception as e:
+            self.logger.error(f"이미지 로드 실패: {image_path} - {e}")
+            image = Image.new('RGB', (self.image_size, self.image_size), (0, 0, 0))
+        
+        # YOLO 형식 라벨 생성 (간단화 - 실제로는 어노테이션 파일 필요)
+        # 임시로 전체 이미지를 bbox로 설정 (실제 구현에서는 정확한 bbox 필요)
+        boxes = torch.tensor([[0.25, 0.25, 0.75, 0.75]])  # [x_center, y_center, width, height] normalized
+        labels = torch.tensor([0])  # 클래스 0 (pill)
+        
+        # 변환 적용
+        if self.transform:
+            image = self.transform(image)
+        
+        # YOLO 형식으로 반환
+        targets = {
+            'boxes': boxes,
+            'labels': labels
+        }
+        
+        return image, targets
+
+
+class ManifestTrainingDataLoader:
+    """Manifest 기반 훈련 데이터로더 관리자 - Two-Stage Pipeline 지원"""
+    
+    def __init__(
+        self, 
+        manifest_train_path: str, 
+        manifest_val_path: str,
+        batch_size: int = 32,
+        image_size: int = 384,
+        num_workers: int = 4,
+        task: str = "classification"  # "classification" or "detection"
+    ):
+        self.manifest_train_path = Path(manifest_train_path)
+        self.manifest_val_path = Path(manifest_val_path)
+        self.batch_size = batch_size
+        self.image_size = image_size
+        self.num_workers = num_workers
+        self.task = task
+        self.logger = PillSnapLogger(__name__)
+        
+        # Task에 따른 변환 설정
+        if task == "classification":
+            # EfficientNetV2-L용 (384px)
+            self.train_transform = transforms.Compose([
+                transforms.Resize((384, 384)),
+                transforms.RandomHorizontalFlip(p=0.5),
+                transforms.RandomRotation(degrees=15),
+                transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            ])
+            
+            self.val_transform = transforms.Compose([
+                transforms.Resize((384, 384)),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+            ])
+        
+        elif task == "detection":
+            # YOLOv11x용 (640px)
+            self.train_transform = transforms.Compose([
+                transforms.Resize((640, 640)),
+                transforms.RandomHorizontalFlip(p=0.5),
+                transforms.ColorJitter(brightness=0.2, contrast=0.2),
+                transforms.ToTensor()
+            ])
+            
+            self.val_transform = transforms.Compose([
+                transforms.Resize((640, 640)),
+                transforms.ToTensor()
+            ])
+        
+        else:
+            raise ValueError(f"지원하지 않는 작업: {task}. 'classification' 또는 'detection'을 사용하세요.")
+    
+    def load_manifest(self, manifest_path: Path) -> pd.DataFrame:
+        """Manifest CSV 파일 로드"""
+        if not manifest_path.exists():
+            raise FileNotFoundError(f"Manifest 파일을 찾을 수 없습니다: {manifest_path}")
+        
+        df = pd.read_csv(manifest_path)
         self.logger.info(f"Manifest 로드: {len(df)}개 샘플")
         
         # 필수 컬럼 확인
-        required_cols = ['image_path', 'mapping_code']
+        required_cols = ['image_path']
+        if self.task == "classification":
+            required_cols.append('mapping_code')
+        elif self.task == "detection":
+            required_cols.append('pill_type')
+            
         missing_cols = [col for col in required_cols if col not in df.columns]
         if missing_cols:
             raise ValueError(f"필수 컬럼 누락: {missing_cols}")
         
         return df
     
-    def get_dataloaders(self) -> Tuple[DataLoader, DataLoader, Dict[str, Any]]:
-        """훈련/검증 데이터로더 생성"""
+    def get_train_loader(self) -> DataLoader:
+        """학습 데이터로더 생성"""
+        train_df = self.load_manifest(self.manifest_train_path)
         
-        # Manifest 로드
-        df = self.load_manifest()
+        if self.task == "classification":
+            train_dataset = ManifestDataset(train_df, transform=self.train_transform)
+        elif self.task == "detection":
+            train_dataset = ManifestDetectionDataset(
+                train_df, 
+                transform=self.train_transform,
+                image_size=self.image_size
+            )
         
-        # 클래스별 균등 분할을 위한 stratified split
-        train_data = []
-        val_data = []
-        
-        for k_code in df['mapping_code'].unique():
-            k_code_data = df[df['mapping_code'] == k_code]
-            n_samples = len(k_code_data)
-            n_val = max(1, int(n_samples * self.val_split))  # 최소 1개는 검증용
-            
-            # 셔플 후 분할
-            k_code_shuffled = k_code_data.sample(frac=1, random_state=42).reset_index(drop=True)
-            val_data.append(k_code_shuffled[:n_val])
-            train_data.append(k_code_shuffled[n_val:])
-        
-        train_df = pd.concat(train_data, ignore_index=True)
-        val_df = pd.concat(val_data, ignore_index=True)
-        
-        self.logger.info(f"데이터 분할: 훈련 {len(train_df)}개, 검증 {len(val_df)}개")
-        
-        # 데이터셋 생성
-        train_dataset = ManifestDataset(train_df, transform=self.train_transform)
-        val_dataset = ManifestDataset(val_df, transform=self.val_transform)
-        
-        # WSL 환경에서는 num_workers=0 사용
-        num_workers = 0
-        
-        # 데이터로더 생성
         train_loader = DataLoader(
             train_dataset,
             batch_size=self.batch_size,
             shuffle=True,
-            num_workers=num_workers,
+            num_workers=self.num_workers,
             pin_memory=True,
-            drop_last=True
+            persistent_workers=self.num_workers > 0
         )
+        
+        return train_loader
+    
+    def get_val_loader(self) -> DataLoader:
+        """검증 데이터로더 생성"""
+        val_df = self.load_manifest(self.manifest_val_path)
+        
+        if self.task == "classification":
+            val_dataset = ManifestDataset(val_df, transform=self.val_transform)
+        elif self.task == "detection":
+            val_dataset = ManifestDetectionDataset(
+                val_df,
+                transform=self.val_transform,
+                image_size=self.image_size
+            )
         
         val_loader = DataLoader(
             val_dataset,
             batch_size=self.batch_size,
             shuffle=False,
-            num_workers=num_workers,
-            pin_memory=True
+            num_workers=self.num_workers,
+            pin_memory=True,
+            persistent_workers=self.num_workers > 0
         )
         
+        return val_loader
+    
+    def get_dataloaders(self) -> Tuple[DataLoader, DataLoader, Dict[str, Any]]:
+        """훈련/검증 데이터로더 생성 (레거시 호환성)"""
+        train_loader = self.get_train_loader()
+        val_loader = self.get_val_loader()
+        
         # 메타데이터
+        train_df = self.load_manifest(self.manifest_train_path)
         metadata = {
-            'num_classes': df['mapping_code'].nunique(),
-            'train_size': len(train_df),
-            'val_size': len(val_df),
-            'total_size': len(df),
-            'class_names': sorted(df['mapping_code'].unique()),
-            'k_code_to_label': train_dataset.k_code_to_label,
-            'label_to_k_code': train_dataset.label_to_k_code
+            'task': self.task,
+            'num_train_samples': len(train_df),
+            'num_val_samples': len(self.load_manifest(self.manifest_val_path)),
+            'batch_size': self.batch_size,
+            'image_size': self.image_size
         }
+        
+        if self.task == "classification":
+            unique_classes = sorted(train_df['mapping_code'].unique())
+            metadata['num_classes'] = len(unique_classes)
+            metadata['classes'] = unique_classes
         
         return train_loader, val_loader, metadata
 

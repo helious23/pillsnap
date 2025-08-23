@@ -1,0 +1,16 @@
+{
+  "timestamp": "2025-08-23T01:43:17.920844",
+  "stage": 3,
+  "total_samples": 100000,
+  "train_samples": 80000,
+  "val_samples": 20000,
+  "num_classes": 1000,
+  "single_ratio": 1.0,
+  "combination_ratio": 0.0,
+  "samples_per_class": 100,
+  "data_root": "/home/max16/pillsnap_data",
+  "manifest_checksum": {
+    "train": "51b9de7b28116edd5b29c70b9f5d91d7",
+    "val": "0e78c5428f2530c439ddf816b677b126"
+  }
+}

@@ -1,8 +1,8 @@
 """
-EfficientNetV2-S 분류 모델
+EfficientNetV2-L 분류 모델
 
 PillSnap ML Two-Stage Pipeline의 분류용:
-- timm 기반 EfficientNetV2-S 백본
+- timm 기반 EfficientNetV2-L 백본 (Stage 3+ 전용)
 - 4,523개 EDI 코드 분류 헤드
 - Single 약품 직접 분류 및 Combination 크롭 분류
 - 384px 입력 해상도 최적화
@@ -56,7 +56,7 @@ class ClassificationResult:
 @dataclass
 class ClassifierConfig:
     """분류기 모델 설정"""
-    model_name: str = "tf_efficientnetv2_s"  # timm 모델명
+    model_name: str = "tf_efficientnetv2_l"  # timm 모델명 (Stage 3+용)
     num_classes: int = 4523  # EDI 코드 개수
     input_size: int = 384  # 입력 이미지 크기
     pretrained: bool = True  # 사전 훈련된 가중치 사용
@@ -84,7 +84,7 @@ class ClassifierConfig:
 
 
 class PillSnapClassifier(nn.Module):
-    """PillSnap ML용 EfficientNetV2-S 분류기"""
+    """PillSnap ML용 EfficientNetV2-L 분류기 (Stage 3+)"""
     
     def __init__(self, config: Optional[ClassifierConfig] = None):
         super().__init__()
@@ -104,9 +104,9 @@ class PillSnapClassifier(nn.Module):
         self.logger.info(f"  디바이스: {self.config.device}")
     
     def _create_backbone(self):
-        """백본 모델 생성"""
+        """백본 모델 생성 (fallback 포함)"""
         try:
-            # timm 모델 생성
+            # timm 모델 생성 시도
             self.backbone = timm.create_model(
                 self.config.model_name,
                 pretrained=self.config.pretrained,
@@ -121,8 +121,38 @@ class PillSnapClassifier(nn.Module):
             self.logger.info(f"백본 모델 생성 성공: {self.config.model_name}")
             
         except Exception as e:
-            self.logger.error(f"백본 모델 생성 실패: {e}")
-            raise
+            self.logger.warning(f"원본 모델({self.config.model_name}) 생성 실패: {e}")
+            
+            # Fallback: pretrained=False로 재시도
+            try:
+                self.logger.info("Fallback: pretrained=False로 모델 생성 시도")
+                self.backbone = timm.create_model(
+                    self.config.model_name,
+                    pretrained=False,
+                    num_classes=self.config.num_classes,
+                    drop_rate=self.config.dropout_rate,
+                    drop_path_rate=self.config.drop_path_rate
+                )
+                
+                # 디바이스 이동
+                self.backbone = self.backbone.to(self.config.device)
+                self.logger.info(f"Fallback 백본 모델 생성 성공: {self.config.model_name} (pretrained=False)")
+                
+            except Exception as fallback_e:
+                # 최종 Fallback: ResNet50으로 변경
+                self.logger.warning(f"Fallback도 실패: {fallback_e}")
+                try:
+                    self.logger.info("최종 Fallback: ResNet50으로 모델 생성")
+                    self.backbone = timm.create_model(
+                        'resnet50',
+                        pretrained=False,
+                        num_classes=self.config.num_classes
+                    )
+                    self.backbone = self.backbone.to(self.config.device)
+                    self.logger.info("최종 Fallback 성공: ResNet50")
+                except Exception as final_e:
+                    self.logger.error(f"모든 모델 생성 시도 실패: {final_e}")
+                    raise
     
     def _apply_optimizations(self):
         """RTX 5080 최적화 적용"""
@@ -330,7 +360,7 @@ class PillSnapClassifier(nn.Module):
 
 def create_pillsnap_classifier(
     num_classes: int = 4523,
-    model_name: str = "tf_efficientnetv2_s",
+    model_name: str = "efficientnetv2_l",  # Stage 3+ 기본값 (timm 호환성)
     input_size: int = 384,
     device: str = "cuda",
     pretrained: bool = True

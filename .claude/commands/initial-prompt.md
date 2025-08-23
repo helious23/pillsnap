@@ -123,9 +123,12 @@ status       # GPU 사용률, 완료된 Stage, 디스크 공간
 # 실시간 모니터링 
 monitor      # 자동 Stage 감지 실시간 모니터링
 mon2         # Stage 2 전용 모니터링  
-mon3         # Stage 3 전용 모니터링
+mon3         # Stage 3 전용 모니터링 (실시간 로그 지원 ✨)
 mon4         # Stage 4 전용 모니터링
 monfast      # 1초마다 빠른 새로고침
+
+# 실시간 대시보드 (NEW!)
+webmon       # WebSocket 기반 실시간 대시보드 (http://localhost:8888)
 
 # GPU 상태
 gpu          # nvidia-smi 한 번 실행
@@ -141,6 +144,10 @@ gpuw         # nvidia-smi 실시간 감시 (1초마다)
 ./scripts/monitoring/universal_training_monitor.sh
 ./scripts/monitoring/universal_training_monitor.sh --stage 2
 ./scripts/monitoring/universal_training_monitor.sh --interval 1  # 빠른 새로고침
+
+# 실시간 대시보드
+python scripts/start_stage3_monitor.py --port 8888  # WebSocket 대시보드
+./scripts/monitor_training_realtime.sh "훈련명령어" 8888  # 훈련+모니터링 동시실행
 
 # 별칭 자동 설정
 ./scripts/monitoring/setup_aliases.sh

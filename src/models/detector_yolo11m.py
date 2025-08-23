@@ -1,8 +1,8 @@
 """
-YOLOv11m 검출 모델 래퍼
+YOLOv11x 검출 모델 래퍼 (Stage 3+)
 
 PillSnap ML Two-Stage Pipeline의 Combination 약품 검출용:
-- Ultralytics YOLOv11m 모델 래퍼
+- Ultralytics YOLOv11x 모델 래퍼 (최고 성능)
 - RTX 5080 최적화 (Mixed Precision, torch.compile)
 - Combination 약품 검출 특화 설정
 - 640px 입력 해상도 최적화

@@ -43,21 +43,24 @@ progressive_validation:
         throughput_img_per_s: 100         # API 서빙 처리량
         
     stage_3:
-      purpose: "scalability_test"           # 확장성 테스트
+      purpose: "two_stage_pipeline_validation"  # Two-Stage Pipeline 기능 검증
       max_samples: 100000
       max_classes: 1000
-      target_ratio: {single: 0.7, combination: 0.3}
-      time_limit_hours: 32
+      target_ratio: {single: 0.95, combination: 0.05}  # Single 중심이지만 Combination으로 Detection 검증
+      time_limit_hours: 16                  # Detection 추가로 시간 유지
       # ⭐ IMPORTANT: Stage 3는 반드시 manifest 기반으로 진행
       data_method: "manifest_based"         # 물리적 복사 없이 원본 직접 로딩
       manifest_path: "artifacts/stage3/manifest_train.csv"
       storage_savings_gb: 14.6              # 용량 절약 (복사 시 대비)
+      focus: "two_stage_pipeline"           # Detection + Classification 통합
+      skip_detection: false                 # Detection 학습 활성화 (Stage 4 준비)
       target_metrics:
-        classification_accuracy: 0.75      # 1000클래스 대상
-        detection_map_0_5: 0.70           # 높은 검출 성능
-        detection_map_0_5_0_95: 0.50      # 고급 검출 성능
-        macro_f1: 0.70                    # 불균형 환경 높은 성능
+        classification_accuracy: 0.85      # 높은 Classification 목표 (유지)
+        detection_map_0_5: 0.30           # Detection 기능 검증 목표 (5% 데이터)
+        macro_f1: 0.80                    # 불균형 환경 높은 성능
+        top5_accuracy: 0.95               # Top-5 정확도
         memory_stable_hours: 12           # 장시간 안정성
+        pipeline_inference_ms: 80         # Two-Stage 파이프라인 추론 시간
         
     stage_4:
       purpose: "production_deployment"      # 최종 프로덕션 학습
@@ -85,13 +88,13 @@ pipeline:
   
   # 단일 약품: 직접 분류 경로 (기본 권장)
   single_mode:
-    model: "efficientnetv2_s"   # 384px 입력
+    model: "efficientnetv2_l"   # 384px 입력, Stage 3+ Large 모델
     accuracy_target: 0.92
     
   # 조합 약품: 검출 → 개별 분류 (명시적 선택시)
   combo_mode:
-    detector: "yolov11m"        # 640px 입력
-    classifier: "efficientnetv2_s"  # 384px 입력  
+    detector: "yolov11x"        # 640px 입력, Stage 3+ Extra Large 모델
+    classifier: "efficientnetv2_l"  # 384px 입력, Stage 3+ Large 모델
     map_target: 0.85
 
 # 데이터셋 구성 (PART_B ZIP 기반 구조)
@@ -125,9 +128,9 @@ data:
   class_names_path: "processed/class_names.json"
   edi_mapping_path: "processed/edi_mapping.json"
 
-# 검출 모델 (PART_A 설계)
+# 검출 모델 (Stage 3+ YOLOv11x)
 detection:
-  model: "yolov11m"     # 현실적 VRAM 효율성
+  model: "yolov11x"     # Stage 3+ 최고 성능 모델
   pretrained: true
   num_classes: 1        # "pill" 위치 검출용
   class_names: ["pill"]
@@ -136,9 +139,9 @@ detection:
   max_detections: 100
   amp: true
 
-# 분류 모델 (PART_A 설계 수정)
+# 분류 모델 (Stage 3+ EfficientNetV2-L)
 classification:
-  backbone: "efficientnetv2_s.in21k_ft_in1k"  # PART_A 원래 설계
+  backbone: "efficientnetv2_l.in21k_ft_in1k"  # Stage 3+ Large 모델
   pretrained: true
   drop_rate: 0.3
   drop_path_rate: 0.2
@@ -264,10 +267,17 @@ stage_overrides:
     ram_optimization:
       hotset_size_images: 50000
   
-  3:    # Stage 3: 확장성 테스트
+  3:    # Stage 3: 확장성 테스트 (Two-Stage: YOLOv11x + EfficientNetV2-L)
     dataloader:
-      num_workers: 16
-      prefetch_factor: 8
+      num_workers: 12  # Large 모델용 조정
+      prefetch_factor: 6
+    train:
+      detection: 
+        auto_batch_max: 4   # YOLOv11x 대형 모델용
+        epochs: 50
+      classification:
+        auto_batch_max: 8   # EfficientNetV2-L 대형 모델용  
+        epochs: 50
     ram_optimization:
       hotset_size_images: 70000
       
