@@ -5,7 +5,7 @@
 
 ---
 
-## 🎯 프로젝트 현재 상태 (2025-08-24 21:14 기준)
+## 🎯 프로젝트 현재 상태 (2025-08-24)
 
 ### **기본 정보**
 - **PillSnap ML**: Two-Stage Conditional Pipeline 기반 경구약제 식별 AI
@@ -19,20 +19,22 @@
 - ✅ **Stage 2**: 완료 (25K 샘플, 250 클래스, 83.1% 정확도, Native Linux)
   - 데이터 구조: Linux SSD + Windows SSD 하이브리드
   - 심볼릭 링크: 81개 폴더 완전 설정
-- 🔄 **Stage 3**: **학습 진행 중** (100K 샘플, 1,000 클래스, Two-Stage Pipeline)
-  - **현재 상태**: Epoch 15/36 완료 (41.7% 진행)
-  - **Classification**: 69.0% accuracy (꾸준히 상승: Epoch 11: 66.8% → Epoch 15: 69.0%)
-  - **Detection 문제**: 매 에포크 리셋 (save=False, resume=False) → 코드 수정 완료
-  - **체크포인트 문제**: 9시간째 저장 안 됨 (85.5% 기준 너무 높음) → 코드 수정 완료
-  - **손상파일**: K-001900-016551-018110-033009 자동 스킵 중
-  - **Manifest 확인**: 81,474개 Train + 18,526개 Val = 총 100,000개
+- 🔄 **Stage 3**: **재학습 진행 중** (100K 샘플, 1,000 클래스, Two-Stage Pipeline)
+  - **이전 학습**: Epoch 15/36에서 중단 (69.0% accuracy)
+  - **코드 개선 완료**:
+    - YOLO Resume 수정 (매 에포크 모델 지속 학습)
+    - 체크포인트 정책 (epsilon threshold + patience)
+    - TensorBoard 통합 (실시간 메트릭 추적)
+    - ConfigProvider Singleton (런타임 오버라이드)
+  - **새 하이퍼파라미터**: lr=5e-5, weight_decay=5e-4, label_smoothing=0.1
+  - **손상파일**: manifest_train.remove.csv 사용
   - **용량 절약**: Manifest 기반 로딩으로 99.7% 저장공간 절약
 - 🎯 **Stage 4**: **준비 완료** (500K 샘플, 4.5K 클래스, Two-Stage Pipeline)
 
 ### **완성된 시스템 목록 (2025-08-24)**
 - ✅ **Stage 1-2 완료**: Native Linux 환경에서 검증 완료
-- ✅ **Stage 3 Two-Stage Pipeline**: Classification 44.1% + Detection 25.0% mAP@0.5
-- 🔄 **Stage 3 Resume 학습**: 손상파일 스킵 + 하이퍼파라미터 개선 중
+- ✅ **Stage 3 코드 개선**: YOLO Resume, 체크포인트 정책, TensorBoard
+- 🔄 **Stage 3 재학습**: 개선된 하이퍼파라미터로 진행 중
 - ✅ **Manifest 기반 데이터 파이프라인**: 81,474 Train + 18,526 Val = 100K 샘플
 - ✅ **Progressive Validation 인프라**: Stage 1-4 점진적 확장 시스템 구축
 - ✅ **체크포인트 시스템**: Resume 기능 + 하이퍼파라미터 오버라이드 지원
@@ -96,10 +98,10 @@ source .venv/bin/activate
 5. **RTX 5080 최적화**: Mixed Precision, torch.compile
 
 ### **다음 우선순위**
-- 🔄 **Stage 3 Resume 학습 모니터링**: 현재 Epoch 1/36 진행 중
-- 📊 **성능 개선 관찰**: loss 8.3→7.8→7.5 하향 추세 확인 
-- 🎯 **Stage 4 최종 준비**: Resume 학습 완료 후 500K 샘플 대규모 학습
-- 📈 **실시간 모니터링**: WebSocket 대시보드 (http://localhost:8888) 활용
+- 🔄 **Stage 3 재학습 모니터링**: 36 epochs 목표
+- 📊 **TensorBoard 모니터링**: 실시간 메트릭 추적
+- 🎯 **Stage 4 최종 준비**: 재학습 완료 후 500K 샘플 대규모 학습
+- 📈 **실시간 모니터링**: TensorBoard + WebSocket 대시보드
 
 ---
 
@@ -115,12 +117,22 @@ python -c "import torch; print(f'CUDA: {torch.cuda.is_available()}, PyTorch: {to
 
 ### **학습 실행**
 ```bash
-# 🔄 Stage 3 Resume 학습 (현재 진행 중, Epoch 1/36)
+# 🔄 Stage 3 재학습 (2025-08-24 시작)
 python -m src.training.train_stage3_two_stage \
-  --manifest-train artifacts/stage3/manifest_train.csv \
-  --manifest-val artifacts/stage3/manifest_val.csv \
-  --epochs 36 --batch-size 8 --lr-classifier 2e-4 --lr-detector 1e-3 \
-  --resume /home/max16/pillsnap_data/exp/exp01/checkpoints/stage3_classification_best.pt
+  --manifest-train /home/max16/pillsnap/artifacts/stage3/manifest_train.remove.csv \
+  --manifest-val   /home/max16/pillsnap/artifacts/stage3/manifest_val.remove.csv \
+  --epochs 36 \
+  --batch-size 8 \
+  --lr-classifier 5e-5 \
+  --lr-detector 1e-3 \
+  --weight-decay 5e-4 \
+  --label-smoothing 0.1 \
+  --validate-period 3 \
+  --save-every 1 \
+  --patience-cls 8 \
+  --patience-det 6 \
+  --reset-best \
+  > /home/max16/pillsnap/artifacts/logs/stage3_retrain_$(date +%F_%H%M).log 2>&1 &
 
 # Stage 4 대규모 학습 (준비 완료)  
 python -m src.training.train_stage3_two_stage \

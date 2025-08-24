@@ -99,6 +99,9 @@ class Stage3TwoStageTrainer:
         self.detection_dataloader = None
         self.memory_monitor = GPUMemoryMonitor()
         
+        # Detection 실측치 추적
+        self.last_detection_map = 0.0
+        
         # DataLoader 캐싱 (매 epoch마다 재생성 방지)
         self.train_loader_cache = None
         self.val_loader_cache = None
@@ -216,19 +219,57 @@ class Stage3TwoStageTrainer:
             raise
     
     def setup_optimizers(self) -> Tuple[optim.Optimizer, optim.Optimizer]:
-        """옵티마이저 설정"""
+        """옵티마이저 및 스케줄러 설정"""
         
+        # ConfigProvider에서 learning rate 가져오기 (런타임 오버라이드 지원)
+        from src.utils.core import config_provider
+        
+        lr_classifier = config_provider.get('train.lr_classifier', self.training_config.learning_rate_classifier)
+        lr_detector = config_provider.get('train.lr_detector', self.training_config.learning_rate_detector)
+        
+        # CLI 인자로 오버라이드 확인
+        if hasattr(self, '_lr_classifier_override') and self._lr_classifier_override:
+            lr_classifier = self._lr_classifier_override
+            self.logger.info(f"Classifier LR override: {lr_classifier}")
+        
+        if hasattr(self, '_lr_detector_override') and self._lr_detector_override:
+            lr_detector = self._lr_detector_override
+            self.logger.info(f"Detector LR override: {lr_detector}")
+        
+        # 옵티마이저 생성
         classifier_optimizer = optim.AdamW(
             self.classifier.parameters(),
-            lr=self.training_config.learning_rate_classifier,
-            weight_decay=0.01
+            lr=lr_classifier,
+            weight_decay=0.01,
+            betas=(0.9, 0.999)
         )
         
         detector_optimizer = optim.AdamW(
             self.detector.parameters(),
-            lr=self.training_config.learning_rate_detector,
-            weight_decay=0.01
+            lr=lr_detector,
+            weight_decay=0.01,
+            betas=(0.9, 0.999)
         )
+        
+        # 스케줄러 생성 (CosineAnnealingWarmRestarts)
+        self.scheduler_cls = optim.lr_scheduler.CosineAnnealingWarmRestarts(
+            classifier_optimizer,
+            T_0=10,  # 첫 번째 restart까지 epoch 수
+            T_mult=2,  # restart 주기 배수
+            eta_min=1e-6  # 최소 learning rate
+        )
+        
+        self.scheduler_det = optim.lr_scheduler.CosineAnnealingWarmRestarts(
+            detector_optimizer,
+            T_0=10,
+            T_mult=2,
+            eta_min=1e-6
+        )
+        
+        self.logger.info(f"Optimizers 설정 완료:")
+        self.logger.info(f"  - Classifier LR: {lr_classifier}")
+        self.logger.info(f"  - Detector LR: {lr_detector}")
+        self.logger.info(f"  - Scheduler: CosineAnnealingWarmRestarts (T_0=10, T_mult=2)")
         
         return classifier_optimizer, detector_optimizer
     
@@ -277,6 +318,19 @@ class Stage3TwoStageTrainer:
             if batch_idx % 20 == 0:  # 20 배치마다 출력 (더 자주)
                 self.logger.info(f"Epoch {epoch} | Batch {batch_idx}/{len(train_loader)} | Loss: {loss.item():.4f}")
                 
+                # TensorBoard 로깅
+                if hasattr(self, 'log_tb_classification_batch'):
+                    current_lr = optimizer.param_groups[0]['lr']
+                    batch_accuracy = correct / total if total > 0 else 0
+                    self.log_tb_classification_batch(
+                        epoch=epoch,
+                        batch_idx=batch_idx,
+                        total_batches=len(train_loader),
+                        loss=loss.item(),
+                        accuracy=batch_accuracy,
+                        lr=current_lr
+                    )
+                
             # 처음 몇 개 배치는 더 자주 출력
             if batch_idx < 10:
                 self.logger.info(f"초기 배치 {batch_idx} | Loss: {loss.item():.4f}")
@@ -309,21 +363,44 @@ class Stage3TwoStageTrainer:
         YOLO_NAME = 'stage3'
         
         try:
-            # 모델 경로 및 resume 설정
+            # 모델 경로 및 resume 설정 (개선된 로직)
             last_pt_path = Path(YOLO_PROJECT) / YOLO_NAME / 'weights' / 'last.pt'
+            best_pt_path = Path(YOLO_PROJECT) / YOLO_NAME / 'weights' / 'best.pt'
+            
+            # YOLO 모델 초기화 전략
             if epoch == 1:
-                model_path = 'yolo11x.pt'
-                resume = False
-                self.logger.info(f"🆕 Detection 학습 시작: {model_path}")
-            else:
-                if last_pt_path.exists():
+                # 첫 에포크: resume 체크포인트 또는 pretrained 사용
+                if hasattr(self, '_resume_yolo_checkpoint') and self._resume_yolo_checkpoint:
+                    # --resume으로 지정된 체크포인트 사용
+                    model_path = self._resume_yolo_checkpoint
+                    resume = True
+                    self.logger.info(f"🔄 Detection Resume: {model_path}")
+                elif last_pt_path.exists():
+                    # 이전 실행의 last.pt 존재시 사용
                     model_path = str(last_pt_path)
                     resume = True
-                    self.logger.info(f"🔄 Detection 학습 재개: {model_path}")
+                    self.logger.info(f"🔄 Detection 이전 학습 재개: {model_path}")
                 else:
+                    # 처음부터 시작
                     model_path = 'yolo11x.pt'
                     resume = False
-                    self.logger.warning(f"last.pt 없음, pretrained에서 시작: {model_path}")
+                    self.logger.info(f"🆕 Detection 학습 시작: {model_path}")
+            else:
+                # 이후 에포크: 항상 last.pt에서 이어서 학습
+                if last_pt_path.exists():
+                    model_path = str(last_pt_path)
+                    resume = True  # 항상 True (학습 지속)
+                    self.logger.info(f"✅ Detection 학습 지속: {model_path}")
+                else:
+                    # Fallback: best.pt 또는 pretrained
+                    if best_pt_path.exists():
+                        model_path = str(best_pt_path)
+                        resume = True
+                        self.logger.warning(f"⚠️ last.pt 없음, best.pt 사용: {model_path}")
+                    else:
+                        model_path = 'yolo11x.pt'
+                        resume = False
+                        self.logger.warning(f"⚠️ 체크포인트 없음, pretrained 사용: {model_path}")
             
             self.logger.info(f"🎯 Detection 학습 시작 (Epoch {epoch})")
             
@@ -352,7 +429,8 @@ results = model.train(
     batch={min(8, self.training_config.batch_size)},
     imgsz=640,
     device='{self.device.type}',
-    save=True,
+    save=True,  # 항상 저장 (last.pt, best.pt)
+    save_period=1,  # 매 에포크마다 저장
     verbose=True,
     workers=4,
     rect=False,
@@ -361,9 +439,9 @@ results = model.train(
     exist_ok=True,
     project='{YOLO_PROJECT}',
     name='{YOLO_NAME}',
-    patience=0,
+    patience=0,  # Early stopping 비활성화
     val={do_validation},
-    resume={resume},
+    resume={resume},  # 동적으로 설정된 resume 값 사용
     deterministic=False,
     single_cls=False,
     optimizer='auto',
@@ -487,13 +565,22 @@ if hasattr(results, 'metrics'):
             if total_loss is not None:
                 self.logger.info(f"[Detection Epoch {epoch}] Total Loss: {total_loss:.4f} | mAP@0.5: {val_map:.3f}")
             
+            # 실측치 저장 (validate_models에서 사용)
+            self.last_detection_map = val_map
+            
             # 모니터링 파서용 표준 태그 (DET_SUMMARY)
+            # 값 먼저 정하고 포맷팅
+            box_loss_val = 0.0 if box_loss is None else float(box_loss)
+            cls_loss_val = 0.0 if cls_loss is None else float(cls_loss)
+            dfl_loss_val = 0.0 if dfl_loss is None else float(dfl_loss)
+            total_loss_val = 0.0 if total_loss is None else float(total_loss)
+            
             self.logger.info(
                 f"DET_SUMMARY | epoch={epoch} | "
-                f"box_loss={box_loss:.4f if box_loss is not None else 0.0:.4f} | "
-                f"cls_loss={cls_loss:.4f if cls_loss is not None else 0.0:.4f} | "
-                f"dfl_loss={dfl_loss:.4f if dfl_loss is not None else 0.0:.4f} | "
-                f"total_loss={total_loss:.4f if total_loss is not None else 0.0:.4f} | "
+                f"box_loss={box_loss_val:.4f} | "
+                f"cls_loss={cls_loss_val:.4f} | "
+                f"dfl_loss={dfl_loss_val:.4f} | "
+                f"total_loss={total_loss_val:.4f} | "
                 f"mAP={val_map:.4f}"
             )
             
@@ -630,12 +717,11 @@ if hasattr(results, 'metrics'):
         return config_path
     
     def validate_models(self) -> Dict[str, float]:
-        """모델 검증"""
-        
+        """모델 검증 - Classification만 실제 평가, Detection은 train_detection_epoch의 실측치 사용"""
         
         results = {}
         
-        # Classification 검증
+        # Classification 검증 (실제 평가)
         self.classifier.eval()
         correct = 0
         correct_top5 = 0
@@ -673,70 +759,21 @@ if hasattr(results, 'metrics'):
         results['val_classification_accuracy'] = correct / total
         results['val_classification_top5_accuracy'] = correct_top5 / total
         
-        # 추가 메트릭 계산
-        accuracy_pct = results['val_classification_accuracy'] * 100
-        
-        # Single/Combo 도메인별 성능 (시뮬레이션)
-        single_acc = min(accuracy_pct * 1.1, 100.0)  # Single이 약간 더 높다고 가정
-        combo_acc = accuracy_pct * 0.9  # Combo가 더 어렵다고 가정
-        
-        # F1 Score 추정 (정확도와 유사하다고 가정)
-        single_f1 = single_acc / 100
-        combo_f1 = combo_acc / 100
-        macro_f1 = (single_f1 + combo_f1) / 2
-        
-        # 시스템 메트릭 (현재 상태 기반)
-        vram_used = torch.cuda.memory_allocated() / (1024**2) if torch.cuda.is_available() else 0
-        vram_peak = torch.cuda.max_memory_allocated() / (1024**2) if torch.cuda.is_available() else 0
-        
         # 검증 결과 즉시 로깅
         self.logger.info(f"📊 Validation Results:")
         self.logger.info(f"  - Classification Accuracy: {results['val_classification_accuracy']:.4f} ({correct}/{total})")
         self.logger.info(f"  - Top-5 Accuracy: {results['val_classification_top5_accuracy']:.4f}")
         
-        # 모니터링 파서용 상세 메트릭 로그
-        self.logger.info(
-            f"CLS_METRIC | top1={results['val_classification_accuracy']:.4f} | "
-            f"top5={results['val_classification_top5_accuracy']:.4f} | "
-            f"total={total} | correct={correct}"
-        )
+        # Detection 메트릭은 train_detection_epoch()의 실측치 사용
+        # 가장 최근 detection 메트릭 가져오기
+        if hasattr(self, 'last_detection_map'):
+            results['val_detection_map'] = self.last_detection_map
+        else:
+            # 초기값 또는 이전 체크포인트 값 사용
+            results['val_detection_map'] = getattr(self, 'best_detection_map', 0.0)
         
-        # 도메인별 성능 로그
-        self.logger.info(
-            f"DOMAIN_METRIC | single_top1={single_acc:.1f} | single_top5={single_acc*1.1:.1f} | single_f1={single_f1:.3f} | "
-            f"combo_top1={combo_acc:.1f} | combo_top5={combo_acc*1.2:.1f} | combo_f1={combo_f1:.3f} | macro_f1={macro_f1:.3f}"
-        )
+        self.logger.info(f"  - Detection mAP@0.5: {results['val_detection_map']:.4f} (from training)")
         
-        # 시스템 메트릭 로그
-        self.logger.info(
-            f"SYSTEM_METRIC | vram_used={vram_used:.1f}MB | vram_peak={vram_peak:.1f}MB | "
-            f"det_latency=12.3ms | crop_latency=2.1ms | cls_latency=8.7ms | total_latency=23.1ms"
-        )
-        
-        # Detection 검증 (개선된 시뮬레이션)
-        try:
-            # epoch에 따른 점진적 향상
-            base_map = 0.25
-            epoch_bonus = min(self.current_epoch * 0.01, 0.10)  # 최대 10% 향상
-            results['val_detection_map'] = base_map + epoch_bonus
-            
-            # Detection 상세 메트릭
-            det_recall = min(0.60 + epoch_bonus, 0.85)
-            det_precision = min(0.55 + epoch_bonus, 0.80)
-            det_conf = 0.7 + epoch_bonus * 0.5
-            cls_conf = 0.65 + epoch_bonus * 0.3
-            
-            self.logger.info(f"  - Detection mAP@0.5: {results['val_detection_map']:.4f}")
-            self.logger.info(
-                f"DET_DETAIL | recall={det_recall:.3f} | precision={det_precision:.3f} | "
-                f"det_conf={det_conf:.3f} | cls_conf={cls_conf:.3f} | "
-                f"single_conf={det_conf:.3f} | combo_conf={cls_conf:.3f}"
-            )
-            
-        except:
-            results['val_detection_map'] = 0.0
-            self.logger.info(f"  - Detection mAP@0.5: N/A (error)")
-            
         return results
     
     def train(self, start_epoch: int = 0) -> Dict[str, Any]:
@@ -751,6 +788,10 @@ if hasattr(results, 'metrics'):
         
         # 옵티마이저를 self에 저장하여 체크포인트 저장/로드 가능하게 함
         self.optimizer_cls, self.optimizer_det = self.setup_optimizers()
+        
+        # Patience counter 초기화
+        self.cls_patience_counter = 0
+        self.det_patience_counter = 0
         
         # 체크포인트 로드 (모델 초기화 후에 실행)
         if hasattr(self, '_resume_checkpoint_path') and self._resume_checkpoint_path:
@@ -788,24 +829,55 @@ if hasattr(results, 'metrics'):
             val_results = self.validate_models()
             epoch_results.update(val_results)
             
+            # 스케줄러 step
+            if hasattr(self, 'scheduler_cls'):
+                self.scheduler_cls.step()
+                current_lr_cls = self.scheduler_cls.get_last_lr()[0]
+                self.logger.info(f"📈 Classifier LR updated: {current_lr_cls:.2e}")
+                
+            if hasattr(self, 'scheduler_det'):
+                self.scheduler_det.step()
+                current_lr_det = self.scheduler_det.get_last_lr()[0]
+                self.logger.info(f"📈 Detector LR updated: {current_lr_det:.2e}")
+            
             # 최고 성능 업데이트 (epsilon 기준 적용)
             BEST_EPS = 0.001  # 0.1% 이상 개선 시 저장
             
+            # Classification best 업데이트
             if val_results['val_classification_accuracy'] > self.best_classification_accuracy + BEST_EPS:
                 self.best_classification_accuracy = val_results['val_classification_accuracy']
                 self.best_classification_top5_accuracy = val_results['val_classification_top5_accuracy']
                 self.save_checkpoint('classification', 'best')
                 self.logger.info(f"✅ NEW BEST Classification: {self.best_classification_accuracy:.4f}")
+                self.cls_patience_counter = 0  # Patience 초기화
+            else:
+                self.cls_patience_counter += 1
             
+            # Detection best 업데이트
             if val_results['val_detection_map'] > self.best_detection_map + BEST_EPS:
                 self.best_detection_map = val_results['val_detection_map']
                 self.save_checkpoint('detection', 'best')
                 self.logger.info(f"✅ NEW BEST Detection mAP: {self.best_detection_map:.4f}")
+                self.det_patience_counter = 0  # Patience 초기화
+            else:
+                self.det_patience_counter += 1
             
             # 매 epoch마다 last 체크포인트 저장
             self.save_checkpoint('classification', 'last')
             self.save_checkpoint('detection', 'last')
             self.logger.info(f"💾 Saved last checkpoints - Cls: {val_results['val_classification_accuracy']:.4f}, Det: {val_results['val_detection_map']:.4f}")
+            
+            # Patience 기반 주기적 저장 (5 epochs 개선 없으면)
+            PATIENCE_THRESHOLD = 5
+            if self.cls_patience_counter >= PATIENCE_THRESHOLD:
+                self.save_checkpoint('classification', 'periodic')
+                self.logger.info(f"📦 Periodic save (patience={self.cls_patience_counter}) for Classification")
+                self.cls_patience_counter = 0  # Reset after periodic save
+                
+            if self.det_patience_counter >= PATIENCE_THRESHOLD:
+                self.save_checkpoint('detection', 'periodic')
+                self.logger.info(f"📦 Periodic save (patience={self.det_patience_counter}) for Detection")
+                self.det_patience_counter = 0  # Reset after periodic save
             
             # 수동 저장 트리거 확인
             from pathlib import Path
@@ -815,6 +887,30 @@ if hasattr(results, 'metrics'):
                 self.save_checkpoint('detection', 'manual')
                 save_flag_path.unlink()
                 self.logger.info("💾 Manual checkpoint saved due to save_now flag")
+            
+            # TensorBoard 에포크 로깅
+            if hasattr(self, 'log_tb_classification_epoch'):
+                self.log_tb_classification_epoch(
+                    epoch=epoch,
+                    train_loss=epoch_results.get('classification_loss', 0),
+                    train_acc=epoch_results.get('classification_accuracy', 0),
+                    val_loss=None,  # 현재 val loss 추적 안함
+                    val_acc=val_results['val_classification_accuracy'],
+                    val_top5=val_results['val_classification_top5_accuracy']
+                )
+            
+            if hasattr(self, 'log_tb_detection_epoch'):
+                self.log_tb_detection_epoch(
+                    epoch=epoch,
+                    box_loss=epoch_results.get('detection_box_loss', 0),
+                    cls_loss=epoch_results.get('detection_cls_loss', 0),
+                    dfl_loss=epoch_results.get('detection_dfl_loss', 0),
+                    map50=val_results['val_detection_map'],
+                    map50_95=None  # 현재 추적 안함
+                )
+            
+            if hasattr(self, 'log_tb_system_metrics'):
+                self.log_tb_system_metrics(epoch)
             
             # 로그 출력
             epoch_time = time.time() - epoch_start
@@ -866,26 +962,52 @@ if hasattr(results, 'metrics'):
         
         return final_results
     
-    def save_checkpoint(self, model_type: str, checkpoint_type: str) -> None:
-        """체크포인트 저장"""
+    def save_checkpoint(self, model_type: str, checkpoint_type: str, force_save: bool = False) -> None:
+        """
+        체크포인트 저장 (개선된 정책)
+        
+        Args:
+            model_type: 'classification' or 'detection'
+            checkpoint_type: 'best', 'last', 'manual', 'periodic'
+            force_save: 강제 저장 여부
+        """
         
         try:
             checkpoint_dir = Path("artifacts/stage3/checkpoints")
             checkpoint_dir.mkdir(parents=True, exist_ok=True)
             
+            # 주기적 저장 디렉토리 (epoch별 백업)
+            if checkpoint_type == 'periodic':
+                periodic_dir = checkpoint_dir / "periodic"
+                periodic_dir.mkdir(exist_ok=True)
+            
             if model_type == 'classification':
-                checkpoint_path = checkpoint_dir / f"stage3_classification_{checkpoint_type}.pt"
-                torch.save({
+                if checkpoint_type == 'periodic':
+                    checkpoint_path = periodic_dir / f"stage3_classification_epoch_{self.current_epoch:03d}.pt"
+                else:
+                    checkpoint_path = checkpoint_dir / f"stage3_classification_{checkpoint_type}.pt"
+                
+                # 저장할 데이터 준비
+                checkpoint_data = {
                     'model_state_dict': self.classifier.state_dict(),
                     'optimizer_state_dict': self.optimizer_cls.state_dict() if hasattr(self, 'optimizer_cls') else None,
+                    'scheduler_state_dict': self.scheduler_cls.state_dict() if hasattr(self, 'scheduler_cls') else None,
                     'accuracy': self.best_classification_accuracy,
                     'top5_accuracy': self.best_classification_top5_accuracy,
                     'epoch': getattr(self, 'current_epoch', 0),
-                    'config': self.training_config
-                }, checkpoint_path)
+                    'training_history': getattr(self, 'training_history', {}),
+                    'config': self.training_config,
+                    'timestamp': time.strftime('%Y-%m-%d %H:%M:%S')
+                }
+                
+                torch.save(checkpoint_data, checkpoint_path)
                 
             elif model_type == 'detection':
-                checkpoint_path = checkpoint_dir / f"stage3_detection_{checkpoint_type}.pt"
+                if checkpoint_type == 'periodic':
+                    checkpoint_path = periodic_dir / f"stage3_detection_epoch_{self.current_epoch:03d}.pt"
+                else:
+                    checkpoint_path = checkpoint_dir / f"stage3_detection_{checkpoint_type}.pt"
+                
                 # YOLO 모델 저장 (Ultralytics 방식)
                 if hasattr(self.detector, 'model') and hasattr(self.detector.model, 'save'):
                     self.detector.model.save(str(checkpoint_path))
@@ -893,18 +1015,38 @@ if hasattr(results, 'metrics'):
                     self.detector.export(format='torchscript', file=str(checkpoint_path))
                 else:
                     # 대체 방법: 모델 state_dict 저장
-                    torch.save({
+                    checkpoint_data = {
                         'model_state_dict': self.detector.state_dict() if hasattr(self.detector, 'state_dict') else None,
                         'optimizer_state_dict': self.optimizer_det.state_dict() if hasattr(self, 'optimizer_det') else None,
+                        'scheduler_state_dict': self.scheduler_det.state_dict() if hasattr(self, 'scheduler_det') else None,
                         'detection_map': self.best_detection_map,
                         'epoch': getattr(self, 'current_epoch', 0),
-                        'config': self.training_config
-                    }, checkpoint_path)
+                        'training_history': getattr(self, 'detection_history', {}),
+                        'config': self.training_config,
+                        'timestamp': time.strftime('%Y-%m-%d %H:%M:%S')
+                    }
+                    torch.save(checkpoint_data, checkpoint_path)
             
-            self.logger.info(f"💾 CHECKPOINT SAVED: {model_type} {checkpoint_type} → {checkpoint_path}")
+            # 파일 크기 확인
+            file_size_mb = checkpoint_path.stat().st_size / (1024 * 1024)
+            self.logger.info(f"💾 CHECKPOINT SAVED: {model_type} {checkpoint_type} → {checkpoint_path} ({file_size_mb:.1f}MB)")
+            
+            # 주기적 체크포인트 관리 (최대 5개 유지)
+            if checkpoint_type == 'periodic':
+                self._cleanup_old_periodic_checkpoints(periodic_dir, model_type, max_keep=5)
             
         except Exception as e:
             self.logger.warning(f"체크포인트 저장 실패: {e}")
+    
+    def _cleanup_old_periodic_checkpoints(self, periodic_dir: Path, model_type: str, max_keep: int = 5):
+        """오래된 주기적 체크포인트 정리"""
+        pattern = f"stage3_{model_type}_epoch_*.pt"
+        checkpoints = sorted(periodic_dir.glob(pattern))
+        
+        if len(checkpoints) > max_keep:
+            for old_checkpoint in checkpoints[:-max_keep]:
+                old_checkpoint.unlink()
+                self.logger.info(f"🗑️ Old checkpoint removed: {old_checkpoint.name}")
     
     def load_checkpoint(self, checkpoint_path: str) -> Tuple[int, float]:
         """체크포인트 로드"""
@@ -980,12 +1122,14 @@ def main():
     trainer.training_config.max_epochs = args.epochs
     trainer.training_config.batch_size = args.batch_size
     
-    # 하이퍼파라미터 오버라이드
+    # 하이퍼파라미터 오버라이드 (optimizer 생성 전에 설정)
     if args.lr_classifier:
+        trainer._lr_classifier_override = args.lr_classifier
         trainer.training_config.learning_rate_classifier = args.lr_classifier
         trainer.logger.info(f"Classifier learning rate overridden: {args.lr_classifier}")
     
     if args.lr_detector:
+        trainer._lr_detector_override = args.lr_detector
         trainer.training_config.learning_rate_detector = args.lr_detector
         trainer.logger.info(f"Detector learning rate overridden: {args.lr_detector}")
     

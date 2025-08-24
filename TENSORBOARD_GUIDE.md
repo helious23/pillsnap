@@ -136,23 +136,31 @@ pkill -f tensorboard
 - 큰 모델의 경우 Graph 탭 비활성화
 - 히스토그램 로깅 빈도 줄이기
 
-## 📝 현재 Stage 3 학습 상황 (2025-08-24 21:14 기준)
+## 📝 현재 Stage 3 학습 상황 (2025-08-24)
 
-### 📊 Classification (EfficientNetV2-L)
-- **Epoch**: 15/36 (41.7% 완료)
-- **Accuracy**: 69.0% (꾸준히 상승 중)
-- **Loss**: 0.9977
-- **진행 속도**: 약 18분/epoch
+### 🔄 재학습 진행 중
+- **이전 학습**: Epoch 15/36에서 중단 (69.0% accuracy)
+- **재학습 시작**: 2025-08-24
+- **목표 Epochs**: 36
+- **배치 크기**: 8
 
-### ⚠️ Detection (YOLOv11m) - 문제 발견
-- **mAP@0.5**: 35.0% (가짜 값)
-- **문제**: 매 에포크 모델 리셋 (save=False, resume=False)
-- **해결**: 코드 수정 완료 (다음 학습부터 적용)
+### 📊 개선된 하이퍼파라미터
+```bash
+--lr-classifier 5e-5      # 과적합 방지 (이전: 2e-4)
+--lr-detector 1e-3        # Detection 학습률
+--weight-decay 5e-4       # 정규화 강화
+--label-smoothing 0.1     # 일반화 성능 향상
+--validate-period 3       # 3 epochs마다 검증
+--patience-cls 8          # Classification patience
+--patience-det 6          # Detection patience
+--reset-best             # Best 메트릭 초기화
+```
 
-### 💾 체크포인트 문제
-- **마지막 저장**: 9시간 전 (Epoch 11)
-- **원인**: 이전 best 85.5% 기준이 너무 높음
-- **해결**: epsilon threshold + --reset-best 옵션 구현
+### ✅ 코드 개선사항
+- **YOLO Resume 수정**: 매 에포크 모델 지속 학습
+- **체크포인트 정책**: Epsilon threshold + Patience 기반
+- **TensorBoard 통합**: 실시간 메트릭 추적
+- **Detection 실측치**: 시뮬레이션 제거, 실제 mAP 사용
 
 ## 📝 현재 구현 상태
 

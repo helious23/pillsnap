@@ -23,13 +23,13 @@ PillSnap ML은 **263만개 약품 이미지**를 활용하여 **4,523개 EDI 코
 
 ### 🎯 성능 목표 & 현재 상태
 - **Single 약품 정확도**: 92% (목표) / 69.0% (Stage 3 Epoch 15 기준)
-- **Combination 약품 mAP@0.5**: 0.85 (목표) / 0.35 (가짜 값, 실제 학습 안 됨)
+- **Combination 약품 mAP@0.5**: 0.85 (목표) / 실측 대기 중
 - **Stage 1**: ✅ **완료** (74.9% 정확도, Native Linux)
 - **Stage 2**: ✅ **완료** (83.1% 정확도, Native Linux) 
-- **Stage 3**: 🔄 **학습 진행 중** (Epoch 15/36, 41.7% 완료)
-  - **Classification**: 69.0% accuracy (꾸준히 상승 중)
-  - **Detection 문제**: 매 에포크 리셋 → 코드 수정 완료 (다음 학습부터 적용)
-  - **체크포인트 문제**: 9시간째 저장 안 됨 → 코드 수정 완료
+- **Stage 3**: 🔄 **재학습 시작** (2025-08-24)
+  - **이전 결과**: 69.0% accuracy (Epoch 15 중단)
+  - **개선사항**: YOLO resume 수정, 체크포인트 정책 개선, TensorBoard 통합
+  - **새 하이퍼파라미터**: lr=5e-5, weight_decay=5e-4, label_smoothing=0.1
 - **Progressive Resize**: ✅ **완성** (128px→384px 동적 해상도 조정)
 - **실시간 모니터링**: ✅ **완성** (WebSocket 대시보드 http://localhost:8888)
 - **OOM 방지**: ✅ **완성** (동적 배치 크기 + 가비지 컬렉션)
@@ -45,7 +45,7 @@ PillSnap ML은 **263만개 약품 이미지**를 활용하여 **4,523개 EDI 코
 |------|-----------|-----------|------|------|-----------|
 | **Stage 1** | 5,000개 | 50개 | 파이프라인 검증 | ✅ **완료** (74.9%) | Config 기반 |
 | **Stage 2** | 25,000개 | 250개 | 성능 기준선 | ✅ **완료** (83.1%) | Config 기반 |
-| **Stage 3** | 100,000개 | 1,000개 | 확장성 테스트 | 🔄 **진행 중** (Epoch 15/36, 69.0%) | **Two-Stage Pipeline** |
+| **Stage 3** | 100,000개 | 1,000개 | 확장성 테스트 | 🔄 **재학습 중** (2025-08-24 시작) | **Two-Stage Pipeline** |
 | **Stage 4** | 500,000개 | 4,523개 | 프로덕션 배포 | 🎯 **대기 중** | **Two-Stage Pipeline** |
 
 ### ⭐ Stage 3-4 혁신적 접근법
@@ -220,23 +220,41 @@ pillsnap/
 - **체크포인트**: stage3_classification_best.pt 저장 완료
 - **Loss 수렴**: 0.3-0.4로 안정적 수렴 (4,020 클래스 대비 양호)
 
-### 🚀 **Stage 3 개선 학습 준비 완룼**
-첫 학습 결과를 바탕으로 **Resume 기능으로 성능 개선**을 진행할 수 있습니다:
+### 🚀 **Stage 3 재학습 진행 중 (2025-08-24)**
+코드 개선 완료 후 새로운 하이퍼파라미터로 재학습 중입니다:
 
 ```bash
-# Stage 3 Resume 학습 (개선된 하이퍼파라미터)
+# Stage 3 재학습 명령어 (개선된 설정)
 python -m src.training.train_stage3_two_stage \
-  --resume /home/max16/pillsnap_data/exp/exp01/checkpoints/stage3_classification_best.pt \
-  --epochs 50 --lr-classifier 1e-4 --lr-detector 5e-3 --batch-size 12
+  --manifest-train /home/max16/pillsnap/artifacts/stage3/manifest_train.remove.csv \
+  --manifest-val   /home/max16/pillsnap/artifacts/stage3/manifest_val.remove.csv \
+  --epochs 36 \
+  --batch-size 8 \
+  --lr-classifier 5e-5 \
+  --lr-detector 1e-3 \
+  --weight-decay 5e-4 \
+  --label-smoothing 0.1 \
+  --validate-period 3 \
+  --save-every 1 \
+  --patience-cls 8 \
+  --patience-det 6 \
+  --reset-best \
+  > /home/max16/pillsnap/artifacts/logs/stage3_retrain_$(date +%F_%H%M).log 2>&1 &
 
 # 실시간 모니터링
 ./scripts/monitoring/universal_training_monitor.sh --stage 3
+
+# TensorBoard 모니터링
+./scripts/monitoring/run_tensorboard.sh
 ```
 
-**개선 목표**:
-- Classification Accuracy: 44.1% → **60-70%** (보수적 개선)
-- Detection mAP@0.5: 25.0% → **40-50%** (적절한 학습률로)
-- Top-5 Accuracy: **새로 추가된 메트릭** 활용
+**개선된 설정**:
+- **Learning Rate**: 5e-5 (과적합 방지)
+- **Weight Decay**: 5e-4 (정규화 강화)
+- **Label Smoothing**: 0.1 (일반화 성능 향상)
+- **Patience 기반 저장**: Classification 8, Detection 6
+- **검증 주기**: 3 epochs마다
+- **TensorBoard 통합**: 실시간 메트릭 추적
 
 ## 🚀 다음 단계
 

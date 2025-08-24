@@ -17,6 +17,7 @@ import numpy as np
 import torch
 import json
 import re
+import threading
 from pathlib import Path
 from typing import Dict, Any, Optional, Union, Set, List
 from datetime import datetime, timezone, timedelta
@@ -357,9 +358,180 @@ class ConfigLoader:
             return False
 
 
+class ConfigProvider:
+    """
+    Singleton 설정 제공자
+    - 전역 단일 인스턴스로 설정 관리
+    - Thread-safe 구현
+    - 런타임 오버라이드 지원
+    - 설정 변경 추적
+    """
+    _instance = None
+    _lock = threading.Lock()
+    
+    def __new__(cls):
+        if cls._instance is None:
+            with cls._lock:
+                if cls._instance is None:
+                    cls._instance = super().__new__(cls)
+                    cls._instance._initialized = False
+        return cls._instance
+    
+    def __init__(self):
+        if self._initialized:
+            return
+        
+        self._initialized = True
+        self._config = None
+        self._config_path = "config.yaml"
+        self._cli_overrides = {}
+        self._runtime_overrides = {}
+        self._loader = None
+        self._change_history = []
+        
+    def load(self, config_path: str = "config.yaml", cli_overrides: Optional[Dict[str, Any]] = None) -> None:
+        """
+        설정 초기 로드
+        
+        Args:
+            config_path: config.yaml 파일 경로
+            cli_overrides: CLI 인자 오버라이드
+        """
+        self._config_path = config_path
+        self._cli_overrides = cli_overrides or {}
+        
+        # ConfigLoader 사용하여 로드
+        self._loader = ConfigLoader(config_path, cli_overrides)
+        self._config = self._loader._load_config_instance()
+        
+        # 변경 이력 기록
+        self._change_history.append({
+            "timestamp": datetime.now(KST).isoformat(),
+            "action": "initial_load",
+            "config_path": config_path,
+            "cli_overrides": cli_overrides
+        })
+        
+        print(f"✅ ConfigProvider 초기화 완료: {config_path}")
+    
+    def get(self, key_path: str, default: Any = None) -> Any:
+        """
+        중첩된 키 경로로 설정값 가져오기
+        
+        Args:
+            key_path: 점(.)으로 구분된 키 경로 (예: "models.classifier.lr")
+            default: 기본값
+            
+        Returns:
+            설정값 또는 기본값
+        """
+        if self._config is None:
+            self.load()  # 자동 로드
+        
+        # 런타임 오버라이드 우선 확인
+        if key_path in self._runtime_overrides:
+            return self._runtime_overrides[key_path]
+        
+        # 중첩 키 탐색
+        keys = key_path.split('.')
+        value = self._config
+        
+        for key in keys:
+            if isinstance(value, dict) and key in value:
+                value = value[key]
+            else:
+                return default
+        
+        return value
+    
+    def set(self, key_path: str, value: Any, persist: bool = False) -> None:
+        """
+        런타임 설정값 오버라이드
+        
+        Args:
+            key_path: 점(.)으로 구분된 키 경로
+            value: 설정할 값
+            persist: config.yaml에 영구 저장 여부
+        """
+        # 런타임 오버라이드 저장
+        self._runtime_overrides[key_path] = value
+        
+        # 변경 이력 기록
+        self._change_history.append({
+            "timestamp": datetime.now(KST).isoformat(),
+            "action": "runtime_override",
+            "key_path": key_path,
+            "value": value,
+            "persist": persist
+        })
+        
+        # 영구 저장 옵션
+        if persist:
+            self._persist_to_yaml(key_path, value)
+        
+        print(f"🔧 설정 오버라이드: {key_path} = {value}")
+    
+    def _persist_to_yaml(self, key_path: str, value: Any) -> None:
+        """config.yaml에 변경사항 저장"""
+        # 구현 예정: YAML 파일 업데이트
+        pass
+    
+    def get_config(self) -> Dict[str, Any]:
+        """전체 설정 딕셔너리 반환"""
+        if self._config is None:
+            self.load()
+        
+        # 런타임 오버라이드 적용된 설정 반환
+        config_copy = self._config.copy()
+        
+        # 런타임 오버라이드 적용
+        for key_path, value in self._runtime_overrides.items():
+            keys = key_path.split('.')
+            target = config_copy
+            
+            for key in keys[:-1]:
+                if key not in target:
+                    target[key] = {}
+                target = target[key]
+            
+            target[keys[-1]] = value
+        
+        return config_copy
+    
+    def reload(self) -> None:
+        """설정 재로드 (런타임 오버라이드 유지)"""
+        runtime_overrides_backup = self._runtime_overrides.copy()
+        
+        self.load(self._config_path, self._cli_overrides)
+        
+        # 런타임 오버라이드 복원
+        self._runtime_overrides = runtime_overrides_backup
+        
+        print("🔄 설정 재로드 완료 (런타임 오버라이드 유지)")
+    
+    def get_change_history(self) -> List[Dict[str, Any]]:
+        """설정 변경 이력 반환"""
+        return self._change_history.copy()
+    
+    def clear_runtime_overrides(self) -> None:
+        """런타임 오버라이드 초기화"""
+        self._runtime_overrides.clear()
+        
+        self._change_history.append({
+            "timestamp": datetime.now(KST).isoformat(),
+            "action": "clear_runtime_overrides"
+        })
+        
+        print("🧹 런타임 오버라이드 초기화")
+
+
+# 전역 ConfigProvider 인스턴스
+config_provider = ConfigProvider()
+
+
 def load_config(config_path: str = "config.yaml", cli_overrides: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
-    설정 파일 로딩 함수 (편의 함수, 1단계 강화)
+    설정 파일 로딩 함수 (편의 함수, ConfigProvider 사용)
     
     Args:
         config_path: config.yaml 파일 경로
@@ -368,8 +540,8 @@ def load_config(config_path: str = "config.yaml", cli_overrides: Optional[Dict[s
     Returns:
         Dict: 설정 딕셔너리
     """
-    loader = ConfigLoader(config_path, cli_overrides)
-    return loader._load_config_instance()
+    config_provider.load(config_path, cli_overrides)
+    return config_provider.get_config()
 
 
 def get_git_sha() -> str:
