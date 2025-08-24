@@ -1,0 +1,839 @@
+{
+  "timestamp": "20250824_150553",
+  "config_path": "config.yaml",
+  "cli_overrides": {},
+  "merge_log": [
+    "✅ YAML 중복 키 검사 통과: 21개 루트 키"
+  ],
+  "final_config": {
+    "paths": {
+      "exp_dir": "/home/max16/pillsnap_data/exp/exp01",
+      "data_root": "/home/max16/pillsnap_data",
+      "ckpt_dir": null,
+      "tb_dir": null,
+      "reports_dir": null
+    },
+    "progressive_validation": {
+      "enabled": true,
+      "current_stage": 3,
+      "strategy": "stratified_balanced_sampling",
+      "stage_configs": {
+        "stage_1": {
+          "purpose": "pipeline_validation",
+          "max_samples": 5000,
+          "max_classes": 50,
+          "target_ratio": {
+            "single": 0.7,
+            "combination": 0.3
+          },
+          "time_limit_hours": 2,
+          "target_metrics": {
+            "classification_accuracy": 0.4,
+            "detection_map_0_5": 0.3,
+            "inference_time_ms": 50,
+            "memory_usage_gb": 14,
+            "data_loading_s_per_batch": 2
+          }
+        },
+        "stage_2": {
+          "purpose": "performance_baseline",
+          "max_samples": 25000,
+          "max_classes": 250,
+          "target_ratio": {
+            "single": 0.7,
+            "combination": 0.3
+          },
+          "time_limit_hours": 8,
+          "target_metrics": {
+            "classification_accuracy": 0.6,
+            "detection_map_0_5": 0.5,
+            "detection_map_0_5_0_95": 0.35,
+            "macro_f1": 0.55,
+            "throughput_img_per_s": 100
+          }
+        },
+        "stage_3": {
+          "purpose": "two_stage_pipeline_validation",
+          "max_samples": 100000,
+          "max_classes": 1000,
+          "target_ratio": {
+            "single": 0.95,
+            "combination": 0.05
+          },
+          "time_limit_hours": 16,
+          "data_method": "manifest_based",
+          "manifest_path": "artifacts/stage3/manifest_train.csv",
+          "storage_savings_gb": 14.6,
+          "focus": "two_stage_pipeline",
+          "skip_detection": false,
+          "target_metrics": {
+            "classification_accuracy": 0.85,
+            "detection_map_0_5": 0.3,
+            "macro_f1": 0.8,
+            "top5_accuracy": 0.95,
+            "memory_stable_hours": 12,
+            "pipeline_inference_ms": 80
+          }
+        },
+        "stage_4": {
+          "purpose": "production_deployment",
+          "max_samples": 500000,
+          "max_classes": 5000,
+          "target_ratio": {
+            "single": 0.7,
+            "combination": 0.3
+          },
+          "time_limit_hours": 120,
+          "data_method": "manifest_based",
+          "manifest_path": "artifacts/stage4/manifest_train.csv",
+          "storage_savings_gb": 73.0,
+          "target_metrics": {
+            "classification_accuracy": 0.92,
+            "detection_map_0_5": 0.85,
+            "detection_map_0_5_0_95": 0.65,
+            "macro_f1": 0.88,
+            "inference_latency_ms": 30
+          }
+        }
+      }
+    },
+    "pipeline": {
+      "mode": "single",
+      "strategy": "user_controlled",
+      "auto_fallback": false,
+      "single_mode": {
+        "model": "efficientnetv2_l",
+        "accuracy_target": 0.92
+      },
+      "combo_mode": {
+        "detector": "yolov11l",
+        "classifier": "efficientnetv2_l",
+        "map_target": 0.85
+      }
+    },
+    "data": {
+      "root": "/home/max16/pillsnap_data",
+      "train": {
+        "single_images": "data/train/images/single",
+        "combination_images": "data/train/images/combination",
+        "single_labels": "data/train/labels/single",
+        "combination_labels": "data/train/labels/combination"
+      },
+      "val": {
+        "single_images": "data/val/images/single",
+        "combination_images": "data/val/images/combination",
+        "single_labels": "data/val/labels/single",
+        "combination_labels": "data/val/labels/combination"
+      },
+      "test": {
+        "single_images": "data/test/images/single",
+        "combination_images": "data/test/images/combination",
+        "single_labels": "data/test/labels/single",
+        "combination_labels": "data/test/labels/combination"
+      },
+      "img_size": {
+        "detection": 640,
+        "classification": 384
+      },
+      "num_classes": 4020,
+      "class_names_path": "processed/class_names.json",
+      "edi_mapping_path": "processed/edi_mapping.json"
+    },
+    "detection": {
+      "model": "yolov11l",
+      "pretrained": true,
+      "num_classes": 1,
+      "class_names": [
+        "pill"
+      ],
+      "iou_threshold": 0.5,
+      "max_detections": 100,
+      "amp": true
+    },
+    "classification": {
+      "backbone": "efficientnetv2_l.in21k_ft_in1k",
+      "pretrained": true,
+      "drop_rate": 0.3,
+      "drop_path_rate": 0.2,
+      "num_classes": 4020,
+      "amp": true
+    },
+    "train": {
+      "strategy": "interleaved",
+      "interleave_ratio": [
+        1,
+        2
+      ],
+      "detection": {
+        "epochs": 50,
+        "batch_size": 4,
+        "auto_batch_tune": true,
+        "auto_batch_max": 8,
+        "model_size": "yolov11l",
+        "grad_accum_steps": 4,
+        "grad_clip": 10.0,
+        "optimizer": "adamw",
+        "optimizer_params": {
+          "weight_decay": "5e-4",
+          "betas": [
+            0.9,
+            0.999
+          ]
+        },
+        "lr": "1e-3",
+        "scheduler": "cosine",
+        "warmup_steps": 1000,
+        "warmup_epochs": null,
+        "min_lr": "1e-5",
+        "effective_batch_base": 16,
+        "ema": {
+          "enabled": true,
+          "decay": 0.9998,
+          "use_for_eval": true,
+          "use_for_save": true
+        },
+        "augmentation": {
+          "mosaic": 0.3,
+          "hsv_h": 0.015,
+          "hsv_s": 0.7,
+          "hsv_v": 0.4,
+          "fliplr": 0.5,
+          "mixup": 0.0
+        },
+        "evaluation": {
+          "iou_threshold": 0.5,
+          "max_det": 100
+        },
+        "early_stopping": {
+          "enabled": true,
+          "monitor": "mAP@0.5",
+          "mode": "max",
+          "patience": 12
+        }
+      },
+      "classification": {
+        "epochs": 30,
+        "batch_size": 8,
+        "auto_batch_tune": true,
+        "auto_batch_max": 16,
+        "grad_accum_steps": 4,
+        "grad_clip": 1.0,
+        "optimizer": "adamw",
+        "optimizer_params": {
+          "betas": [
+            0.9,
+            0.999
+          ],
+          "weight_decay": 0.02
+        },
+        "lr": "5e-5",
+        "scheduler": "cosine_with_restarts",
+        "warmup_steps": 500,
+        "warmup_epochs": null,
+        "min_lr": "1e-6",
+        "T_0": 10,
+        "T_mult": 2,
+        "effective_batch_base": 32,
+        "ema": {
+          "enabled": true,
+          "decay": 0.9998,
+          "use_for_eval": true,
+          "use_for_save": true
+        },
+        "regularization": {
+          "label_smoothing": 0.1,
+          "mixup": 0.1,
+          "cutmix": 0.2,
+          "random_erasing": 0.2
+        },
+        "class_balancing": {
+          "enabled": true,
+          "method": "reweight_frequency",
+          "exponent": -0.5
+        },
+        "metrics": [
+          "top1_accuracy",
+          "top5_accuracy",
+          "macro_f1",
+          "precision_macro",
+          "recall_macro"
+        ]
+      },
+      "curriculum": {
+        "detection_curriculum": {
+          "enabled": true,
+          "pretrain_on_single": true,
+          "finetune_on_combination": true,
+          "pretrain_epochs": 15,
+          "finetune_epochs": 35,
+          "weak_labeling": {
+            "enabled": true,
+            "method": "center_fixed_ratio",
+            "coverage_ratio": [
+              0.7,
+              0.85
+            ],
+            "loss_weight": 0.5
+          }
+        },
+        "synthetic_combination": {
+          "enabled": true,
+          "instance_count": [
+            2,
+            5
+          ],
+          "scale_jitter": [
+            0.7,
+            1.3
+          ],
+          "rotation_degrees": 15,
+          "occlusion_ratio": [
+            0.1,
+            0.35
+          ],
+          "lighting_jitter": "medium",
+          "initial_ratio": 0.2,
+          "max_ratio": 0.3
+        },
+        "domain_sampling": {
+          "enabled": true,
+          "single_combination_ratio": [
+            3,
+            1
+          ],
+          "maintain_batch_balance": true
+        },
+        "input_consistency": {
+          "enabled": true,
+          "crop_margin": [
+            0.1,
+            0.15
+          ],
+          "resize_method": "minimal_distortion",
+          "apply_to_all_domains": true
+        },
+        "hard_example_mining": {
+          "enabled": true,
+          "classification": {
+            "top_loss_percentile": 0.1,
+            "resampling_weight": 1.5
+          },
+          "detection": {
+            "fn_augmentation": true
+          }
+        },
+        "guardrails": {
+          "weak_label_rollback": {
+            "metric": "mAP_single",
+            "threshold": -0.03,
+            "action": "reduce_weight_to_0.3"
+          },
+          "synthetic_rollback": {
+            "metrics": [
+              "mAP_combo",
+              "recall_combo"
+            ],
+            "threshold": -0.02,
+            "action": "reduce_ratio_by_0.05",
+            "cooldown_epochs": 1
+          }
+        }
+      },
+      "seed": 42,
+      "deterministic": false,
+      "resume": null
+    },
+    "optimization": {
+      "amp": true,
+      "amp_dtype": "auto",
+      "tf32": true,
+      "channels_last": true,
+      "torch_compile": "max-autotune",
+      "compile_mode": "max-autotune",
+      "compile_fallback": "reduce-overhead",
+      "compile_warmup_steps": 100,
+      "compile_dynamic_shapes": false,
+      "use_cuda_graphs": false,
+      "empty_cache_steps": null,
+      "empty_cache_manual_only": true,
+      "oom_guard": {
+        "enabled": true,
+        "auto_reduce_batch": true,
+        "batch_reduction_factor": 0.75,
+        "max_reduction_attempts": 3,
+        "maintain_effective_batch": true,
+        "lr_scale_with_effective_batch": true
+      },
+      "warmup_steps": 100,
+      "profile_interval": 500
+    },
+    "dataloader": {
+      "num_workers": 16,
+      "autotune_workers": true,
+      "pin_memory": true,
+      "pin_memory_device": "cuda",
+      "prefetch_factor": 8,
+      "persistent_workers": true,
+      "drop_last": true,
+      "ram_optimization": {
+        "cache_policy": "hotset",
+        "hotset_size_images": 100000,
+        "cache_labels": true,
+        "use_lmdb": false,
+        "decode_dtype": "uint8",
+        "to_tensor_dtype": "float16",
+        "preload_samples": 0
+      }
+    },
+    "stage_overrides": {
+      "1": {
+        "purpose": "pipeline_validation",
+        "test_mode": true,
+        "dataloader": {
+          "num_workers": 16,
+          "prefetch_factor": 6
+        },
+        "train": {
+          "detection": {
+            "auto_batch_max": 200,
+            "epochs": 1
+          },
+          "classification": {
+            "auto_batch_max": 320,
+            "epochs": 1
+          }
+        },
+        "ram_optimization": {
+          "hotset_size_images": 30000
+        }
+      },
+      "2": {
+        "test_mode": false,
+        "dataloader": {
+          "num_workers": 12,
+          "prefetch_factor": 6
+        },
+        "train": {
+          "detection": {
+            "auto_batch_max": 120
+          },
+          "classification": {
+            "auto_batch_max": 160
+          }
+        },
+        "ram_optimization": {
+          "hotset_size_images": 50000
+        }
+      },
+      "3": {
+        "dataloader": {
+          "num_workers": 12,
+          "prefetch_factor": 6
+        },
+        "train": {
+          "detection": {
+            "auto_batch_max": 6,
+            "epochs": 50
+          },
+          "classification": {
+            "auto_batch_max": 12,
+            "epochs": 50
+          }
+        },
+        "ram_optimization": {
+          "hotset_size_images": 70000
+        }
+      }
+    },
+    "optimization_advisor": {
+      "enabled": true,
+      "run_after_training": true,
+      "generate_report": true,
+      "update_tensorboard": true,
+      "recommend_next_stage": true,
+      "user_choice_options": [
+        "RECOMMEND_PROCEED: 권장사항 적용 후 다음 Stage",
+        "SUGGEST_OPTIMIZE: 현재 성능으로 다음 Stage 진행",
+        "WARN_STOP: 수동 디버깅 모드"
+      ]
+    },
+    "export": {
+      "opset": 17,
+      "dynamic_axes": {
+        "detection": {
+          "images": {
+            "0": "batch"
+          }
+        },
+        "classification": {
+          "input": {
+            "0": "batch"
+          }
+        }
+      },
+      "compare": {
+        "enabled": true,
+        "tolerance": {
+          "detection_map": 0.01,
+          "classification_acc": 0.005
+        }
+      }
+    },
+    "api": {
+      "host": "0.0.0.0",
+      "port": 8000,
+      "workers": 1,
+      "timeout": 60,
+      "cors_allow_origins": [
+        "http://localhost:3000",
+        "https://pillsnap.co.kr",
+        "https://api.pillsnap.co.kr"
+      ],
+      "require_api_key": true,
+      "max_request_size": 20971520
+    },
+    "testing": {
+      "smoke_tests": {
+        "enabled": true,
+        "gpu_synthetic": "tests/gpu_smoke/gpu_smoke_A.py",
+        "gpu_real_data": "tests/gpu_smoke/gpu_smoke_B.py",
+        "gpu_stage2_integration": "tests/gpu_smoke/gpu_smoke_stage2.py"
+      },
+      "stage_integration": {
+        "stage_1": {
+          "smoke_test_mode": true,
+          "max_epochs": 1,
+          "validation_only": true
+        },
+        "stage_2": {
+          "smoke_test_mode": false,
+          "max_epochs": 30
+        },
+        "stage_3": {
+          "smoke_test_mode": false
+        },
+        "stage_4": {
+          "smoke_test_mode": false
+        }
+      }
+    },
+    "logging": {
+      "tensorboard": true,
+      "wandb": false,
+      "step_log_interval": 50,
+      "epoch_log_interval": 1,
+      "save_metrics_json": true,
+      "save_confusion_matrix": false,
+      "save_roc_curves": false,
+      "save_best": true,
+      "save_last": true,
+      "save_top_k": 3,
+      "domain_separation": {
+        "enabled": true,
+        "domains": [
+          "single",
+          "combination"
+        ],
+        "metrics": [
+          "top1_accuracy",
+          "top5_accuracy",
+          "macro_f1",
+          "map_0_5",
+          "recall",
+          "precision"
+        ]
+      },
+      "latency_breakdown": {
+        "enabled": true,
+        "components": [
+          "det_ms",
+          "crop_ms",
+          "cls_ms",
+          "total_ms"
+        ],
+        "percentiles": [
+          50,
+          95,
+          99
+        ]
+      },
+      "validation_schedule": {
+        "comprehensive_interval": 3,
+        "lightweight_interval": 1,
+        "lightweight_samples": 100,
+        "domain_separation_always": true
+      },
+      "per_class_metrics": {
+        "enabled": true,
+        "summary_only": true,
+        "top_worst_classes": 10,
+        "f1_threshold": 0.5,
+        "save_full_confusion_matrix": false,
+        "save_class_thumbnails": false,
+        "save_full_f1_table": false
+      },
+      "gradient_monitoring": {
+        "enabled": true,
+        "default_timing": "after_clipping",
+        "log_interval": 100,
+        "pre_clipping_interval_epochs": 3,
+        "track_layers": [
+          "classifier.head",
+          "detector.head"
+        ],
+        "norm_threshold": 10.0
+      },
+      "confidence_tuning": {
+        "enabled": true,
+        "confidence_range": [
+          0.2,
+          0.3
+        ],
+        "confidence_step": 0.02,
+        "priority_metric": "recall",
+        "fallback_metric": "f1_score",
+        "domain_specific": true,
+        "domains": [
+          "single",
+          "combination"
+        ],
+        "tune_interval_epochs": 3
+      },
+      "optimization": {
+        "async_logging": true,
+        "buffer_size": 1000,
+        "flush_interval": 30,
+        "compress_old_logs": true,
+        "max_log_files": 5,
+        "summary_report": {
+          "enabled": true,
+          "format": "single_page",
+          "include_plots": false,
+          "auto_compress": true,
+          "retention_days": 7
+        }
+      }
+    },
+    "inference": {
+      "lazy_load_detector": true,
+      "batch_size": 1,
+      "target_latency_ms": 100,
+      "detection_nms": {
+        "iou_threshold": 0.7,
+        "max_detections": 300
+      },
+      "classification": {
+        "top_k_candidates": 5
+      },
+      "pipeline_optimization": {
+        "batch_detection": true,
+        "batch_classification": true,
+        "max_batch_size": 32
+      },
+      "tensorrt": {
+        "enabled": false,
+        "fp16_mode": true,
+        "max_workspace_size": "2GB"
+      },
+      "onnx": {
+        "enabled": true,
+        "optimization_level": "all",
+        "providers": [
+          "CUDAExecutionProvider",
+          "CPUExecutionProvider"
+        ]
+      },
+      "post_processing": {
+        "crop_padding": 0.1,
+        "resize_interpolation": "bilinear",
+        "normalize_confidence": true
+      }
+    },
+    "data_strategy": {
+      "detection_curriculum": {
+        "enabled": true,
+        "single_pretrain_epochs": 10,
+        "combination_finetune_epochs": 40,
+        "freeze_backbone_during_pretrain": false,
+        "weak_label_generation": {
+          "enabled": true,
+          "strategy": "center_fixed_ratio",
+          "center_ratio": 0.3,
+          "loss_weight": 0.1
+        }
+      },
+      "domain_mixing": {
+        "enabled": true,
+        "batch_level_mixing": true,
+        "single_ratio": 0.75,
+        "combination_ratio": 0.25,
+        "enforce_batch_ratio": true
+      },
+      "synthetic_combinations": {
+        "enabled": true,
+        "generation_probability_start": 0.2,
+        "generation_probability_max": 0.3,
+        "warmup_epochs": 5,
+        "adaptive_reduction": 0.05,
+        "max_pills_per_image": 5,
+        "background_mixing": true,
+        "lighting_augmentation": true,
+        "scale_variation": [
+          0.8,
+          1.2
+        ]
+      },
+      "hard_example_mining": {
+        "enabled": true,
+        "difficulty_threshold": 0.3,
+        "mining_frequency": 5,
+        "hard_sample_ratio": 0.2
+      },
+      "class_balancing": {
+        "enabled": true,
+        "reweighting_strategy": "inverse_freq",
+        "smoothing_factor": 0.5,
+        "min_weight": 0.1,
+        "max_weight": 10.0
+      },
+      "similarity_sampling": {
+        "enabled": true,
+        "similarity_metric": "embedding",
+        "neighbor_sample_ratio": 0.1,
+        "update_embeddings_frequency": 10
+      },
+      "classification_input_alignment": {
+        "enabled": true,
+        "crop_margin": 0.125,
+        "resize_strategy": "minimal_distortion",
+        "maintain_aspect_ratio": true,
+        "padding_if_needed": true
+      }
+    },
+    "validation_optimization": {
+      "lightweight_validation": {
+        "enabled": true,
+        "sampling_strategy": "representative",
+        "class_stratified": true,
+        "cache_embeddings": true
+      },
+      "early_stopping": {
+        "enabled": true,
+        "patience": 10,
+        "min_delta": 0.001,
+        "monitor": "val_top1",
+        "secondary_monitor": "val_f1_macro",
+        "mode": "max",
+        "restore_best_weights": true
+      },
+      "checkpoint_optimization": {
+        "save_frequency": "every_epoch",
+        "keep_top_k": 3,
+        "save_optimizer_state_last": true,
+        "save_optimizer_state_best": false,
+        "compress_checkpoints": false
+      },
+      "realtime_logging": {
+        "websocket_enabled": true,
+        "update_frequency": 10,
+        "metrics_buffer_size": 100,
+        "log_gpu_memory": true,
+        "log_cpu_usage": true
+      },
+      "performance_profiling": {
+        "enabled": true,
+        "profile_training": false,
+        "profile_validation": "comprehensive_only",
+        "trace_memory": true,
+        "export_chrome_trace": false,
+        "time_tracking_comprehensive_only": true
+      }
+    },
+    "gpu_optimization": {
+      "mixed_precision": {
+        "enabled": true,
+        "policy": "mixed_float16",
+        "loss_scale": "dynamic"
+      },
+      "memory_optimization": {
+        "gradient_checkpointing": true,
+        "channels_last": true,
+        "cuda_empty_cache_freq": 100
+      },
+      "torch_compile": {
+        "enabled": true,
+        "mode": "reduce-overhead",
+        "backend": "inductor"
+      },
+      "cudnn": {
+        "benchmark": true,
+        "deterministic": false
+      },
+      "tensorboard": {
+        "enabled": true,
+        "log_dir": "artifacts/tensorboard"
+      }
+    },
+    "unified_early_stopping": {
+      "enabled": true,
+      "monitor": "val_top1",
+      "patience": 10,
+      "min_delta": 0.001,
+      "mode": "max",
+      "restore_best": true
+    },
+    "self_check": {
+      "enabled": true,
+      "run_at_start": true,
+      "checks": [
+        {
+          "name": "CLASS_SET",
+          "check": "manifest_classes_match",
+          "expected": 4020
+        },
+        {
+          "name": "MANIFEST",
+          "check": "paths_exist",
+          "paths": [
+            "artifacts/stage3/manifest_train.remove.csv",
+            "artifacts/stage3/manifest_val.remove.csv"
+          ]
+        },
+        {
+          "name": "CKPT_POLICY",
+          "check": "checkpoint_settings",
+          "last_saves_optimizer": true,
+          "best_saves_optimizer": false
+        },
+        {
+          "name": "TORCH_COMPILE",
+          "check": "compile_mode",
+          "expected": "reduce-overhead"
+        },
+        {
+          "name": "EARLY_STOP",
+          "check": "early_stop_config",
+          "source": "unified",
+          "monitor": "val_top1"
+        },
+        {
+          "name": "TB_LOGDIR",
+          "check": "tensorboard_dir",
+          "path": "artifacts/tensorboard"
+        },
+        {
+          "name": "DATA_ISSUES",
+          "check": "data_quality",
+          "max_corrupt": 0,
+          "max_val_only": 0,
+          "combo_ratio_range": [
+            0.04,
+            0.06
+          ]
+        }
+      ],
+      "on_failure": "warn_and_continue",
+      "log_format": "SELF_CHECK | {status} | {details}"
+    }
+  }
+}

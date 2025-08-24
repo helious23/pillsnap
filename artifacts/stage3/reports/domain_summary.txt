@@ -1,0 +1,14 @@
+DOMAIN BREAKDOWN REPORT
+Generated: 2025-08-24 22:29:07
+============================================================
+
+TRAIN:
+  Single:      Top-1=0.0041, F1=0.0030 (n=77,451)
+  Combination: Top-1=0.0000, F1=0.0000 (n=4,023)
+  Domain Gap:  Top-1=0.4%p, F1=0.0030
+
+VAL:
+  Single:      Top-1=0.1039, F1=0.0786 (n=17,547)
+  Combination: Top-1=0.0000, F1=0.0000 (n=977)
+  Domain Gap:  Top-1=10.4%p, F1=0.0786
+

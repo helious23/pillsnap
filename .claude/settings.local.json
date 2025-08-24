@@ -68,7 +68,16 @@
       "Bash(sed:*)",
       "Bash(timeout:*)",
       "Bash(./run_all_fixes.sh:*)",
-      "Bash(/home/max16/pillsnap/.venv/bin/python balance_combination_ratio.py --train-manifest artifacts/stage3/manifest_train.remove.csv --val-manifest artifacts/stage3/manifest_val.remove.csv --target-ratio 0.25 --strategy oversample --no-dry-run)"
+      "Bash(/home/max16/pillsnap/.venv/bin/python balance_combination_ratio.py --train-manifest artifacts/stage3/manifest_train.remove.csv --val-manifest artifacts/stage3/manifest_val.remove.csv --target-ratio 0.25 --strategy oversample --no-dry-run)",
+      "Bash(pgrep:*)",
+      "Bash(touch:*)",
+      "Bash(/home/max16/pillsnap/.venv/bin/python -c \"import torch; ckpt = torch.load(''artifacts/stage3/checkpoints/stage3_classification_best.pt'', weights_only=False); print(''Keys:'', list(ckpt.keys())); print(''Epoch:'', ckpt.get(''epoch'')); print(''Best Top-1:'', ckpt.get(''best_top1'')); print(''Best Top-5:'', ckpt.get(''best_top5'')); print(''Accuracy:'', ckpt.get(''accuracy'')); print(''Top5 Accuracy:'', ckpt.get(''top5_accuracy''))\")",
+      "Bash(/home/max16/pillsnap/.venv/bin/python -c \"\nimport sys\nsys.path.insert(0, ''.'')\nfrom src.training.train_stage3_two_stage import TwoStageTrainingConfig\nimport torch\n\nckpt = torch.load(''artifacts/stage3/checkpoints/stage3_classification_best.pt'', weights_only=False)\nprint(''Keys:'', list(ckpt.keys())[:10])\nprint(''Epoch:'', ckpt.get(''epoch''))\nprint(''Best Top-1:'', ckpt.get(''best_top1''))\nprint(''Best Top-5:'', ckpt.get(''best_top5''))\nprint(''Accuracy:'', ckpt.get(''accuracy''))\nprint(''Top5 Accuracy:'', ckpt.get(''top5_accuracy''))\n\nif ''model_state_dict'' in ckpt:\n    state_dict = ckpt[''model_state_dict'']\n    print(f''Model state dict keys (first 5): {list(state_dict.keys())[:5]}'')\n    print(f''Total keys in model_state_dict: {len(state_dict)}'')\n\")",
+      "Bash(/home/max16/pillsnap/.venv/bin/python test_checkpoint_loading.py)",
+      "Bash(/home/max16/pillsnap/.venv/bin/python scripts/sanity_check.py --eval-domain)",
+      "Bash(/home/max16/pillsnap/.venv/bin/python -c \"\nimport sys\nsys.path.insert(0, ''.'')\nfrom src.training.train_stage3_two_stage import TwoStageTrainingConfig\nimport torch\n\nckpt = torch.load(''artifacts/stage3/checkpoints/stage3_classification_best.pt'', weights_only=False)\nprint(''=== 체크포인트 키 목록 ==='')\nfor key in sorted(ckpt.keys()):\n    if key not in [''model_state_dict'', ''optimizer_state_dict'', ''scheduler_state_dict'']:\n        value = ckpt[key]\n        if isinstance(value, (int, float, str)):\n            print(f''{key}: {value}'')\n        elif isinstance(value, dict):\n            print(f''{key}: dict with {len(value)} keys'')\n            if len(value) < 10:\n                for k, v in list(value.items())[:5]:\n                    print(f''  {k}: {v}'')\n        elif isinstance(value, list):\n            print(f''{key}: list with {len(value)} items'')\n            if len(value) < 10:\n                print(f''  Sample: {value[:3]}'')\n        else:\n            print(f''{key}: {type(value).__name__}'')\n            \n# Config 정보 확인\nif ''config'' in ckpt:\n    print(''\\n=== Config 정보 ==='')\n    config = ckpt[''config'']\n    if hasattr(config, ''__dict__''):\n        for k, v in config.__dict__.items():\n            if ''manifest'' in k.lower() or ''class'' in k.lower():\n                print(f''config.{k}: {v}'')\n\")",
+      "Bash(/home/max16/pillsnap/.venv/bin/python:*)",
+      "Bash(git check-ignore:*)"
     ],
     "deny": [],
     "ask": [],

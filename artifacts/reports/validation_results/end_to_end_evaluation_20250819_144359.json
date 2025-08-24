@@ -1,0 +1,1835 @@
+{
+  "timestamp": "20250819_144359",
+  "evaluation_type": "end_to_end_pipeline",
+  "overall_metrics": {
+    "overall_accuracy": 0.04,
+    "single_mode_accuracy": 0.045454545454545456,
+    "combo_mode_accuracy": 0.029411764705882353,
+    "avg_inference_time_ms": 0.003116130828857422,
+    "throughput_images_per_sec": 320910.7880642693,
+    "peak_memory_usage_gb": 0.0,
+    "total_error_rate": 0.0
+  },
+  "mode_distribution": {
+    "single_mode_ratio": 0.66,
+    "combo_mode_ratio": 0.34,
+    "single_samples": 66,
+    "combo_samples": 34
+  },
+  "detailed_results": {
+    "single_mode_results": [
+      {
+        "image_path": "dummy_image_1.jpg",
+        "true_label": 1,
+        "expected_mode": "single",
+        "predicted_label": 37,
+        "predicted_mode": "single",
+        "confidence": 0.851704035450126,
+        "inference_time_ms": 0.004291534423828125,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_2.jpg",
+        "true_label": 2,
+        "expected_mode": "single",
+        "predicted_label": 12,
+        "predicted_mode": "single",
+        "confidence": 0.70079970861114,
+        "inference_time_ms": 0.005245208740234375,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_4.jpg",
+        "true_label": 4,
+        "expected_mode": "single",
+        "predicted_label": 6,
+        "predicted_mode": "single",
+        "confidence": 0.8500310909379447,
+        "inference_time_ms": 0.00476837158203125,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_5.jpg",
+        "true_label": 5,
+        "expected_mode": "single",
+        "predicted_label": 9,
+        "predicted_mode": "single",
+        "confidence": 0.8266821624007208,
+        "inference_time_ms": 0.0035762786865234375,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_7.jpg",
+        "true_label": 7,
+        "expected_mode": "single",
+        "predicted_label": 19,
+        "predicted_mode": "single",
+        "confidence": 0.7354662785214309,
+        "inference_time_ms": 0.0069141387939453125,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_8.jpg",
+        "true_label": 8,
+        "expected_mode": "single",
+        "predicted_label": 47,
+        "predicted_mode": "single",
+        "confidence": 0.8411660024195196,
+        "inference_time_ms": 0.0026226043701171875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_10.jpg",
+        "true_label": 10,
+        "expected_mode": "single",
+        "predicted_label": 49,
+        "predicted_mode": "single",
+        "confidence": 0.9273364797817647,
+        "inference_time_ms": 0.0030994415283203125,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_11.jpg",
+        "true_label": 11,
+        "expected_mode": "single",
+        "predicted_label": 8,
+        "predicted_mode": "single",
+        "confidence": 0.9490510095124115,
+        "inference_time_ms": 0.00286102294921875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_13.jpg",
+        "true_label": 13,
+        "expected_mode": "single",
+        "predicted_label": 28,
+        "predicted_mode": "single",
+        "confidence": 0.7161665478058867,
+        "inference_time_ms": 0.002384185791015625,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_14.jpg",
+        "true_label": 14,
+        "expected_mode": "single",
+        "predicted_label": 0,
+        "predicted_mode": "single",
+        "confidence": 0.779551306506951,
+        "inference_time_ms": 0.0030994415283203125,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_16.jpg",
+        "true_label": 16,
+        "expected_mode": "single",
+        "predicted_label": 26,
+        "predicted_mode": "single",
+        "confidence": 0.8915623159341696,
+        "inference_time_ms": 0.0026226043701171875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_17.jpg",
+        "true_label": 17,
+        "expected_mode": "single",
+        "predicted_label": 31,
+        "predicted_mode": "single",
+        "confidence": 0.9321238665019566,
+        "inference_time_ms": 0.0021457672119140625,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_19.jpg",
+        "true_label": 19,
+        "expected_mode": "single",
+        "predicted_label": 40,
+        "predicted_mode": "single",
+        "confidence": 0.8930650888409788,
+        "inference_time_ms": 0.0021457672119140625,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_20.jpg",
+        "true_label": 20,
+        "expected_mode": "single",
+        "predicted_label": 26,
+        "predicted_mode": "single",
+        "confidence": 0.7129409288797055,
+        "inference_time_ms": 0.0021457672119140625,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_22.jpg",
+        "true_label": 22,
+        "expected_mode": "single",
+        "predicted_label": 0,
+        "predicted_mode": "single",
+        "confidence": 0.7779183532381637,
+        "inference_time_ms": 0.003337860107421875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_23.jpg",
+        "true_label": 23,
+        "expected_mode": "single",
+        "predicted_label": 29,
+        "predicted_mode": "single",
+        "confidence": 0.7222863236606103,
+        "inference_time_ms": 0.002384185791015625,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_25.jpg",
+        "true_label": 25,
+        "expected_mode": "single",
+        "predicted_label": 15,
+        "predicted_mode": "single",
+        "confidence": 0.7251587491733011,
+        "inference_time_ms": 0.00286102294921875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_26.jpg",
+        "true_label": 26,
+        "expected_mode": "single",
+        "predicted_label": 6,
+        "predicted_mode": "single",
+        "confidence": 0.8530026148817057,
+        "inference_time_ms": 0.00286102294921875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_28.jpg",
+        "true_label": 28,
+        "expected_mode": "single",
+        "predicted_label": 43,
+        "predicted_mode": "single",
+        "confidence": 0.8375180482486618,
+        "inference_time_ms": 0.008344650268554688,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_29.jpg",
+        "true_label": 29,
+        "expected_mode": "single",
+        "predicted_label": 1,
+        "predicted_mode": "single",
+        "confidence": 0.8447129818677018,
+        "inference_time_ms": 0.0030994415283203125,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_31.jpg",
+        "true_label": 31,
+        "expected_mode": "single",
+        "predicted_label": 22,
+        "predicted_mode": "single",
+        "confidence": 0.7485855654796307,
+        "inference_time_ms": 0.0026226043701171875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_32.jpg",
+        "true_label": 32,
+        "expected_mode": "single",
+        "predicted_label": 32,
+        "predicted_mode": "single",
+        "confidence": 0.8387923097347085,
+        "inference_time_ms": 0.0026226043701171875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_34.jpg",
+        "true_label": 34,
+        "expected_mode": "single",
+        "predicted_label": 33,
+        "predicted_mode": "single",
+        "confidence": 0.7029787087602267,
+        "inference_time_ms": 0.0026226043701171875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_35.jpg",
+        "true_label": 35,
+        "expected_mode": "single",
+        "predicted_label": 13,
+        "predicted_mode": "single",
+        "confidence": 0.9078892781285636,
+        "inference_time_ms": 0.002384185791015625,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_37.jpg",
+        "true_label": 37,
+        "expected_mode": "single",
+        "predicted_label": 27,
+        "predicted_mode": "single",
+        "confidence": 0.7323396074454351,
+        "inference_time_ms": 0.00286102294921875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_38.jpg",
+        "true_label": 38,
+        "expected_mode": "single",
+        "predicted_label": 21,
+        "predicted_mode": "single",
+        "confidence": 0.9374542241432571,
+        "inference_time_ms": 0.00286102294921875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_40.jpg",
+        "true_label": 40,
+        "expected_mode": "single",
+        "predicted_label": 10,
+        "predicted_mode": "single",
+        "confidence": 0.901795612753129,
+        "inference_time_ms": 0.00286102294921875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_41.jpg",
+        "true_label": 41,
+        "expected_mode": "single",
+        "predicted_label": 47,
+        "predicted_mode": "single",
+        "confidence": 0.7059340072391,
+        "inference_time_ms": 0.00286102294921875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_43.jpg",
+        "true_label": 43,
+        "expected_mode": "single",
+        "predicted_label": 21,
+        "predicted_mode": "single",
+        "confidence": 0.8823092540315685,
+        "inference_time_ms": 0.0030994415283203125,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_44.jpg",
+        "true_label": 44,
+        "expected_mode": "single",
+        "predicted_label": 6,
+        "predicted_mode": "single",
+        "confidence": 0.7712526242563281,
+        "inference_time_ms": 0.002384185791015625,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_46.jpg",
+        "true_label": 46,
+        "expected_mode": "single",
+        "predicted_label": 7,
+        "predicted_mode": "single",
+        "confidence": 0.8259201441895347,
+        "inference_time_ms": 0.0021457672119140625,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_47.jpg",
+        "true_label": 47,
+        "expected_mode": "single",
+        "predicted_label": 0,
+        "predicted_mode": "single",
+        "confidence": 0.7589960240451109,
+        "inference_time_ms": 0.002384185791015625,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_49.jpg",
+        "true_label": 49,
+        "expected_mode": "single",
+        "predicted_label": 47,
+        "predicted_mode": "single",
+        "confidence": 0.8548347424788431,
+        "inference_time_ms": 0.0026226043701171875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_50.jpg",
+        "true_label": 0,
+        "expected_mode": "single",
+        "predicted_label": 4,
+        "predicted_mode": "single",
+        "confidence": 0.8004579644105662,
+        "inference_time_ms": 0.002384185791015625,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_52.jpg",
+        "true_label": 2,
+        "expected_mode": "single",
+        "predicted_label": 8,
+        "predicted_mode": "single",
+        "confidence": 0.8582191887675297,
+        "inference_time_ms": 0.00286102294921875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_53.jpg",
+        "true_label": 3,
+        "expected_mode": "single",
+        "predicted_label": 33,
+        "predicted_mode": "single",
+        "confidence": 0.8786787694267656,
+        "inference_time_ms": 0.003337860107421875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_55.jpg",
+        "true_label": 5,
+        "expected_mode": "single",
+        "predicted_label": 27,
+        "predicted_mode": "single",
+        "confidence": 0.759299333313144,
+        "inference_time_ms": 0.0026226043701171875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_56.jpg",
+        "true_label": 6,
+        "expected_mode": "single",
+        "predicted_label": 28,
+        "predicted_mode": "single",
+        "confidence": 0.9292664864408182,
+        "inference_time_ms": 0.0026226043701171875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_58.jpg",
+        "true_label": 8,
+        "expected_mode": "single",
+        "predicted_label": 32,
+        "predicted_mode": "single",
+        "confidence": 0.94672623138422,
+        "inference_time_ms": 0.002384185791015625,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_59.jpg",
+        "true_label": 9,
+        "expected_mode": "single",
+        "predicted_label": 27,
+        "predicted_mode": "single",
+        "confidence": 0.9274548901321352,
+        "inference_time_ms": 0.00286102294921875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_61.jpg",
+        "true_label": 11,
+        "expected_mode": "single",
+        "predicted_label": 47,
+        "predicted_mode": "single",
+        "confidence": 0.7030065375068191,
+        "inference_time_ms": 0.00286102294921875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_62.jpg",
+        "true_label": 12,
+        "expected_mode": "single",
+        "predicted_label": 37,
+        "predicted_mode": "single",
+        "confidence": 0.9270448527904782,
+        "inference_time_ms": 0.0026226043701171875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_64.jpg",
+        "true_label": 14,
+        "expected_mode": "single",
+        "predicted_label": 21,
+        "predicted_mode": "single",
+        "confidence": 0.9077048168403803,
+        "inference_time_ms": 0.0026226043701171875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_65.jpg",
+        "true_label": 15,
+        "expected_mode": "single",
+        "predicted_label": 19,
+        "predicted_mode": "single",
+        "confidence": 0.854651505105371,
+        "inference_time_ms": 0.0026226043701171875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_67.jpg",
+        "true_label": 17,
+        "expected_mode": "single",
+        "predicted_label": 27,
+        "predicted_mode": "single",
+        "confidence": 0.7892287899615827,
+        "inference_time_ms": 0.0030994415283203125,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_68.jpg",
+        "true_label": 18,
+        "expected_mode": "single",
+        "predicted_label": 4,
+        "predicted_mode": "single",
+        "confidence": 0.8139355565653325,
+        "inference_time_ms": 0.002384185791015625,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_70.jpg",
+        "true_label": 20,
+        "expected_mode": "single",
+        "predicted_label": 20,
+        "predicted_mode": "single",
+        "confidence": 0.8826973754060317,
+        "inference_time_ms": 0.0021457672119140625,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_71.jpg",
+        "true_label": 21,
+        "expected_mode": "single",
+        "predicted_label": 39,
+        "predicted_mode": "single",
+        "confidence": 0.9473659859817628,
+        "inference_time_ms": 0.0030994415283203125,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_73.jpg",
+        "true_label": 23,
+        "expected_mode": "single",
+        "predicted_label": 44,
+        "predicted_mode": "single",
+        "confidence": 0.8027748916814231,
+        "inference_time_ms": 0.002384185791015625,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_74.jpg",
+        "true_label": 24,
+        "expected_mode": "single",
+        "predicted_label": 32,
+        "predicted_mode": "single",
+        "confidence": 0.7761503787715784,
+        "inference_time_ms": 0.002384185791015625,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_76.jpg",
+        "true_label": 26,
+        "expected_mode": "single",
+        "predicted_label": 45,
+        "predicted_mode": "single",
+        "confidence": 0.8632846706631353,
+        "inference_time_ms": 0.002384185791015625,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_77.jpg",
+        "true_label": 27,
+        "expected_mode": "single",
+        "predicted_label": 28,
+        "predicted_mode": "single",
+        "confidence": 0.7582656397269303,
+        "inference_time_ms": 0.0026226043701171875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_79.jpg",
+        "true_label": 29,
+        "expected_mode": "single",
+        "predicted_label": 45,
+        "predicted_mode": "single",
+        "confidence": 0.7609286121423383,
+        "inference_time_ms": 0.0026226043701171875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_80.jpg",
+        "true_label": 30,
+        "expected_mode": "single",
+        "predicted_label": 27,
+        "predicted_mode": "single",
+        "confidence": 0.7409166906017828,
+        "inference_time_ms": 0.002384185791015625,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_82.jpg",
+        "true_label": 32,
+        "expected_mode": "single",
+        "predicted_label": 11,
+        "predicted_mode": "single",
+        "confidence": 0.8609356665245969,
+        "inference_time_ms": 0.002384185791015625,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_83.jpg",
+        "true_label": 33,
+        "expected_mode": "single",
+        "predicted_label": 12,
+        "predicted_mode": "single",
+        "confidence": 0.8916101395581494,
+        "inference_time_ms": 0.0030994415283203125,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_85.jpg",
+        "true_label": 35,
+        "expected_mode": "single",
+        "predicted_label": 8,
+        "predicted_mode": "single",
+        "confidence": 0.8729760127216337,
+        "inference_time_ms": 0.0026226043701171875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_86.jpg",
+        "true_label": 36,
+        "expected_mode": "single",
+        "predicted_label": 45,
+        "predicted_mode": "single",
+        "confidence": 0.785874462763855,
+        "inference_time_ms": 0.0026226043701171875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_88.jpg",
+        "true_label": 38,
+        "expected_mode": "single",
+        "predicted_label": 48,
+        "predicted_mode": "single",
+        "confidence": 0.8331429670763466,
+        "inference_time_ms": 0.0026226043701171875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_89.jpg",
+        "true_label": 39,
+        "expected_mode": "single",
+        "predicted_label": 39,
+        "predicted_mode": "single",
+        "confidence": 0.7490165621868867,
+        "inference_time_ms": 0.00286102294921875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_91.jpg",
+        "true_label": 41,
+        "expected_mode": "single",
+        "predicted_label": 37,
+        "predicted_mode": "single",
+        "confidence": 0.9450935015602223,
+        "inference_time_ms": 0.00286102294921875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_92.jpg",
+        "true_label": 42,
+        "expected_mode": "single",
+        "predicted_label": 16,
+        "predicted_mode": "single",
+        "confidence": 0.8844041846146319,
+        "inference_time_ms": 0.0030994415283203125,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_94.jpg",
+        "true_label": 44,
+        "expected_mode": "single",
+        "predicted_label": 25,
+        "predicted_mode": "single",
+        "confidence": 0.9289368719300855,
+        "inference_time_ms": 0.00286102294921875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_95.jpg",
+        "true_label": 45,
+        "expected_mode": "single",
+        "predicted_label": 3,
+        "predicted_mode": "single",
+        "confidence": 0.742085304158429,
+        "inference_time_ms": 0.0026226043701171875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_97.jpg",
+        "true_label": 47,
+        "expected_mode": "single",
+        "predicted_label": 19,
+        "predicted_mode": "single",
+        "confidence": 0.9301038441043031,
+        "inference_time_ms": 0.003814697265625,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      },
+      {
+        "image_path": "dummy_image_98.jpg",
+        "true_label": 48,
+        "expected_mode": "single",
+        "predicted_label": 22,
+        "predicted_mode": "single",
+        "confidence": 0.7872325048793581,
+        "inference_time_ms": 0.0030994415283203125,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [],
+        "mode": "single"
+      }
+    ],
+    "combo_mode_results": [
+      {
+        "image_path": "dummy_image_0.jpg",
+        "true_label": 0,
+        "expected_mode": "combo",
+        "predicted_label": 33,
+        "predicted_mode": "combo",
+        "confidence": 0.7638313768192935,
+        "inference_time_ms": 0.009775161743164062,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_3.jpg",
+        "true_label": 3,
+        "expected_mode": "combo",
+        "predicted_label": 29,
+        "predicted_mode": "combo",
+        "confidence": 0.6467281668448848,
+        "inference_time_ms": 0.0035762786865234375,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_6.jpg",
+        "true_label": 6,
+        "expected_mode": "combo",
+        "predicted_label": 30,
+        "predicted_mode": "combo",
+        "confidence": 0.6662874029047166,
+        "inference_time_ms": 0.0045299530029296875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_9.jpg",
+        "true_label": 9,
+        "expected_mode": "combo",
+        "predicted_label": 17,
+        "predicted_mode": "combo",
+        "confidence": 0.8737387961391538,
+        "inference_time_ms": 0.0030994415283203125,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_12.jpg",
+        "true_label": 12,
+        "expected_mode": "combo",
+        "predicted_label": 1,
+        "predicted_mode": "combo",
+        "confidence": 0.663910493661267,
+        "inference_time_ms": 0.003337860107421875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_15.jpg",
+        "true_label": 15,
+        "expected_mode": "combo",
+        "predicted_label": 33,
+        "predicted_mode": "combo",
+        "confidence": 0.7659528262397013,
+        "inference_time_ms": 0.0030994415283203125,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_18.jpg",
+        "true_label": 18,
+        "expected_mode": "combo",
+        "predicted_label": 22,
+        "predicted_mode": "combo",
+        "confidence": 0.8228660805700103,
+        "inference_time_ms": 0.003337860107421875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_21.jpg",
+        "true_label": 21,
+        "expected_mode": "combo",
+        "predicted_label": 41,
+        "predicted_mode": "combo",
+        "confidence": 0.813520328480586,
+        "inference_time_ms": 0.002384185791015625,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_24.jpg",
+        "true_label": 24,
+        "expected_mode": "combo",
+        "predicted_label": 9,
+        "predicted_mode": "combo",
+        "confidence": 0.8519541621950457,
+        "inference_time_ms": 0.0030994415283203125,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_27.jpg",
+        "true_label": 27,
+        "expected_mode": "combo",
+        "predicted_label": 42,
+        "predicted_mode": "combo",
+        "confidence": 0.7044645440992856,
+        "inference_time_ms": 0.003814697265625,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_30.jpg",
+        "true_label": 30,
+        "expected_mode": "combo",
+        "predicted_label": 11,
+        "predicted_mode": "combo",
+        "confidence": 0.8037296149293608,
+        "inference_time_ms": 0.003337860107421875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_33.jpg",
+        "true_label": 33,
+        "expected_mode": "combo",
+        "predicted_label": 27,
+        "predicted_mode": "combo",
+        "confidence": 0.6100168577104635,
+        "inference_time_ms": 0.003814697265625,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_36.jpg",
+        "true_label": 36,
+        "expected_mode": "combo",
+        "predicted_label": 47,
+        "predicted_mode": "combo",
+        "confidence": 0.7631212990032211,
+        "inference_time_ms": 0.00286102294921875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_39.jpg",
+        "true_label": 39,
+        "expected_mode": "combo",
+        "predicted_label": 28,
+        "predicted_mode": "combo",
+        "confidence": 0.8136243000559064,
+        "inference_time_ms": 0.00286102294921875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_42.jpg",
+        "true_label": 42,
+        "expected_mode": "combo",
+        "predicted_label": 44,
+        "predicted_mode": "combo",
+        "confidence": 0.7459302248208728,
+        "inference_time_ms": 0.0035762786865234375,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_45.jpg",
+        "true_label": 45,
+        "expected_mode": "combo",
+        "predicted_label": 24,
+        "predicted_mode": "combo",
+        "confidence": 0.6539034842700185,
+        "inference_time_ms": 0.003337860107421875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_48.jpg",
+        "true_label": 48,
+        "expected_mode": "combo",
+        "predicted_label": 18,
+        "predicted_mode": "combo",
+        "confidence": 0.6754711420407495,
+        "inference_time_ms": 0.0030994415283203125,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_51.jpg",
+        "true_label": 1,
+        "expected_mode": "combo",
+        "predicted_label": 35,
+        "predicted_mode": "combo",
+        "confidence": 0.6164539455117878,
+        "inference_time_ms": 0.0035762786865234375,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_54.jpg",
+        "true_label": 4,
+        "expected_mode": "combo",
+        "predicted_label": 26,
+        "predicted_mode": "combo",
+        "confidence": 0.7796897678539296,
+        "inference_time_ms": 0.003337860107421875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_57.jpg",
+        "true_label": 7,
+        "expected_mode": "combo",
+        "predicted_label": 18,
+        "predicted_mode": "combo",
+        "confidence": 0.8498648924185483,
+        "inference_time_ms": 0.00286102294921875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_60.jpg",
+        "true_label": 10,
+        "expected_mode": "combo",
+        "predicted_label": 3,
+        "predicted_mode": "combo",
+        "confidence": 0.7749694187674068,
+        "inference_time_ms": 0.0035762786865234375,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_63.jpg",
+        "true_label": 13,
+        "expected_mode": "combo",
+        "predicted_label": 13,
+        "predicted_mode": "combo",
+        "confidence": 0.6331489673052623,
+        "inference_time_ms": 0.0021457672119140625,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_66.jpg",
+        "true_label": 16,
+        "expected_mode": "combo",
+        "predicted_label": 37,
+        "predicted_mode": "combo",
+        "confidence": 0.8213995716451691,
+        "inference_time_ms": 0.0030994415283203125,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_69.jpg",
+        "true_label": 19,
+        "expected_mode": "combo",
+        "predicted_label": 6,
+        "predicted_mode": "combo",
+        "confidence": 0.654801737513338,
+        "inference_time_ms": 0.0035762786865234375,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_72.jpg",
+        "true_label": 22,
+        "expected_mode": "combo",
+        "predicted_label": 19,
+        "predicted_mode": "combo",
+        "confidence": 0.8809667553467476,
+        "inference_time_ms": 0.0030994415283203125,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_75.jpg",
+        "true_label": 25,
+        "expected_mode": "combo",
+        "predicted_label": 40,
+        "predicted_mode": "combo",
+        "confidence": 0.8776502136132707,
+        "inference_time_ms": 0.00286102294921875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_78.jpg",
+        "true_label": 28,
+        "expected_mode": "combo",
+        "predicted_label": 1,
+        "predicted_mode": "combo",
+        "confidence": 0.6435434158240215,
+        "inference_time_ms": 0.003337860107421875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_81.jpg",
+        "true_label": 31,
+        "expected_mode": "combo",
+        "predicted_label": 34,
+        "predicted_mode": "combo",
+        "confidence": 0.6278215579868586,
+        "inference_time_ms": 0.0030994415283203125,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_84.jpg",
+        "true_label": 34,
+        "expected_mode": "combo",
+        "predicted_label": 11,
+        "predicted_mode": "combo",
+        "confidence": 0.6516995380119884,
+        "inference_time_ms": 0.0035762786865234375,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_87.jpg",
+        "true_label": 37,
+        "expected_mode": "combo",
+        "predicted_label": 43,
+        "predicted_mode": "combo",
+        "confidence": 0.6362329673978263,
+        "inference_time_ms": 0.0035762786865234375,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_90.jpg",
+        "true_label": 40,
+        "expected_mode": "combo",
+        "predicted_label": 31,
+        "predicted_mode": "combo",
+        "confidence": 0.6507197188977181,
+        "inference_time_ms": 0.0026226043701171875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_93.jpg",
+        "true_label": 43,
+        "expected_mode": "combo",
+        "predicted_label": 33,
+        "predicted_mode": "combo",
+        "confidence": 0.884791915925167,
+        "inference_time_ms": 0.0030994415283203125,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_96.jpg",
+        "true_label": 46,
+        "expected_mode": "combo",
+        "predicted_label": 27,
+        "predicted_mode": "combo",
+        "confidence": 0.7101086777948308,
+        "inference_time_ms": 0.0026226043701171875,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      },
+      {
+        "image_path": "dummy_image_99.jpg",
+        "true_label": 49,
+        "expected_mode": "combo",
+        "predicted_label": 15,
+        "predicted_mode": "combo",
+        "confidence": 0.8676857387782047,
+        "inference_time_ms": 0.0035762786865234375,
+        "memory_usage_gb": 0.0,
+        "error": null,
+        "detection_boxes": [
+          {
+            "x": 0.3,
+            "y": 0.3,
+            "w": 0.4,
+            "h": 0.4,
+            "confidence": 0.8
+          },
+          {
+            "x": 0.6,
+            "y": 0.5,
+            "w": 0.3,
+            "h": 0.3,
+            "confidence": 0.7
+          }
+        ],
+        "mode": "combo"
+      }
+    ]
+  }
+}

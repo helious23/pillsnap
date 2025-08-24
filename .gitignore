@@ -1,96 +1,191 @@
-# venv / caches
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
 
-venvs/
+# Virtual Environments
 .venv/
 .venv*/
+venv/
+venvs/
+ENV/
+env/
+env.bak/
+venv.bak/
 
-**/__pycache__/**
-*.pyc
-*.pyo
-*.pyd
+# PyCharm
+.idea/
+*.iml
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Jupyter Notebook
 .ipynb_checkpoints/
-.cache/
-.dist/
-build/
-dist/
-*.egg-info/
+*.ipynb_checkpoints/
 
 # pytest
 .pytest_cache/
+pytest_cache/
 .coverage
+.coverage.*
 htmlcov/
 .tox/
+.hypothesis/
+*.cover
+coverage.xml
+nosetests.xml
 
-# logs / artifacts
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
 
+# Logs
 *.log
 logs/
-tb/
-reports/
-exp/
-*.freeze.txt
+nohup.out
+*.out
 
-# artifacts (선별적 무시)
+# ML/DL Model files (대용량)
+*.pt
+*.pth
+*.onnx
+*.h5
+*.pkl
+*.safetensors
+*.ckpt
+*.pb
+
+# ML Experiment tracking
+wandb/
+mlruns/
+tensorboard/
+events.out.tfevents.*
+tb/
+runs/
+outputs/
+multirun/
+ray_results/
+
+# Datasets (대용량)
+dataset/
+/home/max16/pillsnap_data/
+data/raw/
+data/processed/
+
+# Project specific - Artifacts
 artifacts/cpu_runs/
 artifacts/gpu_runs/
 artifacts/cls_train_smoke/
 artifacts/wheels/
-artifacts/_scan_sample_head20.csv
-artifacts/env_install_error.log
-artifacts/venv_py311.freeze.txt
-artifacts/requirements.filtered.txt
+artifacts/yolo/
+artifacts/stage*/checkpoints/
+artifacts/tensorboard/
+artifacts/*.log
+artifacts/*.txt
 
-# artifacts 중 추적할 파일들은 명시적으로 허용
-!artifacts/stage1/
-!artifacts/models/
+# But keep important configs and manifests
+!artifacts/**/*.json
+!artifacts/**/*.yaml
+!artifacts/**/*.csv
+!artifacts/**/*.md
 !artifacts/manifests/
-!artifacts/logs/
+!artifacts/logs/*.sh
 
-# ML specific
-checkpoints/
-wandb/
-mlruns/
-*.onnx
-*.pt
-*.pth
-*.h5
-*.pkl
+# Backups and Archives
+backup/
+archive/
+frozen_experiments/
+*.backup
+*.bak
 
-# data processing temp files (실제 작업 결과물은 추적)
-# manifest_*.csv
-# *_stats.json  
-# *_report.json
-# *_audit.md
-# step*_report.md
+# YOLO specific
+yolo11*.pt
+yolov*.pt
+runs/
 
-# 임시 스캔 결과만 무시
-scan_results_*.csv
-temp_manifest_*.csv
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+*.cache
+.cache/
 
-# secrets
+# OS Files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+*~
+.directory
+.Trash-*
+.AppleDouble
+.LSOverride
 
+# Editor swap files
+*.swp
+*.swo
+*.swn
+.*.swp
+.*.swo
+.*.swn
+
+# Environment variables
 .env
 .env.local
 .env.*.local
 config.local.yaml
+local_settings.py
+*.local
 
-# OS / editor
+# Documentation build
+docs/_build/
+docs/_static/
+docs/_templates/
+site/
 
-.DS_Store
-Thumbs.db
-*.swp
-*.swo
-*~
-.vscode/
-.idea/
+# Package managers
+pip-log.txt
+pip-delete-this-directory.txt
 
-# Jupyter
-*.ipynb_checkpoints/
+# DVC
+.dvc/
+.dvcignore
 
-# temporary files
-tmp/
-temp/
-*.tmp
+# Hydra
+.hydra/
 
-# dataset
-dataset/
+# Reports (keep only markdown)
+reports/*.html
+reports/*.pdf
+exp/
+
+# Misc
+*.freeze.txt
+scan_results_*.csv
+temp_manifest_*.csv

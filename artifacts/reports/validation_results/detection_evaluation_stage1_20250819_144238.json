@@ -1,0 +1,66 @@
+{
+  "timestamp": "20250819_144238",
+  "evaluation_type": "detection_metrics",
+  "stage": 1,
+  "metrics": {
+    "map_50": 0.32,
+    "map_50_95": 0.22,
+    "precision": 0.36,
+    "recall": 0.3,
+    "f1_score": 0.3272727272727273,
+    "ap_per_class": [
+      0.32
+    ],
+    "precision_per_class": [
+      0.36
+    ],
+    "recall_per_class": [
+      0.3
+    ]
+  },
+  "metadata": {
+    "num_classes": 1,
+    "num_images": 1000,
+    "evaluation_time_seconds": 1.9073486328125e-06
+  },
+  "target_achievement": {
+    "map_50_target_met": true,
+    "precision_target_met": true,
+    "recall_target_met": true,
+    "stage1_detection_completed": true
+  },
+  "detailed_analysis": {
+    "performance_analysis": {
+      "overall_performance": {
+        "map_50": 0.32,
+        "map_50_95": 0.22,
+        "precision": 0.36,
+        "recall": 0.3,
+        "f1_score": 0.3272727272727273
+      },
+      "class_performance": [
+        {
+          "class_id": 0,
+          "class_name": "pill",
+          "ap": 0.32,
+          "precision": 0.36,
+          "recall": 0.3
+        }
+      ]
+    },
+    "performance_grade": "미흡 (Below Average)",
+    "recommendations": [
+      "False Positive 감소를 위한 NMS 임계값 조정",
+      "False Negative 감소를 위한 Confidence 임계값 하향 조정",
+      "데이터 증강 및 추가 학습 에포크 권장"
+    ],
+    "metadata": {
+      "num_classes": 1,
+      "num_images": 1000,
+      "evaluation_time_seconds": 1.9073486328125e-06
+    },
+    "plot_files": [
+      "artifacts/reports/validation_results/detection_metrics_bar_20250819_144238.png"
+    ]
+  }
+}

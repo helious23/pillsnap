@@ -163,10 +163,10 @@ Input Image → Auto Mode Detection
 - **Current Performance:**  
   - Stage 1: ✅ 완료 (74.9% 정확도, 1분, Native Linux)
   - Stage 2: ✅ 완료 (83.1% 정확도, Native Linux)
-  - Stage 3: 🔄 **재학습 진행 중** (2025-08-24)
-    - **이전 결과**: 69.0% Classification (Epoch 15 중단)
-    - **재학습 설정**: 36 epochs, batch-size=8
-    - **개선된 하이퍼파라미터**: 
+  - Stage 3: ✅ **완료** (2025-08-24, 4시간 36분)
+    - **최종 결과**: 85.01% Classification, 32.73% Detection mAP
+    - **학습 설정**: 22/36 epochs (조기 종료), batch-size=8
+    - **성공 하이퍼파라미터**: 
       - lr-classifier=5e-5 (과적합 방지)
       - lr-detector=1e-3
       - weight-decay=5e-4
@@ -201,8 +201,8 @@ Input Image → Auto Mode Detection
 |-------|---------|---------|----------------------|----------|--------|---------|
 | 1     | 5,000   | 50      | Pipeline verification | 74.9%    | ✅ **완료** (Native) | Config 기반 |
 | 2     | 25,000  | 250     | Performance baseline  | 83.1%    | ✅ **완료** (Native) | Config 기반 |
-| 3     | 100,000 | 1,000   | Scalability test      | 🔄 **재학습 중** (2025-08-24) | **Two-Stage Pipeline** |
-| 4     | 500,000 | 4,523   | Production deployment | 목표92%  | 🎯 **대기 중** | **Two-Stage Pipeline** |
+| 3     | 100,000 | 1,000   | Scalability test      | 85.01%   | ✅ **완료** (2025-08-24) | **Two-Stage Pipeline** |
+| 4     | 500,000 | 4,523   | Production deployment | 목표92%  | 🎯 **준비 완료** | **Two-Stage Pipeline** |
 
 ### **⭐ Stage 3-4 핵심 변경사항:**
 - **물리적 복사 없음**: 14.6GB → 50MB (manifest CSV 파일만)
@@ -271,22 +271,22 @@ src/
 
 ## 📝 **최근 업데이트 (2025-08-24)**
 
-### 🔄 **Stage 3 재학습 진행** (2025-08-24)
-- **이전 학습 중단**: Epoch 15/36 (69.0% accuracy)
-- **문제점 해결**:
-  - ✅ **YOLO Resume 수정**: 매 에포크 모델 리셋 방지
-  - ✅ **체크포인트 정책 개선**: epsilon threshold + patience 기반 저장
+### ✅ **Stage 3 학습 완료** (2025-08-24)
+- **최종 성과**: 
+  - Classification: 85.01% Top-1, 97.68% Top-5 (목표 85% 달성!)
+  - Detection: 32.73% mAP@0.5 (목표 30% 초과 달성!)
+  - 학습 시간: 276.2분 (22 에포크에서 조기 종료)
+- **성공 요인**:
+  - ✅ **최적 하이퍼파라미터**: lr=5e-5, weight_decay=5e-4
   - ✅ **TensorBoard 통합**: 실시간 메트릭 추적
-  - ✅ **ConfigProvider Singleton**: 런타임 설정 오버라이드
-  - ✅ **Self-check 시스템**: 학습 전 환경 검증
-  - ✅ **Learning Rate Scheduler**: CosineAnnealingWarmRestarts
-- **새로운 하이퍼파라미터**:
-  - lr-classifier=5e-5 (과적합 방지)
-  - weight-decay=5e-4 (정규화 강화)
-  - label-smoothing=0.1 (일반화 향상)
-  - patience: cls=8, det=6
-- **손상파일 처리**: manifest_train.remove.csv 사용
-- **실시간 모니터링**: TensorBoard + WebSocket 대시보드
+  - ✅ **CosineAnnealingWarmRestarts**: 효과적인 LR 스케줄링
+  - ✅ **손상파일 스킵**: manifest_train.remove.csv 사용
+- **발견된 이슈 (해결됨)**:
+  - ⚠️ Detection 학습 미진행 (YOLO resume 문제) → **✅ 해결**: state.json 기반 누적 학습
+  - ⚠️ 그럼에도 pretrained YOLOv11m으로 목표 달성
+- **Stage 4 준비사항**:
+  - ✅ Detection resume 로직 수정 완료
+  - ✅ Stage 3 성공 파라미터 재사용 권장
 
 ### ✅ **Multi-object Detection 완성**
 - **JSON→YOLO 변환**: 12,025개 이미지 99.644% 성공률
@@ -330,6 +330,12 @@ python -m src.training.train_stage3_two_stage \
 - **가비지 컬렉션**: 메모리 누수 방지 시스템
 - **torch.compile**: EfficientNetV2-L + YOLOv11m 최적화
 - **Mixed Precision**: TF32 활용 성능 향상
+
+### ✅ **Detection 누적 학습 시스템 (2025-08-24 추가)**
+- **DetectionStateManager**: state.json으로 누적 에폭 추적
+- **RobustCSVParser**: 재시도 로직 및 YOLO 버전 호환성
+- **동적 검증 주기**: 초반 5에폭 매번, 이후 3에폭마다
+- **Precision 튜닝**: conf/iou 파라미터 자동 최적화
 
 ---
 

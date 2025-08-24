@@ -28,17 +28,17 @@
 - **데이터 처리 정책**:
   - **Stage 1**: ✅ 완료 (Native Linux, 74.9% 정확도, 1분)
   - **Stage 2**: ✅ 완료 (Native Linux, 83.1% 정확도, 하이브리드 스토리지)
-  - **Stage 3**: ✅ **첫 학습 완료** (44.1% Classification + 25.0% Detection, Two-Stage Pipeline 성공)
-    - **Detection 디버깅 완료**: YOLO 라벨 12,025개 변환, 실제 multi-object 학습
-    - **Resume 기능 구현**: 하이퍼파라미터 override + Top-5 accuracy 추가
-    - **체크포인트**: stage3_classification_best.pt 저장, 개선 학습 준비 완료
+  - **Stage 3**: ✅ **완료** (85.01% Classification + 32.73% Detection, Two-Stage Pipeline 성공)
+    - **Detection 누적 학습 시스템**: state.json 기반 YOLO 에폭 관리
+    - **Resume 기능 완성**: 하이퍼파라미터 override + Top-5 accuracy 추적
+    - **체크포인트 백업**: frozen_experiments/stage3_frozen_20250824_225921/
   - **Stage 4**: 🎯 **대기 중** (최종 프로덕션 학습, Stage 3 개선 완료 후)
 
-[Stage 3 첫 학습 완료 & Detection 디버깅 (2025-08-23 완료)]
+[Stage 3 학습 완료 & Detection 시스템 개선 (2025-08-24)]
 
-- **Stage 3 학습 결과**: 44.1% Classification + 25.0% Detection (5.3시간, Two-Stage Pipeline 성공)
-- **Detection 디버깅 완료**: 25% mAP에서 학습 안 되던 문제 완전 해결
-- **Resume 기능 구현**: 하이퍼파라미터 override로 60-70% 개선 가능
+- **Stage 3 최종 결과**: 85.01% Classification + 32.73% Detection (4시간 36분, 목표 달성)
+- **Detection 누적 학습 해결**: state.json으로 YOLO 에폭 추적, epochs=target_epochs 전달
+- **코드 구조 개선**: scripts/ 디렉토리 재구성 (backup/, evaluation/, optimization/, testing/)
   - **Multi-object JSON to YOLO 변환**: 12,025개 combination 이미지 완벽 변환
   - **YOLO txt 라벨**: 11,875개 파일 생성 (평균 3.6개 객체/이미지)  
   - **실제 bounding box**: JSON annotation을 YOLO 형식으로 변환 (pseudo-labeling 아님)

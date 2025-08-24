@@ -1,0 +1,36 @@
+{
+  "stage": 1,
+  "training_completed": true,
+  "total_training_time_minutes": 0.6101548433303833,
+  "classification_metrics": {
+    "final_accuracy": 0.43737274408340454,
+    "epochs_completed": 2
+  },
+  "detection_metrics": {
+    "final_map": 0.34997966289520266,
+    "epochs_completed": 1
+  },
+  "validation_results": {
+    "classification_accuracy_target_met": true,
+    "detection_map_target_met": true,
+    "inference_time_target_met": true,
+    "memory_usage_target_met": true,
+    "stage1_completed": true
+  },
+  "config": {
+    "max_epochs_classification": 2,
+    "max_epochs_detection": 1,
+    "learning_rate": 0.0002,
+    "batch_size_auto_tune": true,
+    "target_classification_accuracy": 0.4,
+    "target_detection_map": 0.3,
+    "target_inference_time_ms": 50.0,
+    "target_memory_usage_gb": 14.0,
+    "mixed_precision_enabled": true,
+    "torch_compile_enabled": true,
+    "channels_last_enabled": true,
+    "num_samples": 5000,
+    "num_classes": 50,
+    "validation_split": 0.2
+  }
+}

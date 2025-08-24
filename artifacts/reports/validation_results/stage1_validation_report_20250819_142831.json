@@ -1,0 +1,72 @@
+{
+  "stage": 1,
+  "validation_type": "complete_stage1_validation",
+  "summary": {
+    "classification_targets_met": true,
+    "detection_targets_met": true,
+    "performance_targets_met": true,
+    "resource_targets_met": false,
+    "stage1_completed": false,
+    "measured_metrics": {
+      "classification_accuracy": 0.42,
+      "classification_f1_macro": 0.38,
+      "detection_map_0_5": 0.32,
+      "detection_precision": 0.36,
+      "inference_time_ms": 45.0,
+      "data_loading_time_s": 1.8,
+      "memory_usage_gb": 0.0,
+      "gpu_utilization_percent": 0.0
+    },
+    "target_metrics": {
+      "classification_accuracy_target": 0.4,
+      "classification_f1_macro_target": 0.35,
+      "classification_top5_accuracy_target": 0.7,
+      "detection_map_0_5_target": 0.3,
+      "detection_precision_target": 0.35,
+      "detection_recall_target": 0.3,
+      "inference_time_ms_target": 50.0,
+      "data_loading_time_s_target": 2.0,
+      "memory_usage_gb_target": 14.0,
+      "gpu_utilization_target": 0.85
+    },
+    "validation_timestamp": "2025-08-19 14:28:31",
+    "evaluation_duration_seconds": 0.001516103744506836
+  },
+  "detailed_results": {
+    "classification": {
+      "all_classification_targets_met": true,
+      "measured_accuracy": 0.42,
+      "measured_f1_macro": 0.38,
+      "target_accuracy": 0.4,
+      "target_f1_macro": 0.35
+    },
+    "detection": {
+      "all_detection_targets_met": true,
+      "measured_map_0_5": 0.32,
+      "measured_precision": 0.36,
+      "target_map_0_5": 0.3,
+      "target_precision": 0.35
+    },
+    "performance": {
+      "all_performance_targets_met": true,
+      "measured_avg_inference_ms": 45.0,
+      "measured_avg_data_loading_s": 1.8,
+      "target_inference_ms": 50.0,
+      "target_data_loading_s": 2.0
+    },
+    "resource": {
+      "memory_usage_achieved": true,
+      "utilization_appropriate": false,
+      "efficiency_good": false,
+      "all_resource_targets_met": false,
+      "measured_memory_gb": 0.0,
+      "measured_utilization_percent": 0.0,
+      "measured_stability_score": 0.0,
+      "target_memory_gb": 14.0,
+      "target_utilization_percent": 85.0
+    }
+  },
+  "recommendations": [
+    "자원 효율성 개선: 메모리 정리, 배치 크기 조정, 모델 경량화 고려"
+  ]
+}

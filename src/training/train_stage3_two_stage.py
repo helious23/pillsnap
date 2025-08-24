@@ -14,6 +14,9 @@ import os
 import sys
 import time
 import torch
+
+# 프로젝트 루트를 Python 경로에 추가
+sys.path.insert(0, '/home/max16/pillsnap')
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
@@ -356,59 +359,77 @@ class Stage3TwoStageTrainer:
         import subprocess
         import tempfile
         import time
+        from src.utils.detection_state_manager import DetectionStateManager
+        from src.utils.robust_csv_parser import RobustCSVParser
         
         # 검증 주기 상수
         VAL_PERIOD = 3  # 3 에폭마다 검증
         YOLO_PROJECT = '/home/max16/pillsnap/artifacts/yolo'
         YOLO_NAME = 'stage3'
         
+        # State Manager 초기화
+        state_manager = DetectionStateManager()
+        csv_parser = RobustCSVParser(self.logger)
+        
         try:
+            # State 로드 및 업데이트
+            state = state_manager.load_state()
+            
+            # 누적 에폭 계산
+            det_epochs_done = state.get('det_epochs_done', 0)
+            target_epochs = state_manager.increment_epochs(state)
+            
+            self.logger.info(f"📊 Detection State: done={det_epochs_done}, target={target_epochs}")
+            
             # 모델 경로 및 resume 설정 (개선된 로직)
             last_pt_path = Path(YOLO_PROJECT) / YOLO_NAME / 'weights' / 'last.pt'
             best_pt_path = Path(YOLO_PROJECT) / YOLO_NAME / 'weights' / 'best.pt'
             
-            # YOLO 모델 초기화 전략
-            if epoch == 1:
-                # 첫 에포크: resume 체크포인트 또는 pretrained 사용
+            # last.pt 업데이트 체크
+            last_pt_updated = state_manager.check_last_pt_updated(last_pt_path, state)
+            
+            # YOLO 모델 초기화 전략 (state 기반)
+            if det_epochs_done == 0:
+                # 처음 시작
                 if hasattr(self, '_resume_yolo_checkpoint') and self._resume_yolo_checkpoint:
-                    # --resume으로 지정된 체크포인트 사용
                     model_path = self._resume_yolo_checkpoint
                     resume = True
                     self.logger.info(f"🔄 Detection Resume: {model_path}")
                 elif last_pt_path.exists():
-                    # 이전 실행의 last.pt 존재시 사용
                     model_path = str(last_pt_path)
                     resume = True
                     self.logger.info(f"🔄 Detection 이전 학습 재개: {model_path}")
                 else:
-                    # 처음부터 시작
-                    model_path = 'yolo11x.pt'
+                    model_path = 'yolo11m.pt'  # yolo11x -> yolo11m (메모리 절약)
                     resume = False
                     self.logger.info(f"🆕 Detection 학습 시작: {model_path}")
             else:
-                # 이후 에포크: 항상 last.pt에서 이어서 학습
+                # 누적 학습 지속
                 if last_pt_path.exists():
                     model_path = str(last_pt_path)
-                    resume = True  # 항상 True (학습 지속)
-                    self.logger.info(f"✅ Detection 학습 지속: {model_path}")
+                    resume = True
+                    self.logger.info(f"✅ Detection 누적 학습: epoch {det_epochs_done} → {target_epochs}")
                 else:
-                    # Fallback: best.pt 또는 pretrained
+                    # Fallback
                     if best_pt_path.exists():
                         model_path = str(best_pt_path)
                         resume = True
-                        self.logger.warning(f"⚠️ last.pt 없음, best.pt 사용: {model_path}")
+                        self.logger.warning(f"⚠️ last.pt 없음, best.pt 사용")
                     else:
-                        model_path = 'yolo11x.pt'
+                        model_path = 'yolo11m.pt'
                         resume = False
-                        self.logger.warning(f"⚠️ 체크포인트 없음, pretrained 사용: {model_path}")
+                        self.logger.warning(f"⚠️ 체크포인트 없음, pretrained 사용")
             
             self.logger.info(f"🎯 Detection 학습 시작 (Epoch {epoch})")
             
             # YOLO 데이터셋 설정 파일 생성
             dataset_yaml = self._create_yolo_dataset_config()
             
-            # 검증 여부 결정
-            do_validation = (epoch % VAL_PERIOD == 0)
+            # 검증 여부 결정 (초반 3-5사이클은 매번, 이후 3에폭마다)
+            if det_epochs_done <= 5:
+                do_validation = True  # 초반엔 매번 검증
+            else:
+                do_validation = (target_epochs % VAL_PERIOD == 0)
             
             # 임시 로그 파일
             with tempfile.NamedTemporaryFile(mode='w+', suffix='.log', delete=False) as temp_log:
@@ -425,7 +446,7 @@ from ultralytics import YOLO
 model = YOLO('{model_path}')
 results = model.train(
     data='{dataset_yaml}',
-    epochs=1,
+    epochs={target_epochs},  # 누적 에폭 수 전달
     batch={min(8, self.training_config.batch_size)},
     imgsz=640,
     device='{self.device.type}',
@@ -491,65 +512,48 @@ if hasattr(results, 'metrics'):
             # 임시 파일 삭제
             os.unlink(temp_log_path)
             
-            # results.csv에서 실제 메트릭 읽기
+            # results.csv에서 실제 메트릭 읽기 (RobustCSVParser 사용)
             results_csv_path = Path(YOLO_PROJECT) / YOLO_NAME / 'results.csv'
             
-            # 메트릭 컬럼 매핑 (버전 호환성)
-            METRIC_COLUMNS = {
-                'mAP': ['metrics/mAP50(B)', 'metrics/mAP50', 'mAP50'],
-                'precision': ['metrics/precision(B)', 'metrics/precision', 'precision'],
-                'recall': ['metrics/recall(B)', 'metrics/recall', 'recall'],
-                'box_loss': ['train/box_loss', 'box_loss'],
-                'cls_loss': ['train/cls_loss', 'cls_loss'],
-                'dfl_loss': ['train/dfl_loss', 'dfl_loss']
-            }
+            # 견고한 CSV 파싱
+            metrics = csv_parser.parse_results_csv(
+                csv_path=results_csv_path,
+                max_retries=3,
+                retry_delay=1.0
+            )
             
-            # 기본값 설정
-            val_map = 0.0
-            precision = 0.0
-            recall = 0.0
-            box_loss = None
-            cls_loss = None
-            dfl_loss = None
+            # 메트릭 추출
+            val_map = metrics.get('map50', 0.0)
+            precision = metrics.get('precision', 0.0)
+            recall = metrics.get('recall', 0.0)
+            box_loss = metrics.get('box_loss', None)
+            cls_loss = metrics.get('cls_loss', None)
+            dfl_loss = metrics.get('dfl_loss', None)
             
-            # CSV 읽기 시도 (재시도 포함)
-            for attempt in range(3):
-                try:
-                    if results_csv_path.exists():
-                        df = pd.read_csv(results_csv_path)
-                        if not df.empty:
-                            last_row = df.iloc[-1]
-                            
-                            # 각 메트릭을 컬럼 후보 리스트에서 찾기
-                            for metric_name, column_candidates in METRIC_COLUMNS.items():
-                                for col in column_candidates:
-                                    if col in last_row:
-                                        value = last_row[col]
-                                        if pd.notna(value):
-                                            if metric_name == 'mAP':
-                                                val_map = float(value)
-                                            elif metric_name == 'precision':
-                                                precision = float(value)
-                                            elif metric_name == 'recall':
-                                                recall = float(value)
-                                            elif metric_name == 'box_loss':
-                                                box_loss = float(value)
-                                            elif metric_name == 'cls_loss':
-                                                cls_loss = float(value)
-                                            elif metric_name == 'dfl_loss':
-                                                dfl_loss = float(value)
-                                            break
-                            
-                            self.logger.info(f"✅ CSV 메트릭 로드 성공: {results_csv_path}")
-                            break
-                    else:
-                        self.logger.warning(f"results.csv 없음: {results_csv_path}")
-                        
-                except Exception as e:
-                    if attempt < 2:
-                        time.sleep(0.5)  # 짧은 대기 후 재시도
-                    else:
-                        self.logger.warning(f"CSV 읽기 실패: {e}")
+            # 메트릭 유효성 검사
+            if csv_parser.validate_metrics(metrics):
+                self.logger.info(f"✅ 메트릭 검증 통과")
+            else:
+                self.logger.warning(f"⚠️ 비정상 메트릭 감지")
+            
+            # State에 메트릭 업데이트
+            state_manager.update_metrics(state, metrics)
+            
+            # 학습 정체 감지 (3사이클 동안 변화 없으면)
+            if state_manager.detect_stalled_training(state, threshold=3):
+                self.logger.warning("⚠️ 학습 정체 감지! Precision 튜닝이 필요할 수 있습니다.")
+                # TODO: conf/iou 파라미터 스윕 수행
+            
+            # 변화량 계산
+            deltas = state_manager.calculate_deltas(state)
+            
+            # Detection 에폭 완료 기록
+            state['det_epochs_done'] = target_epochs
+            state_manager.save_state(state)
+            
+            # DET_CHECK 한줄 요약
+            summary = state_manager.format_summary(state, last_pt_updated, deltas)
+            self.logger.info(summary)
             
             # total_loss 계산
             if box_loss is not None and cls_loss is not None and dfl_loss is not None:
@@ -592,6 +596,9 @@ if hasattr(results, 'metrics'):
             
             return {
                 'detection_loss': total_loss if total_loss is not None else 0.0,
+                'detection_box_loss': box_loss_val,
+                'detection_cls_loss': cls_loss_val,
+                'detection_dfl_loss': dfl_loss_val,
                 'detection_map': val_map,
                 'detection_precision': precision,
                 'detection_recall': recall
@@ -611,6 +618,9 @@ if hasattr(results, 'metrics'):
             # 기본 메트릭 반환 (학습 계속 진행)
             return {
                 'detection_loss': 0.0,
+                'detection_box_loss': 0.0,
+                'detection_cls_loss': 0.0,
+                'detection_dfl_loss': 0.0,
                 'detection_map': 0.0,
                 'detection_precision': 0.0,
                 'detection_recall': 0.0
@@ -962,7 +972,7 @@ if hasattr(results, 'metrics'):
         
         return final_results
     
-    def save_checkpoint(self, model_type: str, checkpoint_type: str, force_save: bool = False) -> None:
+    def save_checkpoint(self, model_type: str, checkpoint_type: str) -> None:
         """
         체크포인트 저장 (개선된 정책)
         

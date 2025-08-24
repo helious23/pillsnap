@@ -1,0 +1,12 @@
+DATA LEAKAGE CHECK REPORT
+Generated: 2025-08-24 22:40:37
+============================================================
+
+Mapping source: train_manifest (sorted unique codes)
+Head dimension: 4020
+Label column: label_idx
+
+Intersection samples: 0 (0.00%)
+Val-only classes: 0
+
+✅ PASS: No data leakage detected

@@ -26,9 +26,10 @@
 - **규칙**: 모든 데이터 스크립트는 **Native Linux SSD 경로** (/home/max16/pillsnap_data/) 사용. 원본 HDD 경로(/mnt/data/) 백업용. 프로젝트와 데이터 완전 분리.
 - **예외**: Windows 운영 도구(Cloudflared 등, Part G/H)는 C:\ 표준 경로 사용 허용
 - **데이터 처리 정책**:
-  - **Stage 1**: 완료 (/home/max16/pillsnap_data) - 5,000장, 74.9% 정확도
-  - **Stage 2**: 준비 완료 (25,000장, 250클래스)
-  - **Stage 3-4**: 대용량 데이터셋 준비 중
+  - **Stage 1**: ✅ 완료 (/home/max16/pillsnap_data) - 5,000장, 74.9% 정확도
+  - **Stage 2**: ✅ 완료 (25,000장, 250클래스, 83.1% 정확도)
+  - **Stage 3**: ✅ 완료 (100,000장, 1,000클래스, 85.01% 정확도)
+  - **Stage 4**: 🎯 준비 완료 (500,000장, 4,523클래스)
 
 [목표]
 
@@ -51,26 +52,29 @@
 ├─ requirements.txt
 ├─ .env.example
 ├─ config.yaml
-├─ scripts/
-│  ├─ bootstrap_venv.sh
-│  ├─ train.sh
-│  ├─ export_onnx.sh
-│  ├─ run_api.sh
-│  ├─ maintenance.sh
-│  ├─ backup_release.sh
-│  ├─ reload_model.sh
-│  ├─ ort_optimize.py
-│  ├─ quantize_dynamic.py
-│  ├─ perf_bench_infer.py
-│  ├─ cf_start.ps1
-│  ├─ cf_stop.ps1
-│  └─ cf_status.ps1
+├─ scripts/                    # 구조 개선됨 (2025-08-24)
+│  ├─ backup/                  # 백업 도구
+│  │  └─ freeze_stage_results.py
+│  ├─ evaluation/              # 평가 도구
+│  │  ├─ sanity_check.py
+│  │  └─ sanity_check_fixed.py
+│  ├─ optimization/            # 최적화
+│  │  └─ tune_detection_precision.py
+│  ├─ testing/                # 테스트
+│  │  ├─ run_all_tests.py
+│  │  └─ test_detection_state.py
+│  ├─ monitoring/             # 모니터링
+│  │  └─ universal_training_monitor.sh
+│  └─ deployment/             # 배포
+│     └─ export_onnx.sh
 ├─ src/                        # 핵심 구현 모듈 (45개 Python 파일)
 │  ├─ __init__.py
 │  ├─ utils/                  # 유틸리티 모듈
 │  │  ├─ __init__.py
 │  │  ├─ core.py             # ConfigLoader, PillSnapLogger ✅
-│  │  └─ oom_guard.py        # OOM 방지 기능
+│  │  ├─ oom_guard.py        # OOM 방지 기능
+│  │  ├─ detection_state_manager.py # Detection 누적 학습 상태 관리 ✅
+│  │  └─ robust_csv_parser.py      # YOLO CSV 견고한 파싱 ✅
 │  ├─ data/                  # Two-Stage 데이터 파이프라인 ✅
 │  │  ├─ __init__.py
 │  │  ├─ progressive_validation_sampler.py     # Progressive Validation 샘플러
@@ -90,6 +94,7 @@
 │  │  ├─ __init__.py
 │  │  ├─ train_classification_stage.py   # 분류 Stage 전용 학습기
 │  │  ├─ train_detection_stage.py        # 검출 Stage 전용 학습기
+│  │  ├─ train_stage3_two_stage.py       # Stage 3 Two-Stage 통합 학습 ✅
 │  │  ├─ batch_size_auto_tuner.py        # RTX 5080 배치 크기 자동 조정
 │  │  ├─ training_state_manager.py       # 체크포인트, 배포용 모델 패키징
 │  │  ├─ memory_monitor_gpu_usage.py     # GPU 메모리 모니터링

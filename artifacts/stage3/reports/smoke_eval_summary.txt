@@ -1,0 +1,18 @@
+SMOKE EVALUATION REPORT (No Augmentation)
+Generated: 2025-08-24 22:40:51
+============================================================
+
+1) Mapping source: train_manifest (sorted unique codes)
+2) Head dimension vs Mapping dimension: head=4020, mapping=4020, MATCH
+3) Label column: label_idx
+
+RESULTS:
+Train: Top-1=0.8470, Top-5=0.9770, Macro-F1=0.7351
+Val:   Top-1=0.8440, Top-5=0.9780, Macro-F1=0.7366
+
+GAPS (Val - Train):
+Top-1: -0.3%p
+Top-5: +0.1%p
+Macro-F1: +0.0015
+
+✅ OK: Reasonable accuracy recovered

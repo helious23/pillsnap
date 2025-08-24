@@ -44,14 +44,29 @@ scripts/
 │   └── reload_model_weights.sh
 │
 ├── testing/                     # 🧪 테스트 실행
+│   ├── run_all_tests.py               # ✅ 통합 테스트 실행기
 │   ├── run_stage1_test_suite.py
 │   ├── run_stage3_test_suite.py
-│   ├── test_memory_manager.py         # 이동됨
-│   └── test_optimization_advisor.py   # 이동됨
+│   ├── test_detection_state.py        # ✅ Detection State 테스트
+│   ├── test_memory_manager.py         
+│   └── test_optimization_advisor.py
+│
+├── backup/                      # 📦 백업 및 아카이빙 
+│   └── freeze_stage_results.py        # ✅ Stage별 결과 동결
+│
+├── evaluation/                  # 📊 평가 및 검증
+│   ├── sanity_check.py                # 기본 평가 스크립트
+│   └── sanity_check_fixed.py          # ✅ 개선된 평가 스크립트
+│
+├── optimization/                # 🎯 최적화 및 튜닝
+│   └── tune_detection_precision.py    # ✅ Detection 파라미터 튜닝
+│
+├── data_prep/                   # 🔧 데이터 준비
+│   └── create_yolo_label_symlinks.py  # YOLO 라벨 심링크 생성
 │
 ├── data/                        # 💾 데이터 처리
 │   ├── analyze_dataset_structure.py
-│   ├── test_pharmaceutical_registry_builder.py
+│   └── test_pharmaceutical_registry_builder.py
 │   └── full_hash_verification.sh
 │
 ├── deployment/                  # 🚀 배포 관련
@@ -64,8 +79,8 @@ scripts/
 │   └── demo_realtime_logs.py         # 이동됨
 │
 └── utils/                       # 🔧 유틸리티
-    ├── simple_live_monitor.py         # 이동됨
-    ├── simple_real_monitor.py        # 이동됨
+    ├── simple_live_monitor.py         
+    ├── simple_real_monitor.py        
     └── reorganize_scripts.py
 ```
 
@@ -80,10 +95,28 @@ scripts/
 # Stage 2 (완료) 
 # - 기본 성능 확인, 이미 완료된 상태
 
-# Stage 3 (현재 진행 중) - Two-Stage Pipeline
+# Stage 3 (완료) - Two-Stage Pipeline
 ./scripts/stage3/train_stage3_two_stage.sh                    # 기본 실행
 ./scripts/stage3/train_stage3_two_stage.sh --epochs 20        # 에포크 조정
 ./scripts/stage3/train_stage3_two_stage.sh --help             # 도움말
+
+# Detection 상태 확인 및 테스트
+python scripts/testing/test_detection_state.py                # State 관리 테스트
+
+# Precision 튜닝
+python scripts/optimization/tune_detection_precision.py       # conf/iou 최적화
+
+# Stage 결과 백업 (Stage 1-4 지원)
+python scripts/backup/freeze_stage_results.py --stage 3       # Stage 3 결과 동결
+python scripts/backup/freeze_stage_results.py --stage 4       # Stage 4 결과 동결
+
+# 평가 실행
+python scripts/evaluation/sanity_check_fixed.py               # 개선된 평가
+
+# 테스트 실행
+python scripts/testing/run_all_tests.py                       # 모든 테스트
+python scripts/testing/run_all_tests.py --category unit       # Unit 테스트만
+python scripts/testing/run_all_tests.py --test tests/unit/test_classifier.py  # 특정 테스트
 ```
 
 ### 모니터링

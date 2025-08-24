@@ -8,10 +8,10 @@
   - **Windows SSD**: 심볼릭 링크로 연결 (하이브리드 스토리지)
   - **백업**: /mnt/data/pillsnap_dataset (원본 보관용)
 - **Native Linux 이전 완료**: WSL 제약 해결, CPU 멀티프로세싱 활성화 (num_workers=8)
-  - **✅ Stage 1**: 74.9% 정확돀 달성 (Native Linux, 1분 완료)
-  - **✅ Stage 2**: 준비 완료 (25K 샘플, 250클래스, 하이브리드 스토리지)
-  - **🔗 심볼릭 링크**: Windows SSD 81개 폴더 완전 설정
-  - **🔄 Stage 3-4**: 준비 중 (대용량 데이터셋)
+  - **✅ Stage 1**: 74.9% 정확도 달성 (Native Linux, 1분 완료)
+  - **✅ Stage 2**: 83.1% 정확도 달성 (25K 샘플, 250클래스)
+  - **✅ Stage 3**: 85.01% 정확도 달성 (100K 샘플, 1,000클래스)
+  - **🎯 Stage 4**: 준비 완료 (500K 샘플, 4,523클래스)
 - 기본 작업: 약품 검출+분류(Detection → Classification, Two-Stage). 순수 분류 모드도 지원.
 - 모든 데이터 경로는 **/home/max16/pillsnap_data** 사용 (프로젝트와 분리).
 - 코드는 /home/max16/pillsnap, **학습 산출물/체크포인트**는 /home/max16/pillsnap_data/exp/로 고정 (데이터 분리).

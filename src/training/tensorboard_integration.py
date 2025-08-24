@@ -52,12 +52,12 @@ class TensorBoardIntegration:
         # Training config
         if hasattr(self.trainer, 'training_config'):
             cfg = self.trainer.training_config
-            hparams['epochs'] = cfg.epochs
-            hparams['batch_size'] = cfg.batch_size
-            hparams['lr_classifier'] = cfg.lr_classifier
-            hparams['lr_detector'] = cfg.lr_detector
-            hparams['mixed_precision'] = cfg.mixed_precision
-            hparams['num_classes'] = cfg.num_classes
+            hparams['epochs'] = getattr(cfg, 'max_epochs', getattr(cfg, 'epochs', 20))
+            hparams['batch_size'] = getattr(cfg, 'batch_size', 16)
+            hparams['lr_classifier'] = getattr(cfg, 'learning_rate_classifier', getattr(cfg, 'lr_classifier', 2e-4))
+            hparams['lr_detector'] = getattr(cfg, 'learning_rate_detector', getattr(cfg, 'lr_detector', 1e-3))
+            hparams['mixed_precision'] = getattr(cfg, 'mixed_precision', True)
+            hparams['num_classes'] = getattr(cfg, 'num_classes', 1000)
         
         # 텍스트로 로깅
         hparam_text = "\n".join([f"- {k}: {v}" for k, v in hparams.items()])
