@@ -32,11 +32,14 @@ class Stage3ManifestCreator:
         # 환경변수 우선, 기본값 대체
         self.data_root = Path(data_root or os.getenv('PILLSNAP_DATA_ROOT', '/home/max16/pillsnap_data'))
         
-        # Stage 3 설정 (Classification 중심)
+        # Stage 3 설정 (실제 데이터 현실 반영)
         self.target_samples = 100000
         self.target_classes = 1000
         self.samples_per_class = 100  # 100000 ÷ 1000 = 100
-        self.single_ratio = 0.95  # Single 95%, Combination 5% (현실적 비율)
+        # Stage 3 목표: 95% Single, 5% Combination (총 100,000개)
+        # Combination 데이터는 Windows SSD에 심볼릭 링크로 접근 가능
+        self.single_ratio = 0.95  # Single 95% (95,000개)
+        self.combination_ratio = 0.05  # Combination 5% (5,000개)
         self.train_ratio = 0.8
         self.val_ratio = 0.2
         self.seed = 42
@@ -86,15 +89,22 @@ class Stage3ManifestCreator:
                 if not ts_dir.is_dir():
                     continue
                     
-                for k_code_dir in ts_dir.iterdir():
-                    if not k_code_dir.is_dir():
+                for combo_dir in ts_dir.iterdir():
+                    if not combo_dir.is_dir():
                         continue
                         
-                    k_code = k_code_dir.name
-                    images = list(k_code_dir.glob("*.jpg")) + list(k_code_dir.glob("*.png"))
+                    # Combination 디렉토리명은 여러 K-코드가 결합된 형태
+                    # 예: K-000250-000573-002483-006192
+                    combo_name = combo_dir.name
+                    images = list(combo_dir.glob("*.jpg")) + list(combo_dir.glob("*.png"))
                     
                     if images:
-                        available_data[k_code]['combination'].extend(images)
+                        # 첫 번째 K-코드를 대표로 사용
+                        # K-000250-000573-002483-006192 -> K-000250
+                        k_codes_in_combo = combo_name.split('-')
+                        if len(k_codes_in_combo) >= 2:  # K-XXXXXX 형태
+                            primary_k_code = f"{k_codes_in_combo[0]}-{k_codes_in_combo[1]}"
+                            available_data[primary_k_code]['combination'].extend(images)
         
         # 통계 출력
         total_classes = len(available_data)
@@ -106,6 +116,75 @@ class Stage3ManifestCreator:
         self.logger.info(f"  Combination: {total_combo:,}개 이미지")
         
         self.available_classes = dict(available_data)
+        return self.available_classes
+
+    def scan_hybrid_storage_data(self) -> Dict[str, Dict]:
+        """하이브리드 스토리지 데이터 스캔 (Linux SSD + Windows SSD 심볼릭 링크)"""
+        self.logger.info("하이브리드 스토리지 데이터 스캔 시작...")
+        self.logger.info("  Linux SSD: Single 이미지 (직접 저장)")
+        self.logger.info("  Windows SSD: Combination 이미지 (심볼릭 링크)")
+        
+        available_data = defaultdict(lambda: {'single': [], 'combination': []})
+        
+        # Single 이미지 스캔 (Linux SSD + Windows SSD 심볼릭 링크)
+        single_dir = self.data_root / "train/images/single"
+        if single_dir.exists():
+            for ts_dir in sorted(single_dir.glob("TS_*")):
+                if not ts_dir.is_dir():
+                    continue
+                    
+                for k_code_dir in ts_dir.iterdir():
+                    if not k_code_dir.is_dir():
+                        continue
+                        
+                    k_code = k_code_dir.name
+                    images = list(k_code_dir.glob("*.jpg")) + list(k_code_dir.glob("*.png"))
+                    
+                    if images:
+                        available_data[k_code]['single'].extend(images)
+        
+        # Combination 이미지 스캔 (Windows SSD 심볼릭 링크)
+        combo_dir = self.data_root / "train/images/combination"
+        if combo_dir.exists():
+            self.logger.info(f"Combination 디렉토리 발견: {combo_dir}")
+            for ts_dir in sorted(combo_dir.glob("TS_*_combo")):
+                if not ts_dir.is_dir():
+                    continue
+                    
+                self.logger.debug(f"스캔 중: {ts_dir.name}")
+                for combo_dir_path in ts_dir.iterdir():
+                    if not combo_dir_path.is_dir():
+                        continue
+                        
+                    combo_name = combo_dir_path.name
+                    images = list(combo_dir_path.glob("*.jpg")) + list(combo_dir_path.glob("*.png"))
+                    
+                    # index.png 제외
+                    images = [img for img in images if not img.name.endswith("index.png")]
+                    
+                    if images:
+                        # 조합 디렉토리명에서 첫 번째 K-코드를 대표로 사용
+                        # K-000250-000573-002483-006192 → K-000250
+                        k_codes_in_combo = combo_name.split('-')
+                        if len(k_codes_in_combo) >= 2:
+                            primary_k_code = f"{k_codes_in_combo[0]}-{k_codes_in_combo[1]}"
+                            available_data[primary_k_code]['combination'].extend(images)
+        
+        # 통계 출력
+        total_classes = len(available_data)
+        total_single = sum(len(v['single']) for v in available_data.values())
+        total_combo = sum(len(v['combination']) for v in available_data.values())
+        
+        self.logger.info(f"하이브리드 스토리지 스캔 완료:")
+        self.logger.info(f"  클래스 수: {total_classes:,}개")
+        self.logger.info(f"  Single 이미지: {total_single:,}개 (Linux SSD)")
+        self.logger.info(f"  Combination 이미지: {total_combo:,}개 (Windows SSD)")
+        
+        # 데이터가 있는 클래스만 유지
+        filtered_data = {k: v for k, v in available_data.items() 
+                        if v['single'] or v['combination']}
+        
+        self.available_classes = dict(filtered_data)
         return self.available_classes
     
     def select_target_classes(self) -> List[str]:
@@ -149,11 +228,11 @@ class Stage3ManifestCreator:
             n_sample = min(target_single, len(single_images))
             sampled_single = random.sample(single_images, n_sample)
         
-        # Combination 샘플링 (현실적 제한 고려)
+        # Combination 샘플링
         sampled_combo = []
         if combo_images:
-            # 가용한 Combination 데이터만큼만 사용 (최대 5개)
-            n_sample = min(target_combo, len(combo_images), 5)  # 현실적 제한
+            # 가용한 Combination 데이터만큼 사용
+            n_sample = min(target_combo, len(combo_images))
             if n_sample > 0:
                 sampled_combo = random.sample(combo_images, n_sample)
         
@@ -198,9 +277,119 @@ class Stage3ManifestCreator:
             })
         
         return records
+
+    def sample_single_images_for_class(self, k_code: str) -> List[Dict]:
+        """특정 클래스에서 Single 이미지만 샘플링 (현실적 접근)"""
+        class_data = self.available_classes[k_code]
+        single_images = class_data['single']
+        
+        # Single 이미지만 사용하여 목표 샘플 수 달성
+        sampled_images = []
+        if single_images:
+            n_sample = min(self.samples_per_class, len(single_images))
+            sampled_images = random.sample(single_images, n_sample)
+        
+        # 기록 생성
+        records = []
+        for image_path in sampled_images:
+            records.append({
+                'image_path': str(image_path),
+                'mapping_code': k_code,
+                'image_type': 'single',
+                'source': 'train'
+            })
+        
+        return records
     
+    def create_manifest_v2(self) -> pd.DataFrame:
+        """개선된 Manifest 생성 - Single과 Combination을 독립적으로 샘플링"""
+        manifest_data = []
+        
+        # 1. Single 이미지 95,000개 샘플링
+        all_single_images = []
+        for k_code, data in self.available_classes.items():
+            for img_path in data['single']:
+                all_single_images.append({
+                    'image_path': str(img_path),
+                    'mapping_code': k_code,
+                    'image_type': 'single',
+                    'source': 'train'
+                })
+        
+        # Single 랜덤 샘플링
+        target_single = int(self.target_samples * self.single_ratio)
+        if len(all_single_images) >= target_single:
+            sampled_single = random.sample(all_single_images, target_single)
+        else:
+            sampled_single = all_single_images
+            self.logger.warning(f"Single 이미지 부족: {len(all_single_images)} < {target_single}")
+        
+        manifest_data.extend(sampled_single)
+        
+        # 2. Combination 이미지 5,000개 샘플링
+        all_combo_images = []
+        for k_code, data in self.available_classes.items():
+            for img_path in data['combination']:
+                all_combo_images.append({
+                    'image_path': str(img_path),
+                    'mapping_code': k_code,
+                    'image_type': 'combination',
+                    'source': 'train'
+                })
+        
+        # Combination 랜덤 샘플링
+        target_combo = self.target_samples - target_single
+        if len(all_combo_images) >= target_combo:
+            sampled_combo = random.sample(all_combo_images, target_combo)
+        else:
+            sampled_combo = all_combo_images
+            self.logger.warning(f"Combination 이미지 부족: {len(all_combo_images)} < {target_combo}")
+            
+            # 부족한 만큼 Single에서 추가
+            shortage = target_combo - len(all_combo_images)
+            if shortage > 0 and len(all_single_images) > target_single:
+                remaining_single = [s for s in all_single_images if s not in sampled_single]
+                additional = random.sample(remaining_single, min(shortage, len(remaining_single)))
+                manifest_data.extend(additional)
+                self.logger.info(f"Single에서 {len(additional)}개 추가 샘플링")
+        
+        manifest_data.extend(sampled_combo)
+        
+        # DataFrame 생성
+        manifest_df = pd.DataFrame(manifest_data)
+        
+        # 통계 출력
+        single_count = len(manifest_df[manifest_df['image_type'] == 'single'])
+        combo_count = len(manifest_df[manifest_df['image_type'] == 'combination'])
+        
+        self.logger.info(f"Manifest 생성 완료:")
+        self.logger.info(f"  총 샘플: {len(manifest_df):,}개")
+        self.logger.info(f"  Single: {single_count:,}개 ({single_count/len(manifest_df)*100:.1f}%)")
+        self.logger.info(f"  Combination: {combo_count:,}개 ({combo_count/len(manifest_df)*100:.1f}%)")
+        
+        self.manifest_data = manifest_df
+        return manifest_df
+    
+    def create_manifest_realistic(self) -> pd.DataFrame:
+        """Stage 3 하이브리드 Manifest 생성 (Single + Combination)"""
+        self.logger.info("하이브리드 Manifest 생성 시작...")
+        self.logger.info("목표: Single 95% + Combination 5% = 총 100,000개")
+        
+        # 1. 하이브리드 스토리지 데이터 스캔
+        if not self.available_classes:
+            self.scan_hybrid_storage_data()
+        
+        # 2. 클래스 선택
+        if not self.selected_classes:
+            self.select_target_classes()
+        
+        # 3. 독립적 샘플링 (Single 95,000 + Combination 5,000)
+        self.logger.info("독립적 샘플링 시작...")
+        return self.create_manifest_v2()
+        
+
     def create_manifest(self) -> pd.DataFrame:
-        """Stage 3 Manifest 생성"""
+        """Stage 3 Manifest 생성 (원본 방식 - 사용하지 않음)"""
         self.logger.info("Manifest 생성 시작...")
         
         # 1. 데이터 스캔
@@ -317,8 +506,8 @@ class Stage3ManifestCreator:
         self.logger.info("Stage 3 Manifest 생성 시작")
         self.logger.info("=" * 60)
         
-        # 1. Manifest 생성
-        df = self.create_manifest()
+        # 1. Manifest 생성 (현실적인 Single-only 방식)
+        df = self.create_manifest_realistic()
         
         # 2. Train/Val 분할
         train_df, val_df = self.split_train_val(df)

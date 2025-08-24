@@ -15,30 +15,42 @@ import subprocess
 import random
 import numpy as np
 import torch
+import json
+import re
 from pathlib import Path
-from typing import Dict, Any, Optional, Union
-from datetime import datetime, timezone
+from typing import Dict, Any, Optional, Union, Set, List
+from datetime import datetime, timezone, timedelta
+from collections import defaultdict
+
+# 한국 시간대 정의
+KST = timezone(timedelta(hours=9))
 
 
 class ConfigLoader:
     """
-    설정 파일 로더 클래스
+    설정 파일 로더 클래스 (1단계 강화)
     - config.yaml 안전 로딩
     - 환경변수 오버라이드 지원
     - 경로 검증
+    - YAML 중복 키 탐지 및 머지 규칙
+    - 정책 충돌 자동 해소
+    - 최종 설정 스냅샷 저장
     """
     
-    def __init__(self, config_path: str = "config.yaml"):
+    def __init__(self, config_path: str = "config.yaml", cli_overrides: Optional[Dict[str, Any]] = None):
         """
         Args:
             config_path: config.yaml 파일 경로 (프로젝트 루트 기준)
+            cli_overrides: CLI 인자 오버라이드 (최우선 적용)
         """
         self.config_path = config_path
         self.project_root = Path("/home/max16/pillsnap")
+        self.cli_overrides = cli_overrides or {}
+        self.merge_log = []  # 머지 과정 로그
         
     def _load_config_instance(self) -> Dict[str, Any]:
         """
-        config.yaml 파일을 로딩하고 검증합니다.
+        config.yaml 파일을 로딩하고 검증합니다. (1단계 강화)
         
         Returns:
             Dict: 설정 딕셔너리
@@ -54,36 +66,49 @@ class ConfigLoader:
         if not config_file_path.exists():
             raise FileNotFoundError(f"설정 파일을 찾을 수 없습니다: {config_file_path}")
             
-        # 2) YAML 파일 로딩
+        # 2) YAML 중복 키 탐지 전처리
+        self._check_duplicate_yaml_keys(config_file_path)
+            
+        # 3) YAML 파일 로딩
         try:
             with open(config_file_path, 'r', encoding='utf-8') as f:
-                config = yaml.safe_load(f)
+                base_config = yaml.safe_load(f)
         except yaml.YAMLError as e:
             raise yaml.YAMLError(f"YAML 파싱 오류: {e}")
             
-        # 3) 환경변수 오버라이드 적용
+        # 4) 머지 순서 적용: base < stage_overrides < CLI
+        config = self._apply_merge_hierarchy(base_config)
+        
+        # 5) 정책 충돌 자동 해소
+        config = self._resolve_policy_conflicts(config)
+        
+        # 6) 환경변수 오버라이드 적용
         config = self._apply_env_overrides(config)
         
-        # 4) 경로 검증 및 정규화
+        # 7) 경로 검증 및 정규화
         config = self._validate_and_normalize_paths(config)
         
-        # 5) 필수 설정 검증
+        # 8) 필수 설정 검증
         self._validate_required_settings(config)
+        
+        # 9) 최종 설정 스냅샷 저장
+        self._save_config_snapshot(config)
         
         return config
     
     @classmethod 
-    def load_config(cls, config_path: str = "config.yaml") -> Dict[str, Any]:
+    def load_config(cls, config_path: str = "config.yaml", cli_overrides: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """
-        정적 메서드로 config.yaml 파일을 로딩합니다.
+        정적 메서드로 config.yaml 파일을 로딩합니다. (1단계 강화)
         
         Args:
             config_path: config.yaml 파일 경로
+            cli_overrides: CLI 인자 오버라이드 (최우선 적용)
             
         Returns:
             Dict: 설정 딕셔너리
         """
-        loader = cls(config_path)
+        loader = cls(config_path, cli_overrides)
         return loader._load_config_instance()
     
     def _apply_env_overrides(self, config: Dict[str, Any]) -> Dict[str, Any]:
@@ -162,19 +187,188 @@ class ConfigLoader:
         current_stage = pv.get("current_stage")
         if current_stage not in [1, 2, 3, 4]:
             raise ValueError(f"잘못된 current_stage 값: {current_stage} (1-4 범위)")
+    
+    def _check_duplicate_yaml_keys(self, config_file_path: Path) -> None:
+        """
+        YAML 파일의 중복 키 탐지 (1단계 강화)
+        발견 시 실패 또는 강경 경고 후 중단
+        """
+        with open(config_file_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # 루트 레벨 키들을 찾기 위한 정규식
+        # 주석과 들여쓰기가 없는 키들만 탐지
+        root_key_pattern = re.compile(r'^([a-zA-Z_][a-zA-Z0-9_]*):.*$', re.MULTILINE)
+        root_keys = root_key_pattern.findall(content)
+        
+        # 중복 키 탐지
+        key_counts = defaultdict(int)
+        for key in root_keys:
+            key_counts[key] += 1
+        
+        duplicate_keys = [key for key, count in key_counts.items() if count > 1]
+        
+        if duplicate_keys:
+            raise ValueError(
+                f"🚨 YAML 중복 루트 키 발견: {duplicate_keys}\n"
+                f"파일: {config_file_path}\n"
+                f"중복 키를 제거하거나 병합한 후 다시 시도하세요."
+            )
+        
+        self.merge_log.append(f"✅ YAML 중복 키 검사 통과: {len(root_keys)}개 루트 키")
+    
+    def _apply_merge_hierarchy(self, base_config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        머지 순서 적용: base < stage_overrides[current_stage] < CLI
+        """
+        config = base_config.copy()
+        
+        # 1) Stage Override 적용
+        pv_config = config.get("progressive_validation", {})
+        current_stage = pv_config.get("current_stage")
+        
+        if current_stage and "stage_overrides" in config:
+            stage_key = f"stage_{current_stage}"
+            stage_overrides = config["stage_overrides"].get(stage_key, {})
+            
+            if stage_overrides:
+                config = self._deep_merge(config, stage_overrides)
+                self.merge_log.append(f"🔄 Stage {current_stage} overrides 적용: {len(stage_overrides)} 키")
+        
+        # 2) CLI Override 적용 (최우선)
+        if self.cli_overrides:
+            config = self._deep_merge(config, self.cli_overrides)
+            self.merge_log.append(f"🔧 CLI overrides 적용: {len(self.cli_overrides)} 키")
+        
+        return config
+    
+    def _resolve_policy_conflicts(self, config: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        정책 충돌 자동 해소
+        - copy-paste: 램프 정책이 있으면 고정 확률 무시
+        - confidence: auto 튜닝 값이 있으면 하드코딩 무시
+        """
+        # Copy-Paste 정책 충돌 해소
+        if self._has_copy_paste_ramp_policy(config):
+            if self._remove_copy_paste_fixed_values(config):
+                self.merge_log.append("🔧 Copy-Paste: 램프 정책 우선, 고정 확률 제거")
+        
+        # Confidence 정책 충돌 해소
+        if self._has_confidence_auto_tuning(config):
+            if self._remove_confidence_hardcoded_values(config):
+                self.merge_log.append("🔧 Confidence: 자동 튜닝 우선, 하드코딩 값 제거")
+        
+        return config
+    
+    def _save_config_snapshot(self, config: Dict[str, Any]) -> None:
+        """
+        최종 머지 결과 스냅샷 저장 (재현성/디버깅)
+        """
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        
+        # artifacts/config_snapshots 디렉토리 생성
+        snapshot_dir = self.project_root / "artifacts" / "config_snapshots"
+        snapshot_dir.mkdir(parents=True, exist_ok=True)
+        
+        # 스냅샷 파일 경로
+        snapshot_file = snapshot_dir / f"config_merged_{timestamp}.json"
+        
+        # 메타데이터 추가
+        snapshot_data = {
+            "timestamp": timestamp,
+            "config_path": str(self.config_path),
+            "cli_overrides": self.cli_overrides,
+            "merge_log": self.merge_log,
+            "final_config": config
+        }
+        
+        # JSON으로 저장
+        with open(snapshot_file, 'w', encoding='utf-8') as f:
+            json.dump(snapshot_data, f, indent=2, ensure_ascii=False, default=str)
+        
+        print(f"📸 설정 스냅샷 저장: {snapshot_file}")
+    
+    def _deep_merge(self, base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+        """딥 머지 유틸리티"""
+        result = base.copy()
+        
+        for key, value in override.items():
+            if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+                result[key] = self._deep_merge(result[key], value)
+            else:
+                result[key] = value
+        
+        return result
+    
+    def _has_copy_paste_ramp_policy(self, config: Dict[str, Any]) -> bool:
+        """Copy-Paste 램프 정책 존재 여부 확인"""
+        try:
+            augmentation = config.get("data", {}).get("augmentation", {})
+            copy_paste = augmentation.get("copy_paste", {})
+            return "ramp_schedule" in copy_paste
+        except (KeyError, TypeError):
+            return False
+    
+    def _remove_copy_paste_fixed_values(self, config: Dict[str, Any]) -> bool:
+        """Copy-Paste 고정 확률값 제거"""
+        try:
+            copy_paste = config["data"]["augmentation"]["copy_paste"]
+            removed = False
+            
+            # 고정 확률 키들 제거
+            fixed_keys = ["probability", "fixed_prob", "static_prob"]
+            for key in fixed_keys:
+                if key in copy_paste:
+                    del copy_paste[key]
+                    removed = True
+            
+            return removed
+        except (KeyError, TypeError):
+            return False
+    
+    def _has_confidence_auto_tuning(self, config: Dict[str, Any]) -> bool:
+        """Confidence 자동 튜닝 존재 여부 확인"""
+        try:
+            logging_config = config.get("logging", {})
+            confidence_tuning = logging_config.get("confidence_tuning", {})
+            return confidence_tuning.get("enabled", False)
+        except (KeyError, TypeError):
+            return False
+    
+    def _remove_confidence_hardcoded_values(self, config: Dict[str, Any]) -> bool:
+        """하드코딩된 Confidence 값들 제거"""
+        removed = False
+        
+        try:
+            # Detection 설정에서 하드코딩 confidence 제거
+            det_config = config.get("models", {}).get("detector", {})
+            if "confidence_threshold" in det_config:
+                del det_config["confidence_threshold"]
+                removed = True
+            
+            # Inference 설정에서 하드코딩 confidence 제거 (auto tuning 결과 사용)
+            inf_config = config.get("inference", {})
+            if "confidence" in inf_config:
+                del inf_config["confidence"]
+                removed = True
+            
+            return removed
+        except (KeyError, TypeError):
+            return False
 
 
-def load_config(config_path: str = "config.yaml") -> Dict[str, Any]:
+def load_config(config_path: str = "config.yaml", cli_overrides: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
     """
-    설정 파일 로딩 함수 (편의 함수)
+    설정 파일 로딩 함수 (편의 함수, 1단계 강화)
     
     Args:
         config_path: config.yaml 파일 경로
+        cli_overrides: CLI 인자 오버라이드
         
     Returns:
         Dict: 설정 딕셔너리
     """
-    loader = ConfigLoader(config_path)
+    loader = ConfigLoader(config_path, cli_overrides)
     return loader._load_config_instance()
 
 
@@ -290,13 +484,22 @@ class PillSnapLogger:
         log_level = getattr(logging, self.level, logging.INFO)
         logger.setLevel(log_level)
         
+        # KST 시간대를 사용하는 커스텀 포맷터
+        class KSTFormatter(logging.Formatter):
+            """한국 시간대(KST)를 사용하는 로그 포맷터"""
+            def formatTime(self, record, datefmt=None):
+                dt = datetime.fromtimestamp(record.created, tz=KST)
+                if datefmt:
+                    return dt.strftime(datefmt)
+                return dt.strftime('%Y-%m-%d %H:%M:%S')
+        
         # 포맷터 정의
-        detailed_formatter = logging.Formatter(
+        detailed_formatter = KSTFormatter(
             fmt='%(asctime)s | %(levelname)-8s | %(name)s:%(funcName)s:%(lineno)d | %(message)s',
             datefmt='%Y-%m-%d %H:%M:%S'
         )
         
-        simple_formatter = logging.Formatter(
+        simple_formatter = KSTFormatter(
             fmt='%(asctime)s | %(levelname)-8s | %(message)s',
             datefmt='%H:%M:%S'
         )
@@ -310,14 +513,14 @@ class PillSnapLogger:
         # 2) 파일 핸들러 (상세한 포맷)
         # 로그 디렉토리가 없으면 생성
         self.log_dir.mkdir(parents=True, exist_ok=True)
-        log_file = self.log_dir / f"{self.name}_{datetime.now().strftime('%Y%m%d')}.log"
+        log_file = self.log_dir / f"{self.name}_{datetime.now(tz=KST).strftime('%Y%m%d')}.log"
         file_handler = logging.FileHandler(log_file, encoding='utf-8')
         file_handler.setLevel(logging.DEBUG)  # 파일에는 모든 레벨 저장
         file_handler.setFormatter(detailed_formatter)
         logger.addHandler(file_handler)
         
         # 3) 에러 전용 파일 핸들러
-        error_file = self.log_dir / f"{self.name}_errors_{datetime.now().strftime('%Y%m%d')}.log"
+        error_file = self.log_dir / f"{self.name}_errors_{datetime.now(tz=KST).strftime('%Y%m%d')}.log"
         error_handler = logging.FileHandler(error_file, encoding='utf-8')
         error_handler.setLevel(logging.ERROR)
         error_handler.setFormatter(detailed_formatter)

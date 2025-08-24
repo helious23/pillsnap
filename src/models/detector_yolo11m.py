@@ -242,6 +242,22 @@ class PillSnapYOLODetector(nn.Module):
         else:
             self.model.eval()
     
+    def train_model(self, data_config: str, epochs: int = 1, **kwargs):
+        """YOLO 모델 학습 - Ultralytics API 사용"""
+        try:
+            # Ultralytics YOLO 학습 API 호출
+            results = self.model.train(
+                data=data_config,  # YAML 설정 파일 경로
+                epochs=epochs,
+                patience=50,
+                save=True,
+                **kwargs
+            )
+            return results
+        except Exception as e:
+            self.logger.error(f"YOLO 모델 학습 실패: {e}")
+            raise
+    
     def save_model(self, save_path: Union[str, Path]):
         """모델 저장"""
         save_path = Path(save_path)

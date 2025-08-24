@@ -1,0 +1,12 @@
+names:
+  0: pill
+nc: 1
+path: /home/max16/pillsnap_data
+
+# 이미지 경로 (TS_*_combo 폴더들)
+train: train/images/combination
+val: train/images/combination
+
+# 라벨 경로 (combination_yolo 폴더의 txt 파일들)
+# YOLO는 이미지와 같은 이름의 txt 파일을 자동으로 찾음
+# train/labels/combination_yolo/*.txt 파일들이 사용됨

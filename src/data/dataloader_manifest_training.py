@@ -70,7 +70,7 @@ class ManifestDetectionDataset(Dataset):
         image_size: int = 640
     ):
         # Combination 데이터만 필터링
-        self.data = manifest_df[manifest_df['pill_type'] == 'combination'].reset_index(drop=True)
+        self.data = manifest_df[manifest_df['image_type'] == 'combination'].reset_index(drop=True)
         self.transform = transform
         self.image_size = image_size
         self.logger = PillSnapLogger(__name__)
@@ -83,18 +83,60 @@ class ManifestDetectionDataset(Dataset):
     def __getitem__(self, idx):
         row = self.data.iloc[idx]
         
-        # 이미지 로드
+        # 이미지 로드 (손상된 이미지 처리 개선)
         image_path = Path(row['image_path'])
         try:
-            image = Image.open(image_path).convert('RGB')
-        except Exception as e:
-            self.logger.error(f"이미지 로드 실패: {image_path} - {e}")
-            image = Image.new('RGB', (self.image_size, self.image_size), (0, 0, 0))
+            with Image.open(image_path) as img:
+                image = img.convert('RGB').copy()
+                # 이미지 크기 검증
+                if image.size[0] < 32 or image.size[1] < 32:
+                    raise ValueError(f"이미지 크기가 너무 작음: {image.size}")
+        except (OSError, ValueError, Image.DecompressionBombError) as e:
+            self.logger.warning(f"이미지 로드 실패 (건너뜀): {image_path} - {e}")
+            # 다음 이미지로 건너뛰기
+            if idx < len(self.data) - 1:
+                return self.__getitem__(idx + 1)
+            else:
+                return self.__getitem__(0)  # 첫 번째 이미지로 루프
         
-        # YOLO 형식 라벨 생성 (간단화 - 실제로는 어노테이션 파일 필요)
-        # 임시로 전체 이미지를 bbox로 설정 (실제 구현에서는 정확한 bbox 필요)
-        boxes = torch.tensor([[0.25, 0.25, 0.75, 0.75]])  # [x_center, y_center, width, height] normalized
-        labels = torch.tensor([0])  # 클래스 0 (pill)
+        # YOLO 형식 라벨 로드 (실제 변환된 YOLO txt 파일 사용)
+        image_name = image_path.stem  # 확장자 제거
+        
+        # 경로 매핑: 실제 YOLO 라벨 위치로 변경
+        yolo_label_path = Path(f"/home/max16/pillsnap_data/train/labels/combination_yolo_multi/{image_name}.txt")
+        
+        self.logger.debug(f"Looking for YOLO label: {yolo_label_path}")
+        
+        boxes = []
+        labels = []
+        
+        try:
+            if yolo_label_path.exists():
+                with open(yolo_label_path, 'r') as f:
+                    for line in f:
+                        parts = line.strip().split()
+                        if len(parts) == 5:
+                            cls, x_center, y_center, width, height = map(float, parts)
+                            boxes.append([x_center, y_center, width, height])
+                            labels.append(int(cls))  # 모든 객체는 클래스 0 (pill)
+                
+                if boxes:
+                    boxes = torch.tensor(boxes, dtype=torch.float32)
+                    labels = torch.tensor(labels, dtype=torch.long)
+                else:
+                    # 빈 라벨인 경우 기본값
+                    boxes = torch.tensor([[0.5, 0.5, 1.0, 1.0]], dtype=torch.float32)
+                    labels = torch.tensor([0], dtype=torch.long)
+            else:
+                self.logger.warning(f"YOLO 라벨 파일 없음: {yolo_label_path}")
+                # 기본값 사용
+                boxes = torch.tensor([[0.5, 0.5, 1.0, 1.0]], dtype=torch.float32)
+                labels = torch.tensor([0], dtype=torch.long)
+                
+        except Exception as e:
+            self.logger.error(f"YOLO 라벨 로드 실패: {yolo_label_path} - {e}")
+            boxes = torch.tensor([[0.5, 0.5, 1.0, 1.0]], dtype=torch.float32)
+            labels = torch.tensor([0], dtype=torch.long)
         
         # 변환 적용
         if self.transform:
@@ -177,7 +219,7 @@ class ManifestTrainingDataLoader:
         if self.task == "classification":
             required_cols.append('mapping_code')
         elif self.task == "detection":
-            required_cols.append('pill_type')
+            required_cols.append('image_type')
             
         missing_cols = [col for col in required_cols if col not in df.columns]
         if missing_cols:

@@ -1,0 +1,373 @@
+# Original PART_B Design - Two-Stage Conditional Pipeline
+# RTX 5080 16GB + 128GB RAM Optimization + Progressive Validation Strategy
+
+# 경로 설정 (SSD 최적화)
+paths:
+  exp_dir: "/home/max16/pillsnap_data/exp/exp01"
+  data_root: "/home/max16/pillsnap_data"  # Native Linux 데이터 전용 경로
+  ckpt_dir: null  # exp_dir/checkpoints 자동 생성
+  tb_dir: null    # exp_dir/tb 자동 생성
+  reports_dir: null  # exp_dir/reports 자동 생성
+
+# 점진적 검증 전략 (PART_0 핵심 설계)
+progressive_validation:
+  enabled: true
+  current_stage: 1    # 1-4 단계 설정
+  strategy: "stratified_balanced_sampling"  # 계층적 균형 샘플링
+  
+  stage_configs:
+    stage_1:
+      purpose: "pipeline_validation"        # 파이프라인 검증
+      max_samples: 5000
+      max_classes: 50
+      target_ratio: {single: 0.7, combination: 0.3}
+      time_limit_hours: 2
+      target_metrics:
+        classification_accuracy: 0.40      # 50클래스 기준
+        detection_map_0_5: 0.30           # 기본 검출 가능성
+        inference_time_ms: 50             # RTX 5080 실시간 처리
+        memory_usage_gb: 14               # VRAM 안정성
+        data_loading_s_per_batch: 2       # 128GB RAM 활용도
+        
+    stage_2:
+      purpose: "performance_baseline"       # 성능 기준선 확립
+      max_samples: 25000
+      max_classes: 250
+      target_ratio: {single: 0.7, combination: 0.3}
+      time_limit_hours: 8
+      target_metrics:
+        classification_accuracy: 0.60      # 250클래스 대상
+        detection_map_0_5: 0.50           # 기본 검출 성능
+        detection_map_0_5_0_95: 0.35      # COCO 표준 지표
+        macro_f1: 0.55                    # 클래스 불균형 환경
+        throughput_img_per_s: 100         # API 서빙 처리량
+        
+    stage_3:
+      purpose: "two_stage_pipeline_validation"  # Two-Stage Pipeline 기능 검증
+      max_samples: 100000
+      max_classes: 1000
+      target_ratio: {single: 0.95, combination: 0.05}  # Single 중심이지만 Combination으로 Detection 검증
+      time_limit_hours: 16                  # Detection 추가로 시간 유지
+      # ⭐ IMPORTANT: Stage 3는 반드시 manifest 기반으로 진행
+      data_method: "manifest_based"         # 물리적 복사 없이 원본 직접 로딩
+      manifest_path: "artifacts/stage3/manifest_train.csv"
+      storage_savings_gb: 14.6              # 용량 절약 (복사 시 대비)
+      focus: "two_stage_pipeline"           # Detection + Classification 통합
+      skip_detection: false                 # Detection 학습 활성화 (Stage 4 준비)
+      target_metrics:
+        classification_accuracy: 0.85      # 높은 Classification 목표 (유지)
+        detection_map_0_5: 0.30           # Detection 기능 검증 목표 (5% 데이터)
+        macro_f1: 0.80                    # 불균형 환경 높은 성능
+        top5_accuracy: 0.95               # Top-5 정확도
+        memory_stable_hours: 12           # 장시간 안정성
+        pipeline_inference_ms: 80         # Two-Stage 파이프라인 추론 시간
+        
+    stage_4:
+      purpose: "production_deployment"      # 최종 프로덕션 학습
+      max_samples: 500000
+      max_classes: 5000
+      target_ratio: {single: 0.7, combination: 0.3}
+      time_limit_hours: 120
+      # ⭐ IMPORTANT: Stage 4도 반드시 manifest 기반으로 진행
+      data_method: "manifest_based"         # 물리적 복사 없이 원본 직접 로딩
+      manifest_path: "artifacts/stage4/manifest_train.csv"
+      storage_savings_gb: 73.0              # 용량 절약 (복사 시 대비)
+      target_metrics:
+        classification_accuracy: 0.92      # 최종 목표
+        detection_map_0_5: 0.85           # 조합약품 최종 목표
+        detection_map_0_5_0_95: 0.65      # 최고 수준
+        macro_f1: 0.88                    # 최고 수준 F1
+        inference_latency_ms: 30          # 전체 파이프라인
+
+# 조건부 Two-Stage Pipeline (PART_A 핵심 설계)
+pipeline:
+  # 사용자 제어 기반 설계 (자동 판단 완전 제거)
+  mode: "single"  # "single" (기본, 90% 케이스) | "combo" (명시적 선택)
+  strategy: "user_controlled"  # 복잡한 자동 판단 대신 사용자 직접 선택
+  auto_fallback: false         # 자동화 완전 제거
+  
+  # 단일 약품: 직접 분류 경로 (기본 권장)
+  single_mode:
+    model: "efficientnetv2_l"   # 384px 입력, Stage 3+ Large 모델
+    accuracy_target: 0.92
+    
+  # 조합 약품: 검출 → 개별 분류 (명시적 선택시)
+  combo_mode:
+    detector: "yolov11x"        # 640px 입력, Stage 3+ Extra Large 모델
+    classifier: "efficientnetv2_l"  # 384px 입력, Stage 3+ Large 모델
+    map_target: 0.85
+
+# 데이터셋 구성 (PART_B ZIP 기반 구조)
+data:
+  root: "/home/max16/pillsnap_data"
+  
+  # ZIP 추출 구조 기반 (PART_0 설계)
+  train:
+    single_images: "data/train/images/single"        # TS_1_single~TS_81_single
+    combination_images: "data/train/images/combination"  # TS_1_combo~TS_8_combo
+    single_labels: "data/train/labels/single"        # TL_1_single~TL_81_single  
+    combination_labels: "data/train/labels/combination"  # TL_1_combo~TL_8_combo
+  val:
+    single_images: "data/val/images/single"          # VS_1_single~VS_10_single
+    combination_images: "data/val/images/combination"    # VS_1_combo
+    single_labels: "data/val/labels/single"          # VL_1_single~VL_10_single
+    combination_labels: "data/val/labels/combination"    # VL_1_combo
+  test:
+    single_images: "data/test/images/single"         # Stage 4 완료 후만
+    combination_images: "data/test/images/combination"
+    single_labels: "data/test/labels/single" 
+    combination_labels: "data/test/labels/combination"
+  
+  # 이미지 크기 (PART_A 설계)
+  img_size:
+    detection: 640      # YOLOv11m 입력
+    classification: 384 # EfficientNetV2-S 입력
+  
+  # 클래스 정보 (5000 클래스 복원)
+  num_classes: 5000
+  class_names_path: "processed/class_names.json"
+  edi_mapping_path: "processed/edi_mapping.json"
+
+# 검출 모델 (Stage 3+ YOLOv11x)
+detection:
+  model: "yolov11x"     # Stage 3+ 최고 성능 모델
+  pretrained: true
+  num_classes: 1        # "pill" 위치 검출용
+  class_names: ["pill"]
+  conf_threshold: 0.3
+  iou_threshold: 0.5
+  max_detections: 100
+  amp: true
+
+# 분류 모델 (Stage 3+ EfficientNetV2-L)
+classification:
+  backbone: "efficientnetv2_l.in21k_ft_in1k"  # Stage 3+ Large 모델
+  pretrained: true
+  drop_rate: 0.3
+  drop_path_rate: 0.2
+  num_classes: 5000     # 원래 5000 클래스로 복원
+  amp: true
+
+# Interleaved Two-Stage 학습 (PART_A Annex)
+train:
+  strategy: "interleaved"  # 미니배치 단위 교차 학습
+  interleave_ratio: [1, 1]  # det:cls = 1:1 균형
+  
+  # 검출 모델 학습
+  detection:
+    epochs: 50
+    batch_size: null      # Auto Batch Tuner
+    auto_batch_tune: true
+    auto_batch_max: 16    # RTX 5080 16GB 현실적 상한
+    grad_accum_steps: [1, 2, 4]
+    grad_clip: 10.0
+    optimizer: "adamw"
+    lr: 2e-4
+    weight_decay: 1e-4
+    scheduler: "cosine"
+    warmup_epochs: 3
+    early_stopping:
+      enabled: true
+      monitor: "mAP@0.5"
+      mode: "max"
+      patience: 10
+  
+  # 분류 모델 학습  
+  classification:
+    epochs: 30
+    batch_size: null      # Auto Batch Tuner
+    auto_batch_tune: true
+    auto_batch_max: 64    # EfficientNetV2-S 상한
+    grad_accum_steps: [1, 2, 4]
+    grad_clip: 1.0
+    optimizer: "adamw"
+    lr: 2e-4
+    weight_decay: 1e-4
+    scheduler: "cosine"
+    warmup_epochs: 2
+    early_stopping:
+      enabled: true
+      monitor: "macro_f1"
+      mode: "max"
+      patience: 10
+  
+  seed: 42
+  deterministic: false
+  resume: null
+
+# GPU/메모리 최적화 (PART_A 설계)
+optimization:
+  # Mixed Precision (PART_A 설계)
+  amp: true
+  amp_dtype: "auto"      # bfloat16 > fp16 자동 선택
+  
+  # CUDA 최적화 (PART_A 설계)
+  tf32: true
+  channels_last: true
+  torch_compile: "max-autotune"     # PART_A 설계
+  compile_fallback: "reduce-overhead"
+  compile_warmup_steps: 100
+  
+  # CUDA Graphs (실험적)
+  use_cuda_graphs: false
+  
+  # 메모리 관리
+  empty_cache_steps: 100
+  
+  # 프로파일링
+  warmup_steps: 100
+  profile_interval: 500
+
+# 128GB RAM 최적화 (PART_A 설계)
+dataloader:
+  num_workers: 8
+  autotune_workers: true    # Native Linux 최적화 (안정적인 시작점)
+  pin_memory: true
+  pin_memory_device: "cuda"
+  prefetch_factor: 6
+  persistent_workers: true
+  drop_last: true
+  
+  # 128GB RAM 활용 (PART_A 설계)
+  ram_optimization:
+    cache_policy: "hotset"
+    hotset_size_images: 60000   # 6만장 캐시 (≈24.7 GiB)
+    cache_labels: true
+    use_lmdb: false
+    decode_dtype: uint8
+    to_tensor_dtype: float16
+    preload_samples: 0
+
+# Stage별 하드웨어 최적화 (현재 테스트 방법론 통합)
+stage_overrides:
+  1:    # Stage 1: 파이프라인 검증 (SSD 최적화)
+    purpose: pipeline_validation
+    test_mode: true           # 현재 스모크 테스트 방법론 통합
+    dataloader:
+      num_workers: 16         # SSD I/O 최적화: 2→16 복원
+      prefetch_factor: 6      # SSD 성능 활용: 2→6 복원
+    train:
+      detection: 
+        auto_batch_max: 200
+        epochs: 1             # 스모크 테스트 수준
+      classification:
+        auto_batch_max: 320   # 디스크 병목 대응: 280→320
+        epochs: 1             # 스모크 테스트 수준
+    ram_optimization:
+      hotset_size_images: 30000
+  
+  2:    # Stage 2: 성능 기준선
+    test_mode: false          # 실제 학습 모드
+    dataloader:
+      num_workers: 12
+      prefetch_factor: 6
+    train:
+      detection: {auto_batch_max: 120}
+      classification: {auto_batch_max: 160}
+    ram_optimization:
+      hotset_size_images: 50000
+  
+  3:    # Stage 3: 확장성 테스트 (Two-Stage: YOLOv11x + EfficientNetV2-L)
+    dataloader:
+      num_workers: 12  # Large 모델용 조정
+      prefetch_factor: 6
+    train:
+      detection: 
+        auto_batch_max: 4   # YOLOv11x 대형 모델용
+        epochs: 50
+      classification:
+        auto_batch_max: 8   # EfficientNetV2-L 대형 모델용  
+        epochs: 50
+    ram_optimization:
+      hotset_size_images: 70000
+      
+  4:    # Stage 4: 최종 프로덕션
+    dataloader:
+      num_workers: 16
+      prefetch_factor: 8
+    ram_optimization:
+      hotset_size_images: 80000
+
+# OptimizationAdvisor (PART_0 반자동화 평가 시스템)
+optimization_advisor:
+  enabled: true
+  run_after_training: true
+  generate_report: true
+  update_tensorboard: true
+  recommend_next_stage: true    # 사용자 선택권 제공
+  
+  # 사용자 선택지 제공 (PART_0 철학)
+  user_choice_options:
+    - "RECOMMEND_PROCEED: 권장사항 적용 후 다음 Stage"
+    - "SUGGEST_OPTIMIZE: 현재 성능으로 다음 Stage 진행" 
+    - "WARN_STOP: 수동 디버깅 모드"
+
+# 로깅 및 모니터링 (현재 구현과 통합)
+logging:
+  tensorboard: true
+  wandb: false
+  step_log_interval: 50
+  epoch_log_interval: 1
+  save_metrics_json: true
+  save_confusion_matrix: true
+  save_roc_curves: true
+  
+  # 체크포인트
+  save_best: true
+  save_last: true
+  save_top_k: 3
+
+# 추론/서빙 설정 (PART_A 설계)
+inference:
+  single_confidence_threshold: 0.3
+  lazy_load_detector: true
+  batch_size: 1
+  target_latency_ms: 100
+
+# ONNX 내보내기 (PART_A 설계)
+export:
+  opset: 17
+  dynamic_axes:
+    detection: {"images": {0: "batch"}}
+    classification: {"input": {0: "batch"}}
+  compare:
+    enabled: true
+    tolerance:
+      detection_map: 0.01
+      classification_acc: 0.005
+
+# API 서빙 (PART_A 설계)
+api:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 1
+  timeout: 60
+  cors_allow_origins: 
+    - "http://localhost:3000"
+    - "https://pillsnap.co.kr"
+    - "https://api.pillsnap.co.kr"
+  require_api_key: true
+  max_request_size: 20971520
+
+# 현재 테스트 방법론 통합
+testing:
+  # 현재 GPU 스모크 테스트 패턴 적용
+  smoke_tests:
+    enabled: true
+    gpu_synthetic: "tests/gpu_smoke/gpu_smoke_A.py"
+    gpu_real_data: "tests/gpu_smoke/gpu_smoke_B.py"  
+    gpu_stage2_integration: "tests/gpu_smoke/gpu_smoke_stage2.py"
+    
+  # Progressive Validation과 연동
+  stage_integration:
+    stage_1: 
+      smoke_test_mode: true     # 현재 방식 적용
+      max_epochs: 1
+      validation_only: true
+    stage_2:
+      smoke_test_mode: false    # 실제 학습 모드
+      max_epochs: 30
+    stage_3:
+      smoke_test_mode: false
+    stage_4:
+      smoke_test_mode: false

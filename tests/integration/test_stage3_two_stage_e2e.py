@@ -141,7 +141,7 @@ class TestStage3TwoStageE2E:
                 'image_path': str(img_path),
                 'edi_code': f'K-{img_id:06d}',
                 'mapping_code': f'K-{img_id:06d}',
-                'pill_type': 'combination',
+                'image_type': 'combination',
                 'num_pills': num_pills
             })
         

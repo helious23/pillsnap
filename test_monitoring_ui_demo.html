@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>🚀 동적 진행률 테스트 데모</title>
+    <meta charset="utf-8">
+    <style>
+        body { font-family: Arial, sans-serif; background: #1a1a1a; color: #fff; padding: 20px; }
+        .demo-panel { background: #333; border-radius: 8px; padding: 20px; margin: 10px 0; }
+        .metric { display: inline-block; margin: 10px; padding: 10px; background: #444; border-radius: 5px; }
+        .metric-value { font-size: 24px; font-weight: bold; color: #00ff00; }
+        .metric-label { font-size: 12px; color: #aaa; margin-top: 5px; }
+        .log-area { background: #0a0a0a; border: 1px solid #333; border-radius: 5px; padding: 10px; height: 200px; overflow-y: auto; font-family: monospace; font-size: 13px; }
+        .log-entry { margin: 2px 0; padding: 2px; }
+        .log-config { color: #0099ff; background: #001122; border-left: 3px solid #0099ff; }
+        .log-realtime { color: #00ff00; background: #003300; }
+        button { background: #007700; color: white; border: none; padding: 8px 12px; border-radius: 4px; margin: 5px; cursor: pointer; }
+        button:hover { background: #009900; }
+    </style>
+</head>
+<body>
+    <h1>🚀 동적 진행률 계산 테스트 데모</h1>
+    
+    <div class="demo-panel">
+        <h3>📊 현재 학습 상태</h3>
+        <div class="metric">
+            <div class="metric-value" id="currentEpoch">-</div>
+            <div class="metric-label">현재 Epoch</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value" id="currentBatch">-</div>
+            <div class="metric-label">현재 Batch</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value" id="totalProgress">-</div>
+            <div class="metric-label">전체 진행률</div>
+        </div>
+        <div class="metric">
+            <div class="metric-value" id="dynamicTotal">-</div>
+            <div class="metric-label">총 Epoch/Batch</div>
+        </div>
+    </div>
+    
+    <div class="demo-panel">
+        <h3>🎮 시뮬레이션 컨트롤</h3>
+        <button onclick="simulateStage3()">Stage 3 시뮬레이션</button>
+        <button onclick="simulateStage4()">Stage 4 시뮬레이션</button>
+        <button onclick="simulateProgress()">진행률 시뮬레이션</button>
+        <button onclick="clearLogs()">로그 초기화</button>
+    </div>
+    
+    <div class="demo-panel">
+        <h3>📋 실시간 로그</h3>
+        <div class="log-area" id="logArea"></div>
+    </div>
+
+    <script>
+        // 글로벌 상태 (모니터링 시스템과 동일)
+        let totalEpochs = 50;
+        let maxBatches = 5093;
+        let latestEpoch = 0;
+        
+        function addLog(message, type = 'realtime') {
+            const logArea = document.getElementById('logArea');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logArea.appendChild(logEntry);
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+        
+        function updateMetrics() {
+            document.getElementById('currentEpoch').textContent = `${latestEpoch}/${totalEpochs}`;
+            document.getElementById('dynamicTotal').textContent = `${totalEpochs}E/${maxBatches}B`;
+        }
+        
+        function processLogMessage(message) {
+            // 에포크 설정 감지 (모니터링 시스템과 동일한 패턴들)
+            const epochPatterns = [
+                /(?:Starting training for|will run for)\s+(\d+)\s+epochs?/i,
+                /Total epochs?[:\s]+(\d+)/i,
+                /Training for\s+(\d+)\s+epochs?/i,
+                /epochs?[=:\s]+(\d+)/i,
+                /(?:--epochs?|epochs)\s+(\d+)/i
+            ];
+            
+            for (let pattern of epochPatterns) {
+                const match = message.match(pattern);
+                if (match) {
+                    const newTotalEpochs = parseInt(match[1]);
+                    if (newTotalEpochs > totalEpochs) {
+                        totalEpochs = newTotalEpochs;
+                        addLog(`📊 총 에포크 업데이트: ${totalEpochs}`, 'config');
+                        updateMetrics();
+                    }
+                    break;
+                }
+            }
+            
+            // 배치 총개수 감지
+            const batchMatch = message.match(/Batch\s+\d+\/(\d+)/);
+            if (batchMatch) {
+                const totalBatches = parseInt(batchMatch[1]);
+                if (totalBatches > maxBatches) {
+                    maxBatches = totalBatches;
+                    addLog(`📊 총 배치 업데이트: ${maxBatches}`, 'config');
+                    updateMetrics();
+                }
+            }
+            
+            // 현재 에포크/배치 진행률 계산 (모니터링 시스템과 동일)
+            const epochMatch = message.match(/Epoch\s+(\d+)/);
+            if (epochMatch) {
+                latestEpoch = parseInt(epochMatch[1]);
+            }
+            
+            const currentBatchMatch = message.match(/Batch\s+(\d+)(?:\/\d+)?/);
+            if (currentBatchMatch && epochMatch) {
+                const currentBatch = parseInt(currentBatchMatch[1]);
+                
+                // 전체 진행률 계산 (JavaScript 모니터링 시스템과 동일한 로직)
+                const epochProgress = ((latestEpoch - 1) / totalEpochs) * 100;
+                const batchProgress = (currentBatch / maxBatches) * 100;
+                const currentEpochProgress = batchProgress / totalEpochs;
+                const overallProgress = Math.round(epochProgress + currentEpochProgress);
+                
+                // UI 업데이트
+                document.getElementById('currentBatch').textContent = `${currentBatch}/${maxBatches}`;
+                document.getElementById('totalProgress').textContent = `${overallProgress}%`;
+                updateMetrics();
+            }
+        }
+        
+        function simulateStage3() {
+            addLog("=== Stage 3 Two-Stage 학습 시작 ===", 'config');
+            addLog("Starting training for 50 epochs with Stage 3 configuration", 'config');
+            
+            setTimeout(() => {
+                addLog("Epoch 1 | Batch 100/5093 | Loss: 4.2500", 'realtime');
+                processLogMessage("Starting training for 50 epochs with Stage 3 configuration");
+                processLogMessage("Epoch 1 | Batch 100/5093 | Loss: 4.2500");
+            }, 500);
+            
+            setTimeout(() => {
+                addLog("Epoch 5 | Batch 2500/5093 | Loss: 3.8000", 'realtime');
+                processLogMessage("Epoch 5 | Batch 2500/5093 | Loss: 3.8000");
+            }, 1500);
+            
+            setTimeout(() => {
+                addLog("Epoch 25 | Batch 5093/5093 | Cls Acc: 0.441 | Det mAP: 0.250", 'realtime');
+                processLogMessage("Epoch 25 | Batch 5093/5093 | Cls Acc: 0.441 | Det mAP: 0.250");
+            }, 3000);
+        }
+        
+        function simulateStage4() {
+            addLog("=== Stage 4 Production 학습 시작 ===", 'config');
+            addLog("Starting training for 100 epochs with Stage 4 configuration", 'config');
+            
+            setTimeout(() => {
+                addLog("Epoch 1 | Batch 1000/25000 | Loss: 3.5000", 'realtime');
+                processLogMessage("Starting training for 100 epochs with Stage 4 configuration");
+                processLogMessage("Epoch 1 | Batch 1000/25000 | Loss: 3.5000");
+            }, 500);
+            
+            setTimeout(() => {
+                addLog("Epoch 10 | Batch 12500/25000 | Loss: 2.8000", 'realtime');
+                processLogMessage("Epoch 10 | Batch 12500/25000 | Loss: 2.8000");
+            }, 1500);
+            
+            setTimeout(() => {
+                addLog("Epoch 50 | Batch 25000/25000 | Cls Acc: 0.920 | Det mAP: 0.850", 'realtime');
+                processLogMessage("Epoch 50 | Batch 25000/25000 | Cls Acc: 0.920 | Det mAP: 0.850");
+            }, 3000);
+        }
+        
+        function simulateProgress() {
+            const scenarios = [
+                { epoch: 1, batch: 1000, loss: "4.2500" },
+                { epoch: 5, batch: 2500, loss: "3.8000" },
+                { epoch: 10, batch: 4000, loss: "3.2000" },
+                { epoch: 15, batch: 5093, loss: "2.8000" }
+            ];
+            
+            scenarios.forEach((scenario, index) => {
+                setTimeout(() => {
+                    const message = `Epoch ${scenario.epoch} | Batch ${scenario.batch}/${maxBatches} | Loss: ${scenario.loss}`;
+                    addLog(message, 'realtime');
+                    processLogMessage(message);
+                }, index * 1000);
+            });
+        }
+        
+        function clearLogs() {
+            document.getElementById('logArea').innerHTML = '';
+            // 상태 초기화
+            totalEpochs = 50;
+            maxBatches = 5093;
+            latestEpoch = 0;
+            
+            document.getElementById('currentEpoch').textContent = '-';
+            document.getElementById('currentBatch').textContent = '-';
+            document.getElementById('totalProgress').textContent = '-';
+            document.getElementById('dynamicTotal').textContent = '-';
+            
+            addLog("🔄 시스템 초기화 완료", 'config');
+        }
+        
+        // 초기화
+        updateMetrics();
+        addLog("🚀 동적 진행률 계산 데모 준비 완료", 'config');
+    </script>
+</body>
+</html>

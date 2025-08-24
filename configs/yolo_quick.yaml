@@ -1,0 +1,6 @@
+names:
+  0: pill
+nc: 1
+path: /home/max16/pillsnap_data
+train: train/images/combination
+val: train/images/combination

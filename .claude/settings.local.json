@@ -56,12 +56,22 @@
       "Bash(do echo \"=== $script ===\")",
       "Bash(./scripts/monitoring/universal_training_monitor.sh:*)",
       "Bash(nvidia-smi:*)",
-      "Bash(./scripts/monitoring/quick_status.sh:*)"
+      "Bash(./scripts/monitoring/quick_status.sh:*)",
+      "Read(//home/max16/pillsnap_data/**)",
+      "Bash(strace:*)",
+      "Bash(ss:*)",
+      "Bash(curl:*)",
+      "Bash(export PILLSNAP_DATA_ROOT=\"/home/max16/pillsnap_data\")",
+      "Bash(/home/max16/pillsnap/.venv/bin/python scripts/test_detection_integration.py)",
+      "Bash(pkill:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": [],
     "additionalDirectories": [
-      "/mnt/data/pillsnap_dataset"
+      "/mnt/data/pillsnap_dataset",
+      "/home/max16/pillsnap_data/exp/exp01/logs",
+      "/tmp"
     ]
   }
 }

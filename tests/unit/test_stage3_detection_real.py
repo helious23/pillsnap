@@ -80,7 +80,7 @@ class TestStage3DetectionReal:
             'image_path': sample_images,
             'edi_code': [f'K-{i:06d}' for i in range(len(sample_images))],
             'mapping_code': [f'K-{i:06d}' for i in range(len(sample_images))],
-            'pill_type': ['combination'] * len(sample_images)
+            'image_type': ['combination'] * len(sample_images)
         }
         
         manifest_path = temp_dir / "combo_manifest.csv"
@@ -714,7 +714,7 @@ class TestStage3DetectionIntegration:
                 'image_path': [f'/fake/path/img_{i}.jpg' for i in range(20)],
                 'edi_code': [f'K-{i//5:06d}' for i in range(20)],  # 4개 클래스
                 'mapping_code': [f'K-{i//5:06d}' for i in range(20)],
-                'pill_type': ['single'] * 15 + ['combination'] * 5  # 75:25 비율
+                'image_type': ['single'] * 15 + ['combination'] * 5  # 75:25 비율
             }
             
             manifest_path = temp_dir / "mixed_manifest.csv"

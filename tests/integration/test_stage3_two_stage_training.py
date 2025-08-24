@@ -45,7 +45,7 @@ class TestStage3TwoStageTrainingIntegration:
             'image_path': [f'/fake/path/img_{i}.jpg' for i in range(100)],
             'edi_code': [f'K-{i//10:06d}' for i in range(100)],  # 10개 클래스
             'mapping_code': [f'K-{i//10:06d}' for i in range(100)],
-            'pill_type': ['single'] * 95 + ['combination'] * 5  # 95:5 비율
+            'image_type': ['single'] * 95 + ['combination'] * 5  # 95:5 비율
         }
         train_manifest = temp_dir / "train.csv"
         pd.DataFrame(train_data).to_csv(train_manifest, index=False)
@@ -55,7 +55,7 @@ class TestStage3TwoStageTrainingIntegration:
             'image_path': [f'/fake/path/val_img_{i}.jpg' for i in range(20)],
             'edi_code': [f'K-{i//2:06d}' for i in range(20)],
             'mapping_code': [f'K-{i//2:06d}' for i in range(20)],
-            'pill_type': ['single'] * 19 + ['combination'] * 1
+            'image_type': ['single'] * 19 + ['combination'] * 1
         }
         val_manifest = temp_dir / "val.csv"
         pd.DataFrame(val_data).to_csv(val_manifest, index=False)

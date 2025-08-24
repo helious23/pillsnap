@@ -200,6 +200,8 @@ get_recent_logs() {
     
     # 다양한 로그 경로 시도
     local log_paths=(
+        "/home/max16/pillsnap_data/exp/exp01/logs/src.training.train_stage3_two_stage_*.log"
+        "/home/max16/pillsnap_data/exp/exp01/logs/__main___*.log"
         "/tmp/pillsnap_training_stage*/training.log"
         "/tmp/pillsnap_training/training.log"
         "/tmp/training*.log"

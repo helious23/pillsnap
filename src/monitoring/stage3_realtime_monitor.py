@@ -171,6 +171,8 @@ class LogStreamer:
     def _stream_training_logs(self):
         """훈련 로그 모니터링 (기본)"""
         log_patterns = [
+            "/home/max16/pillsnap_data/exp/exp01/logs/src.training.train_stage3_two_stage_*.log",
+            "/home/max16/pillsnap_data/exp/exp01/logs/__main___*.log",
             "/home/max16/pillsnap/logs/training.log",
             "/home/max16/pillsnap/exp/*/logs/train.log",
             "/tmp/pillsnap_training.log"
@@ -180,21 +182,22 @@ class LogStreamer:
         latest_log = None
         latest_time = 0
         
+        from glob import glob
+        
         for pattern in log_patterns:
             if '*' in pattern:
                 # glob 패턴 처리
-                from glob import glob
                 files = glob(pattern)
                 for file in files:
                     file_path = Path(file)
-                    if file_path.exists():
+                    if file_path.exists() and file_path.is_file():
                         mtime = file_path.stat().st_mtime
                         if mtime > latest_time:
                             latest_time = mtime
                             latest_log = file_path
             else:
                 file_path = Path(pattern)
-                if file_path.exists():
+                if file_path.exists() and file_path.is_file():
                     mtime = file_path.stat().st_mtime
                     if mtime > latest_time:
                         latest_time = mtime

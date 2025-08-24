@@ -1,0 +1,66 @@
+{
+  "timestamp": "2025-08-22T23:34:13.999679",
+  "environment": {
+    "cuda_available": true,
+    "project_root": "/home/max16/pillsnap"
+  },
+  "test_results": {
+    "unit_tests": [
+      {
+        "name": "Stage 3 Manifest Creator 단위 테스트",
+        "success": false,
+        "duration": 0.10993456840515137,
+        "returncode": 4,
+        "stdout": "",
+        "stderr": "ERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]\n__main__.py: error: unrecognized arguments: --timeout=600\n  inifile: /home/max16/pillsnap/pytest.ini\n  rootdir: /home/max16/pillsnap\n\n"
+      }
+    ],
+    "integration_tests": [
+      {
+        "name": "Classification Trainer 통합 테스트",
+        "success": false,
+        "duration": 0.10503864288330078,
+        "returncode": 4,
+        "stdout": "",
+        "stderr": "ERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]\n__main__.py: error: unrecognized arguments: --timeout=1200\n  inifile: /home/max16/pillsnap/pytest.ini\n  rootdir: /home/max16/pillsnap\n\n"
+      },
+      {
+        "name": "Training Script 통합 테스트",
+        "success": false,
+        "duration": 0.10398268699645996,
+        "returncode": 4,
+        "stdout": "",
+        "stderr": "ERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]\n__main__.py: error: unrecognized arguments: --timeout=900\n  inifile: /home/max16/pillsnap/pytest.ini\n  rootdir: /home/max16/pillsnap\n\n"
+      }
+    ],
+    "performance_tests": [
+      {
+        "name": "프로덕션 환경 시뮬레이션",
+        "success": false,
+        "duration": 0.1036233901977539,
+        "returncode": 4,
+        "stdout": "",
+        "stderr": "ERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]\n__main__.py: error: unrecognized arguments: --timeout=1800\n  inifile: /home/max16/pillsnap/pytest.ini\n  rootdir: /home/max16/pillsnap\n\n"
+      }
+    ],
+    "gpu_tests": [
+      {
+        "name": "GPU 메모리 안정성 테스트",
+        "success": false,
+        "duration": 0.10332894325256348,
+        "returncode": 4,
+        "stdout": "",
+        "stderr": "ERROR: usage: __main__.py [options] [file_or_dir] [file_or_dir] [...]\n__main__.py: error: unrecognized arguments: --timeout=2400\n  inifile: /home/max16/pillsnap/pytest.ini\n  rootdir: /home/max16/pillsnap\n\n"
+      }
+    ],
+    "long_stability_tests": []
+  },
+  "summary": {
+    "total_tests": 5,
+    "total_success": 0,
+    "success_rate": 0.0,
+    "total_duration": 0.5259082317352295,
+    "production_score": 0.0,
+    "production_ready": false
+  }
+}

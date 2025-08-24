@@ -1,0 +1,42 @@
+# PillSnap Detection Dataset Configuration for YOLO Training
+# Stage 3 Two-Stage Pipeline - Multi-Object Combination Pill Detection (4 pills per image)
+
+# Dataset paths
+path: /home/max16/pillsnap_data  # dataset root dir
+train: train/images/combination  # train images (relative to 'path')
+val: train/images/combination    # validation uses train data split (val/ folder is reserved for final testing)
+
+# Multi-object YOLO labels (4 objects per combination image)
+labels: train/labels/combination_yolo_multi  # YOLO format labels with 4 objects per image
+
+# Classes (1 class for pill detection)
+names:
+  0: pill
+
+# Number of classes
+nc: 1
+
+# Additional training parameters
+imgsz: 640  # image size
+batch_size: 16
+epochs: 30
+lr0: 0.01
+momentum: 0.937
+weight_decay: 0.0005
+warmup_epochs: 3.0
+patience: 50
+
+# Data augmentation
+hsv_h: 0.015
+hsv_s: 0.7  
+hsv_v: 0.4
+degrees: 0.0
+translate: 0.1
+scale: 0.5
+shear: 0.0
+perspective: 0.0
+flipud: 0.0
+fliplr: 0.5
+mosaic: 1.0
+mixup: 0.0
+copy_paste: 0.0
