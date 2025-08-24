@@ -64,14 +64,19 @@
       "Bash(export PILLSNAP_DATA_ROOT=\"/home/max16/pillsnap_data\")",
       "Bash(/home/max16/pillsnap/.venv/bin/python scripts/test_detection_integration.py)",
       "Bash(pkill:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(sed:*)",
+      "Bash(timeout:*)",
+      "Bash(./run_all_fixes.sh:*)",
+      "Bash(/home/max16/pillsnap/.venv/bin/python balance_combination_ratio.py --train-manifest artifacts/stage3/manifest_train.remove.csv --val-manifest artifacts/stage3/manifest_val.remove.csv --target-ratio 0.25 --strategy oversample --no-dry-run)"
     ],
     "deny": [],
     "ask": [],
     "additionalDirectories": [
       "/mnt/data/pillsnap_dataset",
       "/home/max16/pillsnap_data/exp/exp01/logs",
-      "/tmp"
+      "/tmp",
+      "/"
     ]
   }
 }

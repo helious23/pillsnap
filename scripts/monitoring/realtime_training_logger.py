@@ -250,13 +250,13 @@ class RealtimeTrainingLogger:
             import subprocess
             import re
             
-            # bash_23에서 확인된 현재 상태로 초기화
-            self.current_epoch = 4
-            self.current_batch = "2000/5093"
-            self.current_loss = "3.5000"
-            self.classification_acc = "0.086"
-            self.detection_map = "0.250"
-            self.epoch_time = "635.0s"
+            # 학습 시작 전 초기값
+            self.current_epoch = 1
+            self.current_batch = "0/0"
+            self.current_loss = "N/A"
+            self.classification_acc = "N/A"
+            self.detection_map = "N/A"
+            self.epoch_time = "N/A"
             
             while True:
                 try:

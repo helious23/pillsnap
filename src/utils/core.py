@@ -519,12 +519,40 @@ class PillSnapLogger:
         file_handler.setFormatter(detailed_formatter)
         logger.addHandler(file_handler)
         
+        # 2-1) /tmp/stage3_training_output.log 파일 핸들러 추가 (모니터링용)
+        if self.name in ["pillsnap", "__main__", "src.training.train_stage3_two_stage"]:
+            monitor_log_file = Path("/tmp/stage3_training_output.log")
+            monitor_handler = logging.FileHandler(monitor_log_file, encoding='utf-8', mode='a')
+            monitor_handler.setLevel(logging.INFO)
+            monitor_handler.setFormatter(simple_formatter)
+            logger.addHandler(monitor_handler)
+        
         # 3) 에러 전용 파일 핸들러
         error_file = self.log_dir / f"{self.name}_errors_{datetime.now(tz=KST).strftime('%Y%m%d')}.log"
         error_handler = logging.FileHandler(error_file, encoding='utf-8')
         error_handler.setLevel(logging.ERROR)
         error_handler.setFormatter(detailed_formatter)
         logger.addHandler(error_handler)
+        
+        # 4) Ultralytics YOLO 로거도 같은 핸들러로 리다이렉트
+        if self.name in ["pillsnap", "__main__", "src.training.train_stage3_two_stage"]:
+            # YOLO 로거 설정
+            yolo_logger = logging.getLogger('ultralytics')
+            yolo_logger.setLevel(logging.INFO)
+            yolo_logger.handlers.clear()  # 기존 핸들러 제거
+            
+            # 모니터링 로그 파일로 리다이렉트
+            monitor_log_file = Path("/tmp/stage3_training_output.log")
+            yolo_monitor_handler = logging.FileHandler(monitor_log_file, encoding='utf-8', mode='a')
+            yolo_monitor_handler.setLevel(logging.INFO)
+            yolo_monitor_handler.setFormatter(simple_formatter)
+            yolo_logger.addHandler(yolo_monitor_handler)
+            
+            # 콘솔 출력도 추가
+            yolo_console_handler = logging.StreamHandler(sys.stdout)
+            yolo_console_handler.setLevel(logging.INFO)
+            yolo_console_handler.setFormatter(simple_formatter)
+            yolo_logger.addHandler(yolo_console_handler)
         
         return logger
     

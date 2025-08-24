@@ -59,10 +59,12 @@ PillSnap ML 프로젝트의 Claude Code 종합 가이드입니다. 프로젝트 
    # ⭐ IMPORTANT: Stage 3-4는 반드시 manifest 기반으로만 진행
    # 물리적 데이터 복사 없이 원본에서 직접 로딩 (용량 절약)
    
-   # Stage 3 완료됨 (44.1% Classification + 25.0% Detection) - Resume 기능으로 개선 가능
+   # Stage 3 Resume 학습 중 (현재 진행: Epoch 1/36, 2025-08-24 16:31~)
    python -m src.training.train_stage3_two_stage \
+     --manifest-train artifacts/stage3/manifest_train.csv \
+     --manifest-val artifacts/stage3/manifest_val.csv \
      --resume /home/max16/pillsnap_data/exp/exp01/checkpoints/stage3_classification_best.pt \
-     --epochs 50 --lr-classifier 1e-4 --lr-detector 5e-3 --batch-size 12
+     --epochs 36 --lr-classifier 2e-4 --lr-detector 1e-3 --batch-size 8
    
    # Stage 4 준비 중 (500K 샘플, 4523 클래스) 
    python -m src.training.train_classification_stage --manifest artifacts/stage4/manifest_train.csv --epochs 100 --batch-size 8
@@ -151,11 +153,14 @@ Input Image → Auto Mode Detection
 - **Current Performance:**  
   - Stage 1: ✅ 완료 (74.9% 정확도, 1분, Native Linux)
   - Stage 2: ✅ 완료 (83.1% 정확도, Native Linux)
-  - Stage 3: ✅ **학습 완료** (44.1% Classification + 25.0% Detection, 2025-08-23)
-    - **Two-Stage Pipeline**: EfficientNetV2-L + YOLOv11m 통합 학습 완료
+  - Stage 3: 🔄 **Resume 학습 진행 중** (2025-08-24 16:31~)
+    - **기존 결과**: 44.1% Classification + 25.0% Detection (11 epochs)
+    - **현재 학습**: Resume from best checkpoint → 36 epochs 목표
+    - **개선된 하이퍼파라미터**: lr-classifier=2e-4, lr-detector=1e-3, batch-size=8
+    - **Two-Stage Pipeline**: EfficientNetV2-L + YOLOv11m 통합 학습 시스템
     - **Progressive Resize**: 128px→384px 점진적 해상도 증가 시스템
     - **실시간 모니터링**: WebSocket 기반 대시보드 (http://localhost:8888)
-    - **OOM 방지**: 동적 배치 크기 조정 및 가비지 컬렉션
+    - **OOM 방지**: 동적 배치 크기 조정 및 가비지 컬렉션 + 손상파일 스킵
     - **Resume 기능**: 하이퍼파라미터 override + Top-5 accuracy 추적
     - **118개 테스트**: 모든 핵심 시스템 검증 완료
     - **Multi-object Detection**: JSON→YOLO 변환 99.644% 성공률
@@ -182,7 +187,7 @@ Input Image → Auto Mode Detection
 |-------|---------|---------|----------------------|----------|--------|---------|
 | 1     | 5,000   | 50      | Pipeline verification | 74.9%    | ✅ **완료** (Native) | Config 기반 |
 | 2     | 25,000  | 250     | Performance baseline  | 83.1%    | ✅ **완료** (Native) | Config 기반 |
-| 3     | 100,000 | 1,000   | Scalability test      | 44.1% + 25.0% mAP | ✅ **완료** | **Two-Stage Pipeline** |
+| 3     | 100,000 | 1,000   | Scalability test      | 🔄 **Resume 학습 중** (Epoch 1/36) | **Two-Stage Pipeline** |
 | 4     | 500,000 | 4,523   | Production deployment | 목표92%  | 🎯 **대기 중** | **Two-Stage Pipeline** |
 
 ### **⭐ Stage 3-4 핵심 변경사항:**
@@ -250,15 +255,22 @@ src/
 
 ---
 
-## 📝 **최근 업데이트 (2025-08-23)**
+## 📝 **최근 업데이트 (2025-08-24)**
 
-### ✅ **Stage 3 Two-Stage 학습 완료**
-- **Classification 정확도**: 44.1% (1,000개 클래스 기준)
-- **Detection mAP@0.5**: 25.0% (Multi-object detection)
+### 🔄 **Stage 3 학습 진행 현황** (2025-08-24 21:14 기준)
+- **현재 상태**: Epoch 15/36 완료 (41.7% 진행)
+- **Classification 성능**: 69.0% accuracy (꾸준히 상승: Epoch 11: 66.8% → Epoch 15: 69.0%)
+- **Detection 문제 발견 및 해결**:
+  - ⚠️ **문제**: 매 에포크마다 모델 리셋 (save=False, resume=False 설정)
+  - ✅ **해결**: 코드 수정 완료 (다음 학습부터 적용)
+- **체크포인트 문제 발견 및 해결**:
+  - ⚠️ **문제**: 9시간째 저장 안 됨 (이전 best 85.5% 기준이 너무 높음)
+  - ✅ **해결**: epsilon threshold + --reset-best 옵션 구현 완료
+- **개선된 설정**: lr-classifier=2e-4, lr-detector=1e-3, batch-size=8
+- **손상파일 처리**: K-001900-016551-018110-033009 자동 스킵 중
 - **Progressive Resize**: 128px→384px 점진적 해상도 증가
 - **실시간 모니터링**: WebSocket 기반 대시보드 (http://localhost:8888)
 - **OOM 방지**: 동적 배치 크기 조정 및 가비지 컬렉션
-- **Resume 기능**: 하이퍼파라미터 오버라이드 지원
 - **118개 테스트**: 모든 핵심 시스템 검증 완료
 
 ### ✅ **Multi-object Detection 완성**

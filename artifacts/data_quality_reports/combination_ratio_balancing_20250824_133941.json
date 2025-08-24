@@ -1,0 +1,81 @@
+{
+  "before": {
+    "train": {
+      "total_samples": "81474",
+      "single_count": "77451",
+      "combination_count": "4023",
+      "single_ratio": 0.9506222844097504,
+      "combination_ratio": 0.04937771559024965
+    },
+    "val": {
+      "total_samples": "18526",
+      "single_count": "17549",
+      "combination_count": "977",
+      "single_ratio": 0.9472633056245277,
+      "combination_ratio": 0.05273669437547231
+    }
+  },
+  "after": {
+    "train": {
+      "total_samples": "97819",
+      "single_count": "77451",
+      "combination_count": "20368",
+      "single_ratio": 0.7917786933008925,
+      "combination_ratio": 0.20822130669910754
+    },
+    "val": {
+      "total_samples": "22180",
+      "single_count": "17549",
+      "combination_count": "4631",
+      "single_ratio": 0.7912082957619477,
+      "combination_ratio": 0.2087917042380523
+    }
+  },
+  "params": {
+    "train": {
+      "current_ratio": 0.04937771559024965,
+      "target_ratio": 0.25,
+      "gap": 0.20062228440975036,
+      "method": "oversample_combination",
+      "additional_samples": "16345",
+      "oversample_factor": 5.062888391747452,
+      "final_total": "97819"
+    },
+    "val": {
+      "current_ratio": 0.05273669437547231,
+      "target_ratio": 0.25,
+      "gap": 0.1972633056245277,
+      "method": "oversample_combination",
+      "additional_samples": "3654",
+      "oversample_factor": 4.7400204708290685,
+      "final_total": "22180"
+    }
+  },
+  "sampler_config": {
+    "type": "WeightedRandomSampler",
+    "target_ratio": 0.25,
+    "strategy": "oversample",
+    "weights": {
+      "single": 1.0,
+      "combination": 5.062888391747452
+    }
+  },
+  "target_ratio": 0.25,
+  "strategy": "oversample",
+  "execution_info": {
+    "timestamp": "20250824_133941",
+    "command": "balance_combination_ratio.py --target-ratio 0.25 --strategy oversample",
+    "dry_run": true,
+    "parameters": {
+      "train_manifest": null,
+      "val_manifest": null,
+      "dry_run": true,
+      "backup": true,
+      "out_suffix": ".cleaned",
+      "report_path": null,
+      "verbose": false,
+      "target_ratio": 0.25,
+      "strategy": "oversample"
+    }
+  }
+}

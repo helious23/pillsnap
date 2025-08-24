@@ -46,11 +46,13 @@ progressive_validation:
       purpose: "two_stage_pipeline_validation"  # Two-Stage Pipeline 기능 검증
       max_samples: 100000
       max_classes: 1000
-      target_ratio: {single: 0.95, combination: 0.05}  # Single 중심이지만 Combination으로 Detection 검증
+      target_ratio: {single: 0.95, combination: 0.05}  # 설명용 목표치 (실제 배치 샘플링은 domain_mixing 3:1=25% combo)
+      # 실제 샘플링은 interleave_ratio와 domain_mixing으로 제어됨
       time_limit_hours: 16                  # Detection 추가로 시간 유지
-      # ⭐ IMPORTANT: Stage 3는 반드시 manifest 기반으로 진행
+      # ⭐ IMPORTANT: Stage 3는 반드시 manifest 기반으로 진행 (실행 인자 우선)
       data_method: "manifest_based"         # 물리적 복사 없이 원본 직접 로딩
-      manifest_path: "artifacts/stage3/manifest_train.csv"
+      manifest_path: "artifacts/stage3/manifest_train.csv"  # 기본값 (실행 시 --manifest-train 인자가 우선)
+      # MANIFEST | train=artifacts/stage3/manifest_train.remove.csv | val=artifacts/stage3/manifest_val.remove.csv
       storage_savings_gb: 14.6              # 용량 절약 (복사 시 대비)
       focus: "two_stage_pipeline"           # Detection + Classification 통합
       skip_detection: false                 # Detection 학습 활성화
@@ -123,8 +125,9 @@ data:
     detection: 640      # YOLOv11l 입력 (모델 크기 통일)
     classification: 384 # EfficientNetV2-L 입력 (크기 주석 통일)
   
-  # 클래스 정보 (5000 클래스 강제 설정)
-  num_classes: 5000     # 분류기와 일치 (강제 설정)
+  # 클래스 정보 (manifest 기반 실제 클래스 수)
+  num_classes: 4020     # manifest 기반 실제 클래스 수 (val-only 2개 제거 후)
+  # CLASS_SET | num_classes=4020 | source=manifest | head_reset=True
   class_names_path: "processed/class_names.json"
   edi_mapping_path: "processed/edi_mapping.json"
 
@@ -145,7 +148,8 @@ classification:
   pretrained: true
   drop_rate: 0.3
   drop_path_rate: 0.2
-  num_classes: 5000     # 5000 클래스 강제 설정 (체크포인트 로드시 헤드 리셋)
+  num_classes: 4020     # manifest 기반 실제 클래스 수 (체크포인트 로드시 헤드 리셋)
+  # CLASS_SET | num_classes=4020 | source=manifest_train.remove.csv
   amp: true
 
 # Interleaved Two-Stage 학습 (PART_A Annex)
@@ -198,7 +202,7 @@ train:
       hsv_v: 0.4
       fliplr: 0.5          # flip (≈0.5)
       # copy_paste: 0.2    # 고정값 비활성화 (램프 정책 우선)
-      mixup: 0.0           # YOLO에서는 보통 0
+      mixup: 0.0           # YOLO에서는 0 유지 (콤보 오검 방지, 합성 파이프가 대체)
       
     # 평가 임계: Recall 우선 세팅
     evaluation:
@@ -220,8 +224,8 @@ train:
     auto_batch_tune: true  
     auto_batch_max: 16     # 루트 설정 (stage override에서 재정의됨)
     
-    # Gradient Accumulation으로 효과 배치 64 달성
-    grad_accum_steps: 8    # 8×8=64 효과 배치 (4→8 증가)
+    # Gradient Accumulation으로 효과 배치 32 달성 (추가 제안)
+    grad_accum_steps: 4    # 8×4=32 효과 배치 (메모리 안정성)
     grad_clip: 1.0        # Gradient clipping
     
     # Optimizer: AdamW with production settings
@@ -230,13 +234,16 @@ train:
       betas: [0.9, 0.999]  # 제안된 betas
       weight_decay: 0.02   # 제안된 weight_decay
     
-    # LR Schedule: base 3e-4, warmup 2 epoch → cosine decay, min_lr 3e-6
-    # 효과 배치 64 기준 (8×8=64), OOM 시 자동 스케일링
-    lr: 3e-4              # 제안된 base LR (효과 배치 64 기준)
-    scheduler: "cosine"
-    warmup_epochs: 2      # 제안된 warmup - Stage 3 유지
-    min_lr: 3e-6          # 제안된 min_lr
-    effective_batch_base: 64  # LR 스케일링 기준 효과 배치
+    # LR Schedule: base 5e-5, warmup 500 steps → cosine decay, min_lr 1e-6
+    # 효과 배치 32 기준, 과적합 방지 우선
+    lr: 5e-5              # 과적합 방지를 위해 낮춤 (2e-4 → 5e-5)
+    scheduler: "cosine_with_restarts"  # Warm restarts 추가
+    warmup_steps: 500     # 추가 제안: 스텝 기반 warmup
+    warmup_epochs: null   # 스텝 기반이므로 비활성화
+    min_lr: 1e-6          # 최소 LR
+    T_0: 10               # Warm restart 주기
+    T_mult: 2             # 주기 증가 배율
+    effective_batch_base: 32  # LR 스케일링 기준 효과 배치
     
     # EMA 활성화 (decay≈0.9998)
     ema:
@@ -250,7 +257,8 @@ train:
       label_smoothing: 0.1      # 제안값
       mixup: 0.1               # 제안값
       cutmix: 0.2              # 제안값
-      random_erasing: 0.25     # 제안값
+      random_erasing: 0.20     # 초반 수렴 저하 시 0.15~0.20으로 자동 조정 가능
+      # REG_ADJ | random_erasing 0.25 -> 0.20 (slow start) 자동 조정 스위치
       
     # 불균형 보정: class-balanced reweighting (빈도^-0.5)
     class_balancing:
@@ -266,11 +274,8 @@ train:
       - "precision_macro"
       - "recall_macro"
     
-    early_stopping:
-      enabled: true
-      monitor: "macro_f1"
-      mode: "max"
-      patience: 15        # 더 긴 patience for production
+    # Early stopping은 통합 설정에서 제어 (중복 방지)
+    # EARLY_STOP | source=unified | monitor=val_top1 | patience=10
   
   # 데이터 커리큘럼 및 샘플링 전략
   curriculum:
@@ -737,21 +742,25 @@ validation_optimization:
     class_stratified: true              # 클래스별 균등 샘플링
     cache_embeddings: true              # 임베딩 캐싱으로 속도 향상
     
-  # 조기 종료 최적화
+  # 조기 종료 최적화 (통합 단일 설정 - 중복 방지)
   early_stopping:
     enabled: true
-    patience: 15                # 15 epoch 대기
+    patience: 10                # 10 epoch 대기 (과적합 방지)
     min_delta: 0.001           # 최소 성능 향상 (0.1%)
-    monitor_metric: "val_f1_macro"  # F1 macro 기준
+    monitor: "val_top1"        # 주 메트릭: Val Top-1 accuracy
+    secondary_monitor: "val_f1_macro"  # 보조 메트릭: F1 macro
     mode: "max"                # 최대값 추적
     restore_best_weights: true  # 최적 가중치 복원
+    # EARLY_STOP | source=unified | monitor=val_top1 | patience=10
     
   # 체크포인트 최적화
   checkpoint_optimization:
-    save_frequency: "adaptive"  # 적응적 저장
-    keep_top_k: 3              # 상위 3개 체크포인트만 유지
-    save_optimizer_state: false # 옵티마이저 상태 저장 안함 (용량 절약)
-    compress_checkpoints: true  # 체크포인트 압축
+    save_frequency: "every_epoch"  # 매 에포크마다 저장
+    keep_top_k: 3              # 상위 3개 체크포인트만 유지 (추가 제안)
+    save_optimizer_state_last: true  # last에는 optimizer state 저장 (재개 보장)
+    save_optimizer_state_best: false # best에는 저장 안함 (용량 절약)
+    compress_checkpoints: false  # 압축하지 않음 (빠른 로딩)
+    # CKPT_POLICY | last:save_optimizer_state=True | best:save_optimizer_state=False
     
   # 실시간 로깅 최적화
   realtime_logging:
@@ -771,3 +780,92 @@ validation_optimization:
     export_chrome_trace: false       # Chrome tracing 비활성화 (용량 문제)
     # 시간 추적만 정식 검증시 기록
     time_tracking_comprehensive_only: true
+
+# GPU 최적화 설정 (RTX 5080 16GB)
+gpu_optimization:
+  # Mixed Precision 설정
+  mixed_precision:
+    enabled: true
+    policy: "mixed_float16"     # TF32 + FP16 혼합
+    loss_scale: "dynamic"       # 동적 손실 스케일링
+    
+  # Memory 최적화
+  memory_optimization:
+    gradient_checkpointing: true  # 메모리 절약
+    channels_last: true          # NHWC 포맷 (성능 향상)
+    cuda_empty_cache_freq: 100  # 100 스텝마다 캐시 정리
+    
+  # Torch Compile 설정
+  torch_compile:
+    enabled: true
+    mode: "reduce-overhead"     # 컴파일 시간 단축 (max-autotune → reduce-overhead)
+    backend: "inductor"         # 기본 백엔드
+    # TORCH_COMPILE | mode=reduce-overhead
+    
+  # CUDNN 최적화
+  cudnn:
+    benchmark: true             # 최적 알고리즘 자동 선택
+    deterministic: false        # 성능 우선
+    
+  # TensorBoard 통합
+  tensorboard:
+    enabled: true
+    log_dir: "artifacts/tensorboard"  # 통합 로그 디렉토리
+    # TB_LOGDIR | artifacts/tensorboard
+
+# 통합 Early Stopping (최종 단일 정의)
+unified_early_stopping:
+  enabled: true
+  monitor: "val_top1"          # 주 모니터 메트릭
+  patience: 10                 # 인내심
+  min_delta: 0.001            # 최소 개선량
+  mode: "max"                 # 최대화
+  restore_best: true          # 최적 가중치 복원
+  # 이 설정이 모든 early stopping을 오버라이드함
+
+# 자가점검 시스템 설정
+self_check:
+  enabled: true
+  run_at_start: true          # 시작 시 자동 실행
+  
+  # 점검 항목
+  checks:
+    - name: "CLASS_SET"
+      check: "manifest_classes_match"  # manifest 클래스 수 일치 확인
+      expected: 4020
+      
+    - name: "MANIFEST"
+      check: "paths_exist"            # 경로 존재 확인
+      paths:
+        - "artifacts/stage3/manifest_train.remove.csv"
+        - "artifacts/stage3/manifest_val.remove.csv"
+        
+    - name: "CKPT_POLICY"
+      check: "checkpoint_settings"    # 체크포인트 설정 확인
+      last_saves_optimizer: true
+      best_saves_optimizer: false
+      
+    - name: "TORCH_COMPILE"
+      check: "compile_mode"          # 컴파일 모드 확인
+      expected: "reduce-overhead"
+      
+    - name: "EARLY_STOP"
+      check: "early_stop_config"     # Early stopping 설정 확인
+      source: "unified"
+      monitor: "val_top1"
+      
+    - name: "TB_LOGDIR"
+      check: "tensorboard_dir"       # TensorBoard 디렉토리 확인
+      path: "artifacts/tensorboard"
+      
+    - name: "DATA_ISSUES"
+      check: "data_quality"          # 데이터 품질 확인
+      max_corrupt: 0
+      max_val_only: 0
+      combo_ratio_range: [0.04, 0.06]  # 현재 5% 수준
+      
+  # 실패 시 동작
+  on_failure: "warn_and_continue"    # 경고 후 계속 (abort 대신)
+  
+  # 로그 출력
+  log_format: "SELF_CHECK | {status} | {details}"

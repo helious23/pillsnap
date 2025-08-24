@@ -1,0 +1,93 @@
+{
+  "method": "balanced",
+  "parameters": {
+    "beta": 0.999,
+    "normalize": "mean",
+    "clip_max": 10.0
+  },
+  "distribution_stats": {
+    "train": {
+      "num_classes": 4020,
+      "total_samples": 81474,
+      "mean": 20.267164179104476,
+      "std": 20.27960232924715,
+      "median": 10.0,
+      "min": "1",
+      "max": "269",
+      "q1": 7.0,
+      "q3": 38.0,
+      "gini_coefficient": 0.46097204406814396,
+      "imbalance_ratio": 269.0,
+      "cv": 1.0006137094480885
+    },
+    "val": {
+      "num_classes": 4022,
+      "total_samples": 18526,
+      "mean": 4.606166086524118,
+      "std": 5.04217889786387,
+      "median": 2.0,
+      "min": "1",
+      "max": "67",
+      "q1": 1.0,
+      "q3": 9.0,
+      "gini_coefficient": 0.49709985987143046,
+      "imbalance_ratio": 67.0,
+      "cv": 1.0946585084318516
+    }
+  },
+  "weight_stats": {
+    "num_weights": 4020,
+    "min_weight": 0.034684292442297704,
+    "max_weight": 9.330074666978081,
+    "mean_weight": 1.0000000000000002,
+    "std_weight": 0.9219540550315064,
+    "weight_range": 269.0,
+    "effective_min": 9.330074666978081,
+    "effective_max": 9.330074666978083,
+    "effective_std": 2.2479811855883223e-15,
+    "effective_cv": 2.4093924923715766e-16
+  },
+  "weight_file": "/home/max16/pillsnap/artifacts/data_quality_reports/class_weights_balanced_20250824_133953.json",
+  "top_weights": {
+    "K-012687": 9.330074666978081,
+    "K-013683": 9.330074666978081,
+    "K-037864": 9.330074666978081,
+    "K-031702": 9.330074666978081,
+    "K-030842": 9.330074666978081,
+    "K-036258": 9.330074666978081,
+    "K-020975": 9.330074666978081,
+    "K-004072": 9.330074666978081,
+    "K-031198": 9.330074666978081,
+    "K-006608": 9.330074666978081
+  },
+  "bottom_weights": {
+    "K-015710": 0.034684292442297704,
+    "K-003483": 0.03808193741623707,
+    "K-003614": 0.03808193741623707,
+    "K-011220": 0.039534214690585094,
+    "K-000250": 0.044641505583627186,
+    "K-001900": 0.04485612820662539,
+    "K-006697": 0.04989344741699509,
+    "K-001866": 0.05016169175794668,
+    "K-016235": 0.051264146521857595,
+    "K-000573": 0.0536211187757361
+  },
+  "execution_info": {
+    "timestamp": "20250824_133953",
+    "command": "calculate_class_weights.py --method balanced",
+    "dry_run": true,
+    "parameters": {
+      "train_manifest": null,
+      "val_manifest": null,
+      "dry_run": true,
+      "backup": true,
+      "out_suffix": ".cleaned",
+      "report_path": null,
+      "verbose": false,
+      "method": "balanced",
+      "beta": 0.999,
+      "normalize": "mean",
+      "clip_max": 10.0
+    }
+  }
+}

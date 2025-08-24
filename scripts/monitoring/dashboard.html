@@ -345,8 +345,19 @@
         <!-- 실시간 로그 -->
         <div>
             <h3>📋 실시간 학습 로그</h3>
-            <div class="log-container" id="logContainer">
-                <div class="log-line">실시간 로그 연결 중...</div>
+            <div style="display: flex; gap: 20px;">
+                <div style="flex: 1;">
+                    <h4>🔢 Classification</h4>
+                    <div class="log-container" id="logContainerCls" style="height: 300px;">
+                        <div class="log-line">Classification 로그 연결 중...</div>
+                    </div>
+                </div>
+                <div style="flex: 1;">
+                    <h4>🎯 Detection</h4>
+                    <div class="log-container" id="logContainerDet" style="height: 300px;">
+                        <div class="log-line">Detection 로그 연결 중...</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -357,6 +368,8 @@
         let latestEpoch = 0;
         let latestClsAcc = 0;
         let latestDetMap = 0;
+        let lastLogMessage = '';
+        let duplicateCount = 0;
         let totalEpochs = 50; // Stage 3 기본값
         let maxBatches = 5093; // 기본값
         
@@ -442,7 +455,7 @@
         }
         
         function updateTrainingInfo(message) {
-            // Epoch 정보 추출
+            // 1. Epoch 정보 추출
             const epochMatch = message.match(/Epoch\s+(\d+)/i);
             if (epochMatch) {
                 latestEpoch = parseInt(epochMatch[1]);
@@ -452,49 +465,74 @@
                 document.getElementById('totalProgress').textContent = `${progress}%`;
             }
             
-            // Classification 정확도 추출
-            const clsMatch = message.match(/Cls Acc:\s*([\d.]+)/i);
-            if (clsMatch) {
-                latestClsAcc = parseFloat(clsMatch[1]);
-                document.getElementById('clsAccuracy').textContent = `${(latestClsAcc * 100).toFixed(1)}%`;
+            // 2. CLS_METRIC 파싱
+            const clsMetricMatch = message.match(/CLS_METRIC \| top1=([\d.]+) \| top5=([\d.]+)/);
+            if (clsMetricMatch) {
+                const top1 = parseFloat(clsMetricMatch[1]);
+                const top5 = parseFloat(clsMetricMatch[2]);
+                document.getElementById('clsAccuracy').textContent = `${(top1 * 100).toFixed(1)}%`;
+                document.getElementById('top5Accuracy').textContent = `${(top5 * 100).toFixed(1)}%`;
             }
             
-            // Detection mAP 추출
-            const detMatch = message.match(/Det mAP:\s*([\d.]+)/i);
-            if (detMatch) {
-                latestDetMap = parseFloat(detMatch[1]);
-                document.getElementById('detMap').textContent = `${(latestDetMap * 100).toFixed(1)}%`;
+            // 3. DOMAIN_METRIC 파싱
+            const domainMatch = message.match(/DOMAIN_METRIC \| single_top1=([\d.]+) \| single_top5=([\d.]+) \| single_f1=([\d.]+) \| combo_top1=([\d.]+) \| combo_top5=([\d.]+) \| combo_f1=([\d.]+) \| macro_f1=([\d.]+)/);
+            if (domainMatch) {
+                document.getElementById('singleTop1').textContent = `${parseFloat(domainMatch[1]).toFixed(1)}%`;
+                document.getElementById('singleTop5').textContent = `${parseFloat(domainMatch[2]).toFixed(1)}%`;
+                document.getElementById('singleF1').textContent = parseFloat(domainMatch[3]).toFixed(3);
+                document.getElementById('comboTop1').textContent = `${parseFloat(domainMatch[4]).toFixed(1)}%`;
+                document.getElementById('comboTop5').textContent = `${parseFloat(domainMatch[5]).toFixed(1)}%`;
+                document.getElementById('comboF1').textContent = parseFloat(domainMatch[6]).toFixed(3);
+                document.getElementById('macroF1').textContent = `${(parseFloat(domainMatch[7]) * 100).toFixed(1)}%`;
             }
             
-            // 시간 정보 추출
-            const timeMatch = message.match(/Time:\s*([\d.]+)s/i);
-            if (timeMatch) {
-                const seconds = parseFloat(timeMatch[1]);
-                const minutes = Math.floor(seconds / 60);
-                document.getElementById('epochTime').textContent = `${minutes}분 ${Math.floor(seconds % 60)}초`;
+            // 4. SYSTEM_METRIC 파싱
+            const systemMatch = message.match(/SYSTEM_METRIC \| vram_used=([\d.]+)MB \| vram_peak=([\d.]+)MB \| det_latency=([\d.]+)ms \| crop_latency=([\d.]+)ms \| cls_latency=([\d.]+)ms \| total_latency=([\d.]+)ms/);
+            if (systemMatch) {
+                document.getElementById('vramPeak').textContent = `${parseFloat(systemMatch[2]).toFixed(0)}MB`;
+                document.getElementById('detLatency').textContent = `${parseFloat(systemMatch[3]).toFixed(1)}ms`;
+                document.getElementById('cropLatency').textContent = `${parseFloat(systemMatch[4]).toFixed(1)}ms`;
+                document.getElementById('clsLatency').textContent = `${parseFloat(systemMatch[5]).toFixed(1)}ms`;
+                document.getElementById('totalLatency').textContent = `${parseFloat(systemMatch[6]).toFixed(1)}ms`;
             }
             
-            // Batch 정보 추출
+            // 5. DET_DETAIL 파싱
+            const detDetailMatch = message.match(/DET_DETAIL \| recall=([\d.]+) \| precision=([\d.]+) \| det_conf=([\d.]+) \| cls_conf=([\d.]+) \| single_conf=([\d.]+) \| combo_conf=([\d.]+)/);
+            if (detDetailMatch) {
+                document.getElementById('detRecall').textContent = `${(parseFloat(detDetailMatch[1]) * 100).toFixed(1)}%`;
+                document.getElementById('detPrecision').textContent = `${(parseFloat(detDetailMatch[2]) * 100).toFixed(1)}%`;
+                document.getElementById('detConfidence').textContent = parseFloat(detDetailMatch[3]).toFixed(3);
+                document.getElementById('clsConfidence').textContent = parseFloat(detDetailMatch[4]).toFixed(3);
+                document.getElementById('confSingle').textContent = parseFloat(detDetailMatch[5]).toFixed(3);
+                document.getElementById('confCombo').textContent = parseFloat(detDetailMatch[6]).toFixed(3);
+            }
+            
+            // 6. Detection mAP 추출
+            const detMapMatch = message.match(/Detection mAP@0\.5:\s*([\d.]+)/);
+            if (detMapMatch) {
+                const mapValue = parseFloat(detMapMatch[1]);
+                document.getElementById('detMap').textContent = `${(mapValue * 100).toFixed(1)}%`;
+            }
+            
+            // 7. Batch 정보 추출
             const batchMatch = message.match(/Batch\s+(\d+)(?:\/(\d+))?/i);
             if (batchMatch) {
                 const currentBatch = parseInt(batchMatch[1]);
                 const totalBatch = batchMatch[2] ? parseInt(batchMatch[2]) : maxBatches;
                 
                 if (batchMatch[2]) {
-                    maxBatches = totalBatch; // 총 배치 수 업데이트
+                    maxBatches = totalBatch;
                 }
                 
                 document.getElementById('currentBatch').textContent = `${currentBatch}/${maxBatches}`;
-                
-                // 배치 진행률 계산
-                const batchProgress = Math.round((currentBatch / maxBatches) * 100);
-                
-                // 전체 진행률 계산
-                const epochProgress = ((latestEpoch - 1) / totalEpochs) * 100;
-                const currentEpochProgress = (batchProgress / totalEpochs);
-                const overallProgress = Math.round(epochProgress + currentEpochProgress);
-                
-                document.getElementById('totalProgress').textContent = `${overallProgress}%`;
+            }
+            
+            // 8. 시간 정보 추출
+            const timeMatch = message.match(/Time:\s*([\d.]+)s/i);
+            if (timeMatch) {
+                const seconds = parseFloat(timeMatch[1]);
+                const minutes = Math.floor(seconds / 60);
+                document.getElementById('epochTime').textContent = `${minutes}분 ${Math.floor(seconds % 60)}초`;
             }
         }
         
@@ -578,16 +616,61 @@
             // 기존 학습 정보 업데이트도 유지
             updateTrainingInfo(data.message);
             
-            document.getElementById('logContainer').appendChild(logLine);
-            document.getElementById('logContainer').scrollTop = document.getElementById('logContainer').scrollHeight;
+            // 로그 분류 및 추가
+            const message = data.message;
             
-            // 로그 개수 제한
-            logCount++;
-            if (logCount > 1000) {
-                const firstChild = document.getElementById('logContainer').firstChild;
-                if (firstChild) {
-                    document.getElementById('logContainer').removeChild(firstChild);
-                    logCount--;
+            // 중복 로그 제거
+            if (message === lastLogMessage) {
+                duplicateCount++;
+                return; // 중복 로그 무시
+            } else {
+                if (duplicateCount > 0) {
+                    // 마지막 중복 메시지가 있었다면 카운트 표시
+                    console.log(`중복 로그 ${duplicateCount}개 무시됨`);
+                    duplicateCount = 0;
+                }
+                lastLogMessage = message;
+            }
+            
+            let targetContainer = null;
+            
+            // Classification 관련 키워드
+            if (message.includes('Classification') || 
+                message.includes('CLS_METRIC') || 
+                message.includes('DOMAIN_METRIC') ||
+                message.includes('SYSTEM_METRIC') ||
+                message.includes('초기 배치') ||
+                message.includes('Classification Epoch') ||
+                message.includes('EfficientNet') ||
+                message.includes('top1=') || 
+                message.includes('top5=')) {
+                targetContainer = document.getElementById('logContainerCls');
+            }
+            // Detection 관련 키워드  
+            else if (message.includes('Detection') || 
+                     message.includes('YOLO') || 
+                     message.includes('DET_SUMMARY') ||
+                     message.includes('DET_DETAIL') ||
+                     message.includes('box_loss') || 
+                     message.includes('cls_loss') || 
+                     message.includes('dfl_loss') ||
+                     message.includes('mAP') ||
+                     message.includes('[YOLO')) {
+                targetContainer = document.getElementById('logContainerDet');
+            }
+            // 기타 일반 로그는 Classification 쪽에
+            else {
+                targetContainer = document.getElementById('logContainerCls');
+            }
+            
+            if (targetContainer) {
+                targetContainer.appendChild(logLine);
+                targetContainer.scrollTop = targetContainer.scrollHeight;
+                
+                // 각 컨테이너별 로그 개수 제한 (500개씩)
+                const containerChildren = targetContainer.children;
+                if (containerChildren.length > 500) {
+                    targetContainer.removeChild(containerChildren[0]);
                 }
             }
         };

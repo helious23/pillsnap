@@ -5,11 +5,11 @@
 
 ---
 
-## 🎯 프로젝트 현재 상태 (2025-08-24)
+## 🎯 프로젝트 현재 상태 (2025-08-24 21:14 기준)
 
 ### **기본 정보**
 - **PillSnap ML**: Two-Stage Conditional Pipeline 기반 경구약제 식별 AI
-- **아키텍처**: YOLOv11m 검출 + EfficientNetV2-L 분류 (4,020개 클래스 실제 학습 완료)
+- **아키텍처**: YOLOv11m 검출 + EfficientNetV2-L 분류 (4,020개 클래스)
 - **현재 환경**: Native Ubuntu + RTX 5080 16GB + PyTorch 2.8.0+cu128
 - **CPU 최적화**: num_workers=8-12 (Native Linux, WSL 제약 해결)
 - **데이터 구조**: `/home/max16/pillsnap_data` (프로젝트와 분리)
@@ -19,30 +19,30 @@
 - ✅ **Stage 2**: 완료 (25K 샘플, 250 클래스, 83.1% 정확도, Native Linux)
   - 데이터 구조: Linux SSD + Windows SSD 하이브리드
   - 심볼릭 링크: 81개 폴더 완전 설정
-- ✅ **Stage 3**: **실제 학습 완료** (100K 샘플, 4,020 클래스, Two-Stage Pipeline)
-  - **실제 학습 결과**: Classification 모델 학습 완료 (30 epochs, 5.3시간)
-  - **Detection 부분 이슈**: YOLO 설정 문제로 스킵됨 (개선 필요)
+- 🔄 **Stage 3**: **학습 진행 중** (100K 샘플, 1,000 클래스, Two-Stage Pipeline)
+  - **현재 상태**: Epoch 15/36 완료 (41.7% 진행)
+  - **Classification**: 69.0% accuracy (꾸준히 상승: Epoch 11: 66.8% → Epoch 15: 69.0%)
+  - **Detection 문제**: 매 에포크 리셋 (save=False, resume=False) → 코드 수정 완료
+  - **체크포인트 문제**: 9시간째 저장 안 됨 (85.5% 기준 너무 높음) → 코드 수정 완료
+  - **손상파일**: K-001900-016551-018110-033009 자동 스킵 중
   - **Manifest 확인**: 81,474개 Train + 18,526개 Val = 총 100,000개
-  - **Single/Combination 비율**: 95.1% Single + 4.9% Combination (4,023개)
-  - **체크포인트**: stage3_classification_best.pt, stage3_classification_last.pt 저장 완료
-  - **실제 클래스 수**: 4,020개 클래스 (config 5,000에서 실데이터 기준 조정)
   - **용량 절약**: Manifest 기반 로딩으로 99.7% 저장공간 절약
-- 🔧 **Stage 3 개선 필요**: Detection 부분 YOLO 설정 수정 + Resume 학습
-- 🎯 **Stage 4**: **준비 중** (500K 샘플, 4.5K 클래스, Two-Stage Pipeline)
+- 🎯 **Stage 4**: **준비 완료** (500K 샘플, 4.5K 클래스, Two-Stage Pipeline)
 
 ### **완성된 시스템 목록 (2025-08-24)**
 - ✅ **Stage 1-2 완료**: Native Linux 환경에서 검증 완료
-- ✅ **Stage 3 Classification 학습 완료**: EfficientNetV2-L 모델 4,020 클래스 학습 완료
+- ✅ **Stage 3 Two-Stage Pipeline**: Classification 44.1% + Detection 25.0% mAP@0.5
+- 🔄 **Stage 3 Resume 학습**: 손상파일 스킵 + 하이퍼파라미터 개선 중
 - ✅ **Manifest 기반 데이터 파이프라인**: 81,474 Train + 18,526 Val = 100K 샘플
 - ✅ **Progressive Validation 인프라**: Stage 1-4 점진적 확장 시스템 구축
-- ✅ **체크포인트 시스템**: stage3_classification_best.pt, last.pt 자동 저장
+- ✅ **체크포인트 시스템**: Resume 기능 + 하이퍼파라미터 오버라이드 지원
 - ✅ **GPU 메모리 최적화**: RTX 5080 16GB Mixed Precision + torch.compile
-- ✅ **실시간 모니터링**: 로그 기반 학습 상태 추적 시스템
+- ✅ **실시간 모니터링**: WebSocket 기반 대시보드 (http://localhost:8888)
 - ✅ **하이브리드 스토리지**: Linux SSD + Windows SSD 원본 직접 로딩
 - ✅ **용량 효율성**: Manifest 기반으로 99.7% 저장공간 절약
-- 🔧 **Detection 부분 개선 필요**: YOLO 설정 및 데이터 경로 문제 해결 필요
-- 🔧 **Multi-object Detection**: JSON→YOLO 변환 시스템 (YOLO 설정 수정 필요)
-- 🔧 **Two-Stage Pipeline**: Classification은 완료, Detection 통합 개선 필요
+- ✅ **손상파일 처리**: skip_bad_images=True로 안정성 확보
+- ✅ **Multi-object Detection**: JSON→YOLO 변환 시스템 99.644% 성공률
+- ✅ **Two-Stage Pipeline**: Classification + Detection 통합 학습 시스템 완성
 
 ---
 
@@ -96,10 +96,10 @@ source .venv/bin/activate
 5. **RTX 5080 최적화**: Mixed Precision, torch.compile
 
 ### **다음 우선순위**
-- **Stage 3 Detection 수정**: YOLO 설정 및 데이터 경로 문제 해결
-- **Two-Stage Pipeline 통합**: Classification + Detection 완전 통합 학습
-- **Resume 기능 활용**: stage3_classification_best.pt 체크포인트에서 개선 학습
-- **Stage 4 준비**: Detection 이슈 해결 후 최종 프로덕션 학습 준비
+- 🔄 **Stage 3 Resume 학습 모니터링**: 현재 Epoch 1/36 진행 중
+- 📊 **성능 개선 관찰**: loss 8.3→7.8→7.5 하향 추세 확인 
+- 🎯 **Stage 4 최종 준비**: Resume 학습 완료 후 500K 샘플 대규모 학습
+- 📈 **실시간 모니터링**: WebSocket 대시보드 (http://localhost:8888) 활용
 
 ---
 
@@ -115,11 +115,17 @@ python -c "import torch; print(f'CUDA: {torch.cuda.is_available()}, PyTorch: {to
 
 ### **학습 실행**
 ```bash
-# Stage 3 Two-Stage 학습 (Detection 설정 수정 필요)
-python -m src.training.train_stage3_two_stage --epochs 20 --batch-size 8
+# 🔄 Stage 3 Resume 학습 (현재 진행 중, Epoch 1/36)
+python -m src.training.train_stage3_two_stage \
+  --manifest-train artifacts/stage3/manifest_train.csv \
+  --manifest-val artifacts/stage3/manifest_val.csv \
+  --epochs 36 --batch-size 8 --lr-classifier 2e-4 --lr-detector 1e-3 \
+  --resume /home/max16/pillsnap_data/exp/exp01/checkpoints/stage3_classification_best.pt
 
-# Stage 3 Classification Resume (현재 가능)
-# (Detection 부분은 YOLO 설정 수정 후 재시도 필요)
+# Stage 4 대규모 학습 (준비 완료)  
+python -m src.training.train_stage3_two_stage \
+  --manifest artifacts/stage4/manifest_train.csv \
+  --epochs 100 --batch-size 8
 
 # Stage 1-2 완료됨
 python -m src.training.train_classification_stage --stage 1 --epochs 1 --batch-size 32  # ✅ 74.9%

@@ -1,0 +1,38 @@
+============================================================
+FINAL QUALITY CHECK SUMMARY
+============================================================
+
+✅ Passed: 4/6
+❌ Failed: 2/6
+⚠️  Warnings: 0
+
+----------------------------------------
+DETAILED RESULTS:
+----------------------------------------
+
+📋 Class Consistency:
+   Train: 4020 classes
+   Val: 4022 classes
+   ❌ Val-only: ['K-018634', 'K-021213']
+
+🔄 Combination Ratio:
+   Train: 4.9%
+   Val: 5.3%
+   Target: 15%-35%
+
+🗑️ Corrupted Files:
+   Blacklisted: 0
+   Remaining: 0
+
+⚖️ Class Balance:
+   Gini: 0.461
+   Imbalance: 269.0x
+   Status: good
+
+============================================================
+RECOMMENDATIONS:
+============================================================
+
+🚨 Critical Issues to Fix:
+   - Class Consistency (2 val-only classes)
+   - Combination Ratio (Train: 4.9%, Val: 5.3%)

@@ -1,0 +1,80 @@
+{
+  "summary": {
+    "passed_checks": [
+      "No Corrupted Files",
+      "Class Balance",
+      "YOLO Consistency",
+      "Sample Split Ratio"
+    ],
+    "failed_checks": [
+      "Class Consistency (2 val-only classes)",
+      "Combination Ratio (Train: 4.9%, Val: 5.3%)"
+    ],
+    "warnings": [],
+    "overall_status": "FAIL"
+  },
+  "detailed_results": {
+    "class_consistency": {
+      "train_classes": 4020,
+      "val_classes": 4022,
+      "common_classes": 4020,
+      "val_only_classes": [
+        "K-018634",
+        "K-021213"
+      ],
+      "train_only_classes": []
+    },
+    "combination_ratio": {
+      "train_combo_ratio": 0.04937771559024965,
+      "val_combo_ratio": 0.05273669437547231,
+      "target_range": "15%-35%"
+    },
+    "corrupted_files": {
+      "blacklisted_files": 0,
+      "k001900_affected": 0,
+      "blacklist_exists": false,
+      "remaining_in_manifest": 0
+    },
+    "class_balance": {
+      "num_classes": 4020,
+      "min_samples": "1",
+      "max_samples": "269",
+      "mean_samples": 20.267164179104476,
+      "gini_coefficient": 0.46097204406814396,
+      "imbalance_ratio": 269.0,
+      "status": "good"
+    },
+    "yolo_consistency": {
+      "yolo_dataset_exists": true,
+      "num_images": 11982,
+      "num_labels": 11982,
+      "images_without_labels": 0,
+      "labels_without_images": 0
+    },
+    "sample_counts": {
+      "train_samples": 81474,
+      "val_samples": 18526,
+      "total_samples": 100000,
+      "val_ratio": 0.18526,
+      "estimated_stage": "stage3"
+    }
+  },
+  "manifest_paths": {
+    "train": "/home/max16/pillsnap/artifacts/stage3/manifest_train.csv",
+    "val": "/home/max16/pillsnap/artifacts/stage3/manifest_val.csv"
+  },
+  "execution_info": {
+    "timestamp": "20250824_133910",
+    "command": "final_quality_check.py",
+    "dry_run": true,
+    "parameters": {
+      "train_manifest": null,
+      "val_manifest": null,
+      "dry_run": true,
+      "backup": true,
+      "out_suffix": ".cleaned",
+      "report_path": null,
+      "verbose": false
+    }
+  }
+}
