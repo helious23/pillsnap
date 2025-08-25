@@ -46,8 +46,15 @@
   - **YOLO 모델**: YOLOv11m 로딩 및 forward pass 테스트 완료
   - **Detection 학습 루프**: train_detection_epoch() 구현 완료
   - **통합 테스트**: 전체 Detection 파이프라인 검증 완료
-- **Stage 3 학습 준비 완료**: 바로 학습 시작 가능
-  - **실행 명령어**: `python -m src.training.train_stage3_two_stage --manifest artifacts/stage3/manifest_train.csv --epochs 30`
+- **Stage 3 학습 완료**: 85.01% Classification, 32.73% Detection
+  - **실행 명령어**: 
+    ```bash
+    python -m src.training.train_stage3_two_stage \
+      --manifest-train /home/max16/pillsnap/artifacts/stage3/manifest_train.remove.csv \
+      --manifest-val /home/max16/pillsnap/artifacts/stage3/manifest_val.remove.csv \
+      --epochs 36 --batch-size 8 --lr-classifier 5e-5 --lr-detector 1e-3 --reset-best \
+      > /home/max16/pillsnap/artifacts/logs/stage3_retrain_$(date +%F_%H%M).log 2>&1 &
+    ```
   - **예상 성능**: Detection mAP@0.5 ≥ 30% (실제 4-object multi-detection)
 - **실시간 모니터링**: KST 표준시 적용, 1초 업데이트 주기로 학습 진행상황 추적
 

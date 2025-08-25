@@ -59,20 +59,14 @@ PillSnap ML 프로젝트의 Claude Code 종합 가이드입니다. 프로젝트 
    # ⭐ IMPORTANT: Stage 3-4는 반드시 manifest 기반으로만 진행
    # 물리적 데이터 복사 없이 원본에서 직접 로딩 (용량 절약)
    
-   # Stage 3 재학습 (2025-08-24 시작)
+   # Stage 3 재학습 (2025-08-24 완료: 85.01% Classification, 32.73% Detection)
    python -m src.training.train_stage3_two_stage \
      --manifest-train /home/max16/pillsnap/artifacts/stage3/manifest_train.remove.csv \
-     --manifest-val   /home/max16/pillsnap/artifacts/stage3/manifest_val.remove.csv \
+     --manifest-val /home/max16/pillsnap/artifacts/stage3/manifest_val.remove.csv \
      --epochs 36 \
      --batch-size 8 \
      --lr-classifier 5e-5 \
      --lr-detector 1e-3 \
-     --weight-decay 5e-4 \
-     --label-smoothing 0.1 \
-     --validate-period 3 \
-     --save-every 1 \
-     --patience-cls 8 \
-     --patience-det 6 \
      --reset-best \
      > /home/max16/pillsnap/artifacts/logs/stage3_retrain_$(date +%F_%H%M).log 2>&1 &
    

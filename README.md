@@ -22,15 +22,19 @@ PillSnap ML은 **263만개 약품 이미지**를 활용하여 **4,523개 EDI 코
 ```
 
 ### 🎯 성능 목표 & 현재 상태
-- **Single 약품 정확도**: 92% (목표) / **85.01%** (Stage 3 완료)
-- **Combination 약품 mAP@0.5**: 0.85 (목표) / **32.73%** (Stage 3 완료)
+- **Single 약품 정확도**: 92% (목표) / **85.01%** (Stage 3 달성)
+- **Combination 약품 mAP@0.5**: 0.85 (목표) / **32.73%** (Stage 3 달성)
 - **Stage 1**: ✅ **완료** (74.9% 정확도, 1분, Native Linux)
 - **Stage 2**: ✅ **완료** (83.1% 정확도, Native Linux) 
 - **Stage 3**: ✅ **완료** (2025-08-24, 4시간 36분)
   - **Classification**: 85.01% Top-1, 97.68% Top-5 정확도
   - **Detection**: 32.73% mAP@0.5 (목표 30% 초과 달성)
   - **학습 시간**: 276.2분 (22 에포크, 조기 종료)
-  - **누적 학습 시스템**: ✅ State Management 구현 완료
+  - **핵심 개선사항**:
+    - ✅ Detection 누적 학습 시스템 (state.json)
+    - ✅ Robust CSV Parser (재시도 로직)
+    - ✅ Progressive Resize (128px→384px)
+    - ✅ OOM 방지 시스템 (동적 배치)
 - **Stage 4**: 🎯 **준비 완료** (500K 샘플, 4,523 클래스)
 - **Progressive Resize**: ✅ **완성** (128px→384px 동적 해상도 조정)
 - **실시간 모니터링**: ✅ **완성** (TensorBoard + WebSocket 대시보드)
@@ -51,14 +55,6 @@ PillSnap ML은 **263만개 약품 이미지**를 활용하여 **4,523개 EDI 코
 | **Stage 2** | 25,000개 | 250개 | 성능 기준선 | ✅ **완료** (83.1%) | Config 기반 |
 | **Stage 3** | 100,000개 | 1,000개 | 확장성 테스트 | ✅ **완료** (85.01%) | **Two-Stage Pipeline** |
 | **Stage 4** | 500,000개 | 4,523개 | 프로덕션 배포 | 🎯 **준비 완료** | **Two-Stage Pipeline** |
-
-### ⭐ Stage 3-4 혁신적 접근법
-- **물리적 복사 없음**: 73GB → 200MB 절약 (manifest CSV 파일만)
-- **하이브리드 스토리지 최적화**: Linux SSD + Windows SSD 심볼릭 링크
-- **Native Linux + 128GB RAM**: 실시간 고속 로딩으로 성능 손실 없음
-- **용량 효율성**: SSD 공간 부족 문제 완전 해결
-- **Progressive Resize**: 128px→384px 점진적 해상도 증가로 OOM 방지
-- **실시간 모니터링**: WebSocket 대시보드로 1초 단위 상태 추적
 
 ---
 
@@ -99,27 +95,37 @@ PillSnap ML은 **263만개 약품 이미지**를 활용하여 **4,523개 EDI 코
 # 프로젝트 디렉토리로 이동
 cd /home/max16/pillsnap
 
-# 🔥 Claude Code 세션 초기화 (전체 컨텍스트 복원)
-/.claude/commands/initial-prompt.md
-
 # 환경 확인
 source .venv/bin/activate
 python -c "import torch; print(f'CUDA: {torch.cuda.is_available()}, PyTorch: {torch.__version__}')"
 # 예상 출력: CUDA: True, PyTorch: 2.8.0+cu128
 ```
 
-### 2. Stage 1 학습 (완료)
+### 2. Stage별 학습 실행
 
 ```bash
-# Stage 1 분류 학습 (74.9% 정확도 달성)
+# Stage 1 (✅ 완료: 74.9%)
 python -m src.training.train_classification_stage --stage 1 --epochs 1 --batch-size 32
-```
 
-### 3. Stage 2 학습 준비
-
-```bash
-# Stage 2 분류 학습 (250 클래스, 25K 샘플)
+# Stage 2 (✅ 완료: 83.1%)
 python -m src.training.train_classification_stage --stage 2 --epochs 30 --batch-size 32
+
+# Stage 3 (✅ 완료: 85.01% Classification, 32.73% Detection)
+python -m src.training.train_stage3_two_stage \
+  --manifest-train /home/max16/pillsnap/artifacts/stage3/manifest_train.remove.csv \
+  --manifest-val /home/max16/pillsnap/artifacts/stage3/manifest_val.remove.csv \
+  --epochs 36 \
+  --batch-size 8 \
+  --lr-classifier 5e-5 \
+  --lr-detector 1e-3 \
+  --reset-best \
+  > /home/max16/pillsnap/artifacts/logs/stage3_retrain_$(date +%F_%H%M).log 2>&1 &
+
+# Stage 4 (🎯 준비 완료)
+python -m src.training.train_stage3_two_stage \
+  --manifest-train artifacts/stage4/manifest_train.csv \
+  --manifest-val artifacts/stage4/manifest_val.csv \
+  --epochs 100 --batch-size 8
 ```
 
 ### 4. 통합 테스트 실행
@@ -134,7 +140,7 @@ python -m pytest tests/unit/ -v --tb=short
 
 ---
 
-## 📊 현재 구현 상태 (2025-08-23)
+## 📊 Stage 3 완료 보고 (2025-08-24)
 
 ### ✅ **완성된 시스템 목록**
 
@@ -142,12 +148,6 @@ python -m pytest tests/unit/ -v --tb=short
 - **동적 해상도**: 128px→384px 점진적 증가
 - **GPU 메모리 최적화**: 초기 낮은 해상도로 OOM 방지
 - **자동 조정**: epoch별 해상도 자동 스케일링
-
-#### **실시간 모니터링 시스템**
-- **WebSocket 대시보드**: http://localhost:8888 실시간 로그
-- **KST 표준시**: 한국 시간대 정확한 표시
-- **자동 감지**: Stage 1-4 학습 상태 자동 추적
-- **로그 스트리밍**: 실시간 터미널 출력 스트리밍
 
 #### **OOM 방지 & 최적화**
 - **동적 배치 크기**: VRAM 사용량에 따른 자동 조정
@@ -159,12 +159,12 @@ python -m pytest tests/unit/ -v --tb=short
 - **실제 bounding box**: 평균 3.6개 객체/이미지 정확한 annotation
 - **YOLO txt 라벨**: 11,875개 파일 생성 완료
 
-#### **118개 테스트 통과**
-- **모든 핵심 시스템**: 완전 검증 완료
-- **Resume 기능**: 하이퍼파라미터 override + Top-5 accuracy 구현
-- **Training Components**: 분류/검출 전용 학습기
-- **Evaluation Components**: Stage별 평가 시스템
-- **Data Loading Components**: 단일/조합 전용 로더
+#### **Stage 3 최종 성과**
+- **Classification 정확도**: 85.01% Top-1, 97.68% Top-5
+- **Detection mAP**: 32.73% @ IoU 0.5 (목표 30% 초과)
+- **학습 시간**: 276.2분 (4시간 36분)
+- **조기 종료**: 22/36 에포크 (과적합 방지 성공)
+- **118개 테스트**: 모든 시스템 검증 통과
 
 ---
 
@@ -202,71 +202,42 @@ pillsnap/
 
 ---
 
-## 📈 성능 메트릭
-
-### Stage 1 결과 (2025-08-22)
-- **학습 시간**: 1분
-- **검증 정확도**: 74.9%
-- **Top-5 정확도**: 76.7%
-- **GPU 사용량**: 0.4GB
-- **데이터 로딩**: 최적화됨
-
----
-
-## 🎉 최신 성과 (2025-08-23)
-
-### ✅ **Stage 3 첫 학습 완룼 & Detection 디버깅**
-- **학습 결과**: 44.1% Classification + 25.0% Detection (5.3시간, 30 epochs)
-- **Detection 디버꺅 완룼**: YOLO 라벨 12,025개 변환, 실제 multi-object 학습
-- **DataLoader 수정**: 더미 데이터 → 실제 YOLO txt 파일 로딩
-- **손상된 이미지 처리**: PIL 예외 처리로 학습 안정성 향상
-- **Resume 기능**: 하이퍼파라미터 override + Top-5 accuracy 추가
-- **체크포인트**: stage3_classification_best.pt 저장 완료
-- **Loss 수렴**: 0.3-0.4로 안정적 수렴 (4,020 클래스 대비 양호)
-
-### 🚀 **Stage 3 재학습 진행 중 (2025-08-24)**
-코드 개선 완료 후 새로운 하이퍼파라미터로 재학습 중입니다:
-
 ```bash
-# Stage 3 재학습 명령어 (개선된 설정)
+# Stage 3 완료된 결과 확인
+python scripts/evaluation/sanity_check_fixed.py --eval-domain
+
+# Stage 4 프로덕션 학습 준비 (500K 샘플)
 python -m src.training.train_stage3_two_stage \
-  --manifest-train /home/max16/pillsnap/artifacts/stage3/manifest_train.remove.csv \
-  --manifest-val   /home/max16/pillsnap/artifacts/stage3/manifest_val.remove.csv \
-  --epochs 36 \
+  --manifest-train artifacts/stage4/manifest_train.csv \
+  --manifest-val artifacts/stage4/manifest_val.csv \
+  --epochs 100 \
   --batch-size 8 \
-  --lr-classifier 5e-5 \
-  --lr-detector 1e-3 \
+  --lr-classifier 3e-5 \
+  --lr-detector 5e-4 \
   --weight-decay 5e-4 \
-  --label-smoothing 0.1 \
-  --validate-period 3 \
-  --save-every 1 \
-  --patience-cls 8 \
-  --patience-det 6 \
-  --reset-best \
-  > /home/max16/pillsnap/artifacts/logs/stage3_retrain_$(date +%F_%H%M).log 2>&1 &
+  --label-smoothing 0.1
 
 # 실시간 모니터링
-./scripts/monitoring/universal_training_monitor.sh --stage 3
+./scripts/monitoring/universal_training_monitor.sh --stage 4
 
-# TensorBoard 모니터링
-./scripts/monitoring/run_tensorboard.sh
+# 학습 결과 백업
+python scripts/backup/freeze_stage_results.py --stage 3
 ```
 
-**개선된 설정**:
-- **Learning Rate**: 5e-5 (과적합 방지)
-- **Weight Decay**: 5e-4 (정규화 강화)
-- **Label Smoothing**: 0.1 (일반화 성능 향상)
-- **Patience 기반 저장**: Classification 8, Detection 6
-- **검증 주기**: 3 epochs마다
-- **TensorBoard 통합**: 실시간 메트릭 추적
+**Stage 3 완료 성과**:
+- **Classification**: 85.01% (목표 대비 92.4% 달성)
+- **Detection**: 32.73% mAP@0.5 (초기 목표 30% 초과)
+- **Top-5 Accuracy**: 97.68% (거의 완벽한 상위 5개 예측)
+- **학습 안정성**: 22 에포크에서 조기 종료 (과적합 방지 성공)
+- **시스템 개선**: Detection 누적 학습, CSV 파서 강화
 
 ## 🚀 다음 단계
 
-1. **Stage 3 Resume 학습**: 44.1%에서 시작하여 60-70% 목표 달성
-2. **Detection 성능 개선**: lr 5e-3으로 25%에서 40-50% 향상
-3. **Top-5 Accuracy 분석**: 새로운 메트릭으로 성능 평가
-4. **Stage 4 준비**: 500K 샘플, 4.5K 클래스 최종 프로덕션 학습
-5. **Production API**: Cloud tunnel 배포
+1. **Stage 4 프로덕션 학습**: 500K 샘플, 4,523 클래스로 최종 학습
+2. **성능 최적화**: ONNX 변환 및 추론 속도 개선
+3. **Production API**: Cloud tunnel 배포 준비
+4. **모델 경량화**: Quantization 및 Pruning 적용
+5. **실시간 서비스**: WebSocket 기반 실시간 예측 API
 
 ---
 
