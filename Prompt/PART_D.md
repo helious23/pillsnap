@@ -111,7 +111,7 @@ D-3) 모드별 데이터로더 구성(Part C 연동)
 - Detection (즉시 로드): 조합 약품용 YOLO 포맷 데이터로더 (128GB RAM으로 즉시 로드)
 - 중요: test_loader들은 Stage 4 완료 전에는 None 반환, Stage 4 완료 후에만 생성하여 최종 평가시 사용
 
-### **⭐ Stage 3-4 Manifest 기반 데이터로더 (2025-08-22 업데이트)**
+### **⭐ Stage 3-4 Manifest 기반 데이터로더 (2025-08-25 업데이트)**
 - **Stage 1-2**: 기존 `build_dataloaders_twostage()` 방식 유지
 - **Stage 3-4**: **Manifest CSV 기반** 데이터로더 활용
   ```python

@@ -5,11 +5,11 @@
 
 ---
 
-## 🎯 프로젝트 현재 상태 (2025-08-24)
+## 🎯 프로젝트 현재 상태 (2025-08-25)
 
 ### **기본 정보**
 - **PillSnap ML**: Two-Stage Conditional Pipeline 기반 경구약제 식별 AI
-- **아키텍처**: YOLOv11m 검출 + EfficientNetV2-L 분류 (4,020개 클래스)
+- **아키텍처**: YOLOv11m 검출 + EfficientNetV2-L 분류 (4,523개 클래스)
 - **현재 환경**: Native Ubuntu + RTX 5080 16GB + PyTorch 2.8.0+cu128
 - **CPU 최적화**: num_workers=8-12 (Native Linux, WSL 제약 해결)
 - **데이터 구조**: `/home/max16/pillsnap_data` (프로젝트와 분리)
@@ -17,24 +17,22 @@
 ### **Progressive Validation 현황 (Two-Stage Pipeline 기반)**
 - ✅ **Stage 1**: 완료 (5K 샘플, 50 클래스, 74.9% 정확도, Native Linux)
 - ✅ **Stage 2**: 완료 (25K 샘플, 250 클래스, 83.1% 정확도, Native Linux)
-  - 데이터 구조: Linux SSD + Windows SSD 하이브리드
-  - 심볼릭 링크: 81개 폴더 완전 설정
-- 🔄 **Stage 3**: **재학습 진행 중** (100K 샘플, 1,000 클래스, Two-Stage Pipeline)
-  - **이전 학습**: Epoch 15/36에서 중단 (69.0% accuracy)
-  - **코드 개선 완료**:
-    - YOLO Resume 수정 (매 에포크 모델 지속 학습)
-    - 체크포인트 정책 (epsilon threshold + patience)
-    - TensorBoard 통합 (실시간 메트릭 추적)
-    - ConfigProvider Singleton (런타임 오버라이드)
-  - **새 하이퍼파라미터**: lr=5e-5, weight_decay=5e-4, label_smoothing=0.1
-  - **손상파일**: manifest_train.remove.csv 사용
-  - **용량 절약**: Manifest 기반 로딩으로 99.7% 저장공간 절약
-- 🎯 **Stage 4**: **준비 완료** (500K 샘플, 4.5K 클래스, Two-Stage Pipeline)
+- ✅ **Stage 3**: **완료** (100K 샘플, 1,000 클래스, Two-Stage Pipeline)
+  - **최종 성과**: 
+    - Classification: 85.01% Top-1, 97.68% Top-5 (25 epochs)
+    - Detection: 39.13% mAP@0.5 (3 epochs, 목표 초과 달성)
+  - **해결된 이슈**:
+    - Detection NoneType 오류 완전 해결 (safe_float 유틸리티)
+    - YOLO resume 로직 정상화
+    - state.json 누적 학습 추적 시스템 완성
+  - **검증된 파라미터**: lr-classifier=5e-5, lr-detector=1e-3
+  - **데이터 비율**: Single 95% (77,451), Combination 5% (4,023)
+- 🎯 **Stage 4**: **준비 완료** (500K 샘플, 4,523 클래스, Two-Stage Pipeline)
 
-### **완성된 시스템 목록 (2025-08-24)**
-- ✅ **Stage 1-2 완료**: Native Linux 환경에서 검증 완료
-- ✅ **Stage 3 코드 개선**: YOLO Resume, 체크포인트 정책, TensorBoard
-- 🔄 **Stage 3 재학습**: 개선된 하이퍼파라미터로 진행 중
+### **완성된 시스템 목록 (2025-08-25)**
+- ✅ **Stage 1-3 완료**: 모든 Stage 목표 달성
+- ✅ **Detection 버그 완전 해결**: safe_float 유틸리티로 안정화
+- ✅ **Two-Stage Pipeline 검증**: Classification + Detection 정상 작동
 - ✅ **Manifest 기반 데이터 파이프라인**: 81,474 Train + 18,526 Val = 100K 샘플
 - ✅ **Progressive Validation 인프라**: Stage 1-4 점진적 확장 시스템 구축
 - ✅ **체크포인트 시스템**: Resume 기능 + 하이퍼파라미터 오버라이드 지원

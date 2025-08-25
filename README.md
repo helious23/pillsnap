@@ -23,18 +23,17 @@ PillSnap ML은 **263만개 약품 이미지**를 활용하여 **4,523개 EDI 코
 
 ### 🎯 성능 목표 & 현재 상태
 - **Single 약품 정확도**: 92% (목표) / **85.01%** (Stage 3 달성)
-- **Combination 약품 mAP@0.5**: 0.85 (목표) / **32.73%** (Stage 3 달성)
+- **Combination 약품 mAP@0.5**: 0.85 (목표) / **39.13%** (Stage 3 달성)
 - **Stage 1**: ✅ **완료** (74.9% 정확도, 1분, Native Linux)
 - **Stage 2**: ✅ **완료** (83.1% 정확도, Native Linux) 
-- **Stage 3**: ✅ **완료** (2025-08-24, 4시간 36분)
-  - **Classification**: 85.01% Top-1, 97.68% Top-5 정확도
-  - **Detection**: 32.73% mAP@0.5 (목표 30% 초과 달성)
-  - **학습 시간**: 276.2분 (22 에포크, 조기 종료)
-  - **핵심 개선사항**:
-    - ✅ Detection 누적 학습 시스템 (state.json)
-    - ✅ Robust CSV Parser (재시도 로직)
-    - ✅ Progressive Resize (128px→384px)
-    - ✅ OOM 방지 시스템 (동적 배치)
+- **Stage 3**: ✅ **완료** (2025-08-25, 최종 검증 완료)
+  - **Classification**: 85.01% Top-1, 97.68% Top-5 (25 epochs)
+  - **Detection**: 39.13% mAP@0.5 (3 epochs, 목표 30% 초과 달성)
+  - **핵심 해결사항**:
+    - ✅ Detection 학습 버그 수정 (NoneType 비교 오류)
+    - ✅ safe_float 유틸리티 추가 (방어적 프로그래밍)
+    - ✅ Detection state.json 누적 학습 정상화
+    - ✅ YOLO resume 로직 개선 (epochs vs 추가 epochs 구분)
 - **Stage 4**: 🎯 **준비 완료** (500K 샘플, 4,523 클래스)
 - **Progressive Resize**: ✅ **완성** (128px→384px 동적 해상도 조정)
 - **실시간 모니터링**: ✅ **완성** (TensorBoard + WebSocket 대시보드)
@@ -140,7 +139,7 @@ python -m pytest tests/unit/ -v --tb=short
 
 ---
 
-## 📊 Stage 3 완료 보고 (2025-08-24)
+## 📊 Stage 3 완료 보고 (2025-08-25)
 
 ### ✅ **완성된 시스템 목록**
 

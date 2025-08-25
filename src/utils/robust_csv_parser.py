@@ -7,8 +7,10 @@ YOLO results.csv 파일을 안전하게 읽기 위한 재시도 로직 포함
 import pandas as pd
 import time
 from pathlib import Path
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Union
 import logging
+import math
+from src.utils.safe_float import safe_float, sanitize_metrics
 
 
 class RobustCSVParser:
@@ -32,7 +34,7 @@ class RobustCSVParser:
         csv_path: Path,
         max_retries: int = 3,
         retry_delay: float = 1.0
-    ) -> Dict[str, float]:
+    ) -> Dict[str, Union[float, bool]]:
         """
         YOLO results.csv 파일 파싱 (재시도 로직 포함)
         
@@ -44,7 +46,7 @@ class RobustCSVParser:
         Returns:
             파싱된 메트릭 딕셔너리
         """
-        metrics = {
+        raw_metrics = {
             'map50': 0.0,
             'precision': 0.0,
             'recall': 0.0,
@@ -55,7 +57,7 @@ class RobustCSVParser:
         
         if not csv_path.exists():
             self.logger.warning(f"CSV 파일 없음: {csv_path}")
-            return metrics
+            return sanitize_metrics(raw_metrics)
         
         # 재시도 로직
         for attempt in range(max_retries):
@@ -68,7 +70,7 @@ class RobustCSVParser:
                     if attempt < max_retries - 1:
                         time.sleep(retry_delay)
                         continue
-                    return metrics
+                    return sanitize_metrics(raw_metrics)
                 
                 # 마지막 행 가져오기
                 last_row = df.iloc[-1]
@@ -80,19 +82,23 @@ class RobustCSVParser:
                     for col_name in column_candidates:
                         if col_name in df.columns:
                             try:
-                                value = float(last_row[col_name])
-                                break
-                            except (ValueError, TypeError):
+                                raw_value = last_row[col_name]
+                                # 안전한 float 변환 사용
+                                value = safe_float(raw_value, None)
+                                if value is not None:
+                                    break
+                            except Exception:
                                 continue
                     
                     if value is not None:
-                        metrics[metric_key] = value
+                        raw_metrics[metric_key] = value
                     else:
                         self.logger.debug(f"메트릭 {metric_key}를 찾을 수 없음")
+                        # 기본값 0.0 유지
                 
                 # 성공적으로 파싱
                 self.logger.info(f"CSV 파싱 성공 (시도 {attempt + 1}/{max_retries})")
-                return metrics
+                return sanitize_metrics(raw_metrics)
                 
             except pd.errors.EmptyDataError:
                 self.logger.warning(f"CSV 읽기 실패 - 빈 데이터 (시도 {attempt + 1}/{max_retries})")
@@ -110,20 +116,27 @@ class RobustCSVParser:
                 time.sleep(wait_time)
         
         self.logger.error(f"CSV 파싱 실패 (모든 시도 소진): {csv_path}")
-        return metrics
+        return sanitize_metrics(raw_metrics)
     
-    def validate_metrics(self, metrics: Dict[str, float]) -> bool:
-        """메트릭 유효성 검사"""
+    def validate_metrics(self, metrics: Dict[str, Union[float, bool]]) -> bool:
+        """
+        메트릭 유효성 검사
+        이미 정규화된 메트릭을 받으므로 None 체크 불필요
+        """
+        # valid 플래그 확인
+        if not metrics.get('valid', False):
+            self.logger.info("메트릭이 치환되었음 (valid=False)")
+        
         # mAP, precision, recall은 0-1 범위
         for key in ['map50', 'precision', 'recall']:
-            value = metrics.get(key, 0)
+            value = safe_float(metrics.get(key, 0), 0.0)
             if not (0 <= value <= 1):
                 self.logger.warning(f"비정상 메트릭 값: {key}={value}")
                 return False
         
         # loss는 0 이상
         for key in ['box_loss', 'cls_loss', 'dfl_loss']:
-            value = metrics.get(key, 0)
+            value = safe_float(metrics.get(key, 0), 0.0)
             if value < 0:
                 self.logger.warning(f"비정상 손실 값: {key}={value}")
                 return False

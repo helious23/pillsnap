@@ -34,6 +34,7 @@ from src.training.memory_monitor_gpu_usage import GPUMemoryMonitor
 from src.evaluation.evaluate_classification_metrics import ClassificationMetricsEvaluator
 from src.evaluation.evaluate_detection_metrics import DetectionMetricsEvaluator
 from src.utils.core import PillSnapLogger, load_config
+from src.utils.safe_float import safe_float
 from src.training.tensorboard_integration import patch_trainer_with_tensorboard
 
 
@@ -361,6 +362,7 @@ class Stage3TwoStageTrainer:
         import time
         from src.utils.detection_state_manager import DetectionStateManager
         from src.utils.robust_csv_parser import RobustCSVParser
+        from src.utils.safe_float import safe_float, sanitize_metrics
         
         # 검증 주기 상수
         VAL_PERIOD = 3  # 3 에폭마다 검증
@@ -381,6 +383,9 @@ class Stage3TwoStageTrainer:
             
             self.logger.info(f"📊 Detection State: done={det_epochs_done}, target={target_epochs}")
             
+            # DET_RESUME 요약 로그 (디버깅용)
+            self.logger.info(f"DET_RESUME | done={det_epochs_done} | target={target_epochs} | resume=TBD")
+            
             # 모델 경로 및 resume 설정 (개선된 로직)
             last_pt_path = Path(YOLO_PROJECT) / YOLO_NAME / 'weights' / 'last.pt'
             best_pt_path = Path(YOLO_PROJECT) / YOLO_NAME / 'weights' / 'best.pt'
@@ -388,39 +393,71 @@ class Stage3TwoStageTrainer:
             # last.pt 업데이트 체크
             last_pt_updated = state_manager.check_last_pt_updated(last_pt_path, state)
             
+            # Fake resume 전략 확인
+            force_fake_resume = state.get('force_fake_resume', False)
+            
+            # 추가할 에폭 수 계산
+            additional_epochs = 1  # fake resume 시 추가할 에폭 수
+            
             # YOLO 모델 초기화 전략 (state 기반)
-            if det_epochs_done == 0:
+            if force_fake_resume:
+                # Fake resume: last.pt를 모델로 사용하되 resume=False
+                if last_pt_path.exists():
+                    model_path = str(last_pt_path)
+                    resume = False  # 가짜 resume (옵티마이저 상태는 초기화)
+                    epochs_to_train = additional_epochs  # resume=False이므로 추가 에폭만
+                    self.logger.warning(f"🔄 FAKE RESUME: model={model_path}, epochs={epochs_to_train}")
+                    
+                    # results.csv 경로 확인 (같은 디렉토리인지 검증)
+                    results_csv_path = Path(YOLO_PROJECT) / YOLO_NAME / 'results.csv'
+                    self.logger.info(f"FAKE RESUME CHECK | results.csv={results_csv_path.exists()} | dir={YOLO_PROJECT}/{YOLO_NAME}")
+                else:
+                    model_path = 'yolo11m.pt'
+                    resume = False
+                    epochs_to_train = additional_epochs
+                    self.logger.warning(f"🔄 FAKE RESUME FAILED: using pretrained")
+            elif det_epochs_done == 0:
                 # 처음 시작
                 if hasattr(self, '_resume_yolo_checkpoint') and self._resume_yolo_checkpoint:
                     model_path = self._resume_yolo_checkpoint
                     resume = True
-                    self.logger.info(f"🔄 Detection Resume: {model_path}")
+                    epochs_to_train = target_epochs  # 처음엔 전체 타겟
+                    self.logger.info(f"🔄 Detection Resume: {model_path}, epochs={epochs_to_train}")
                 elif last_pt_path.exists():
                     model_path = str(last_pt_path)
                     resume = True
-                    self.logger.info(f"🔄 Detection 이전 학습 재개: {model_path}")
+                    epochs_to_train = target_epochs  # 전체 타겟
+                    self.logger.info(f"🔄 Detection 이전 학습 재개: {model_path}, epochs={epochs_to_train}")
                 else:
                     model_path = 'yolo11m.pt'  # yolo11x -> yolo11m (메모리 절약)
                     resume = False
-                    self.logger.info(f"🆕 Detection 학습 시작: {model_path}")
+                    epochs_to_train = target_epochs  # 전체 타겟
+                    self.logger.info(f"🆕 Detection 학습 시작: {model_path}, epochs={epochs_to_train}")
             else:
                 # 누적 학습 지속
                 if last_pt_path.exists():
                     model_path = str(last_pt_path)
                     resume = True
-                    self.logger.info(f"✅ Detection 누적 학습: epoch {det_epochs_done} → {target_epochs}")
+                    epochs_to_train = target_epochs  # resume=True일 때는 '총 목표 에폭' 전달
+                    self.logger.info(f"✅ Detection 누적 학습: done={det_epochs_done} → target={target_epochs} (총 목표 epochs={epochs_to_train})")
                 else:
                     # Fallback
                     if best_pt_path.exists():
                         model_path = str(best_pt_path)
-                        resume = True
-                        self.logger.warning(f"⚠️ last.pt 없음, best.pt 사용")
+                        resume = False  # best.pt는 resume 불가 (옵티마이저 상태 없음)
+                        epochs_to_train = additional_epochs  # resume=False이므로 추가 에폭만
+                        self.logger.warning(f"⚠️ last.pt 없음, best.pt로 fake resume, 추가 epochs={epochs_to_train}")
                     else:
                         model_path = 'yolo11m.pt'
                         resume = False
-                        self.logger.warning(f"⚠️ 체크포인트 없음, pretrained 사용")
+                        epochs_to_train = additional_epochs  # 1 에폭만
+                        self.logger.warning(f"⚠️ 체크포인트 없음, pretrained로 1에폭")
             
             self.logger.info(f"🎯 Detection 학습 시작 (Epoch {epoch})")
+            
+            # 환경 버전 로깅
+            import ultralytics
+            self.logger.info(f"ENV_VERSIONS | ultralytics={ultralytics.__version__} | torch={torch.__version__} | python={sys.version.split()[0]}")
             
             # YOLO 데이터셋 설정 파일 생성
             dataset_yaml = self._create_yolo_dataset_config()
@@ -446,7 +483,7 @@ from ultralytics import YOLO
 model = YOLO('{model_path}')
 results = model.train(
     data='{dataset_yaml}',
-    epochs={target_epochs},  # 누적 에폭 수 전달
+    epochs={epochs_to_train},  # resume=True일 때는 '총 목표 에폭', resume=False일 때는 '추가 에폭'
     batch={min(8, self.training_config.batch_size)},
     imgsz=640,
     device='{self.device.type}',
@@ -480,7 +517,12 @@ if hasattr(results, 'metrics'):
 """
             ]
             
-            self.logger.info(f"YOLO 학습 subprocess 실행 중... (val={do_validation}, resume={resume})")
+            # 실제 명령 로깅
+            self.logger.info(f"YOLO CMD | model={model_path} | epochs={epochs_to_train} | resume={resume} | val={do_validation}")
+            self.logger.info(f"YOLO 학습 subprocess 실행 중... (val={do_validation}, resume={resume}, epochs_to_train={epochs_to_train})")
+            
+            # DET_RESUME 수정 (실제 값으로)
+            self.logger.info(f"DET_RESUME | done={det_epochs_done} | target={target_epochs} | resume={resume} | epochs_to_train={epochs_to_train}")
             
             # subprocess 실행하고 출력 실시간 로깅
             with open(temp_log_path, 'w') as log_file:
@@ -499,13 +541,27 @@ if hasattr(results, 'metrics'):
                         log_file.write(line + '\n')
                         log_file.flush()
                         
-                        # 중요한 로그만 필터링해서 출력
-                        if any(keyword in line for keyword in ['box_loss', 'cls_loss', 'dfl_loss', 'Epoch', 'GPU', 'images']):
+                        # 중요한 로그 필터링 (확장된 키워드)
+                        important_keywords = [
+                            'box_loss', 'cls_loss', 'dfl_loss', 'Epoch', 'GPU', 'images',
+                            'Resuming training from', 'Training completed', 'epochs',
+                            'WARNING', 'ERROR', 'Model summary', 'Starting training'
+                        ]
+                        
+                        if any(keyword in line for keyword in important_keywords):
                             self.logger.info(f"[YOLO] {line}")
                             # 모니터링 로그 파일에도 쓰기
                             with open('/tmp/mini_test.log', 'a') as monitor_log:
                                 monitor_log.write(f"{time.strftime('%H:%M:%S')} | INFO     | [YOLO] {line}\n")
                                 monitor_log.flush()
+                        
+                        # Resume 실패 감지
+                        if 'epochs' in line and 'previously trained epochs' in line:
+                            self.logger.error(f"YOLO RESUME FAILED: {line}")
+                            # 즉시 재시도 플래그 설정
+                            state['resume_failed'] = True
+                        if 'Training completed' in line and det_epochs_done < target_epochs:
+                            self.logger.warning(f"YOLO EARLY STOP: {line}")
                 
                 process.wait()
             
@@ -515,20 +571,21 @@ if hasattr(results, 'metrics'):
             # results.csv에서 실제 메트릭 읽기 (RobustCSVParser 사용)
             results_csv_path = Path(YOLO_PROJECT) / YOLO_NAME / 'results.csv'
             
-            # 견고한 CSV 파싱
+            # 견고한 CSV 파싱 (이미 정규화된 값 반환)
             metrics = csv_parser.parse_results_csv(
                 csv_path=results_csv_path,
                 max_retries=3,
                 retry_delay=1.0
             )
             
-            # 메트릭 추출
-            val_map = metrics.get('map50', 0.0)
-            precision = metrics.get('precision', 0.0)
-            recall = metrics.get('recall', 0.0)
-            box_loss = metrics.get('box_loss', None)
-            cls_loss = metrics.get('cls_loss', None)
-            dfl_loss = metrics.get('dfl_loss', None)
+            # 2중 방어: 로컴 정규화를 한번 더 수행
+            val_map = safe_float(metrics.get('map50', 0.0), 0.0)
+            precision = safe_float(metrics.get('precision', 0.0), 0.0)
+            recall = safe_float(metrics.get('recall', 0.0), 0.0)
+            box_loss = safe_float(metrics.get('box_loss', 0.0), 0.0)
+            cls_loss = safe_float(metrics.get('cls_loss', 0.0), 0.0)
+            dfl_loss = safe_float(metrics.get('dfl_loss', 0.0), 0.0)
+            csv_valid = metrics.get('valid', False)
             
             # 메트릭 유효성 검사
             if csv_parser.validate_metrics(metrics):
@@ -547,6 +604,75 @@ if hasattr(results, 'metrics'):
             # 변화량 계산
             deltas = state_manager.calculate_deltas(state)
             
+            # last.pt 업데이트 확인
+            last_pt_path = Path(YOLO_PROJECT) / YOLO_NAME / 'weights' / 'last.pt'
+            last_pt_updated = False
+            if last_pt_path.exists():
+                current_mtime = os.path.getmtime(last_pt_path)
+                # 5분 이내 업데이트 확인 (300초)
+                if time.time() - current_mtime < 300:
+                    last_pt_updated = True
+                    self.logger.info(f"✅ last.pt updated (mtime: {time.strftime('%H:%M:%S', time.localtime(current_mtime))})")
+                else:
+                    self.logger.warning(f"⚠️ last.pt NOT updated (age: {(time.time() - current_mtime)/60:.1f}분)")
+            
+            # results.csv 행 수 증가 확인
+            csv_rows_increased = False
+            if results_csv_path.exists():
+                try:
+                    import pandas as pd
+                    df = pd.read_csv(results_csv_path)
+                    current_rows = len(df)
+                    # state에 이전 행 수 저장
+                    prev_rows = state.get('last_csv_rows', 0)
+                    if current_rows > prev_rows:
+                        csv_rows_increased = True
+                        self.logger.info(f"✅ CSV rows increased: {prev_rows} → {current_rows}")
+                    else:
+                        self.logger.warning(f"⚠️ CSV rows NOT increased: stuck at {current_rows}")
+                    state['last_csv_rows'] = current_rows
+                except Exception as e:
+                    self.logger.error(f"CSV 행 수 확인 실패: {e}")
+            
+            # args.yaml 비교로 하이퍼파라미터 드리프트 감지
+            args_yaml_path = Path(YOLO_PROJECT) / YOLO_NAME / 'args.yaml'
+            if args_yaml_path.exists():
+                try:
+                    import yaml
+                    with open(args_yaml_path, 'r') as f:
+                        args = yaml.safe_load(f)
+                    
+                    # 핵심 파라미터 체크
+                    if args.get('batch') != min(8, self.training_config.batch_size):
+                        self.logger.warning(f"⚠️ Batch size drift: {args.get('batch')} vs {min(8, self.training_config.batch_size)}")
+                    if args.get('imgsz') != 640:
+                        self.logger.warning(f"⚠️ Image size drift: {args.get('imgsz')} vs 640")
+                    if str(args.get('data')) != str(dataset_yaml):
+                        self.logger.warning(f"⚠️ Dataset path drift")
+                except Exception as e:
+                    self.logger.debug(f"args.yaml 읽기 실패: {e}")
+            
+            # 업데이트 실패 경고 및 자동 복구
+            if not last_pt_updated and not csv_rows_increased:
+                self.logger.error("YOLO NO-UPDATE: check resume/epochs/project/name")
+                self.logger.error(f"  - project: {YOLO_PROJECT}")
+                self.logger.error(f"  - name: {YOLO_NAME}")
+                self.logger.error(f"  - epochs passed: {epochs_to_train}")
+                self.logger.error(f"  - resume: {resume}")
+                
+                # 자동 복구: 가짜 resume 전략
+                if state.get('retry_count', 0) < 2:
+                    self.logger.warning("🔄 Attempting fallback strategy (fake resume)...")
+                    state['retry_count'] = state.get('retry_count', 0) + 1
+                    state['force_fake_resume'] = True
+                    state_manager.save_state(state)
+                    # 재귀 호출로 재시도
+                    return self.train_detection_epoch(optimizer, epoch)
+            else:
+                # 성공 시 retry count 리셋
+                state['retry_count'] = 0
+                state['force_fake_resume'] = False
+            
             # Detection 에폭 완료 기록
             state['det_epochs_done'] = target_epochs
             state_manager.save_state(state)
@@ -555,37 +681,27 @@ if hasattr(results, 'metrics'):
             summary = state_manager.format_summary(state, last_pt_updated, deltas)
             self.logger.info(summary)
             
-            # total_loss 계산
-            if box_loss is not None and cls_loss is not None and dfl_loss is not None:
-                total_loss = (box_loss + cls_loss + dfl_loss) / 3.0
-            else:
-                total_loss = None
-                self.logger.warning("Loss 값을 CSV에서 읽지 못함, None으로 설정")
+            # 총손실 계산 (이미 정규화된 float만 평균)
+            total_loss = (box_loss + cls_loss + dfl_loss) / 3.0
             
-            # 상세한 Detection 메트릭 로깅
+            # 상세한 Detection 메트릭 로깅 (정규화된 값 사용)
             self.logger.info(f"✅ Detection Epoch {epoch} 완료")
-            if box_loss is not None:
-                self.logger.info(f"[Detection Epoch {epoch}] box_loss: {box_loss:.4f} | cls_loss: {cls_loss:.4f} | dfl_loss: {dfl_loss:.4f}")
-            if total_loss is not None:
-                self.logger.info(f"[Detection Epoch {epoch}] Total Loss: {total_loss:.4f} | mAP@0.5: {val_map:.3f}")
+            self.logger.info(f"[Detection Epoch {epoch}] box_loss: {box_loss:.4f} | cls_loss: {cls_loss:.4f} | dfl_loss: {dfl_loss:.4f}")
+            self.logger.info(f"[Detection Epoch {epoch}] Total Loss: {total_loss:.4f} | mAP@0.5: {val_map:.3f}")
             
             # 실측치 저장 (validate_models에서 사용)
             self.last_detection_map = val_map
             
             # 모니터링 파서용 표준 태그 (DET_SUMMARY)
-            # 값 먼저 정하고 포맷팅
-            box_loss_val = 0.0 if box_loss is None else float(box_loss)
-            cls_loss_val = 0.0 if cls_loss is None else float(cls_loss)
-            dfl_loss_val = 0.0 if dfl_loss is None else float(dfl_loss)
-            total_loss_val = 0.0 if total_loss is None else float(total_loss)
-            
+            # 이미 정규화된 값 사용
             self.logger.info(
                 f"DET_SUMMARY | epoch={epoch} | "
-                f"box_loss={box_loss_val:.4f} | "
-                f"cls_loss={cls_loss_val:.4f} | "
-                f"dfl_loss={dfl_loss_val:.4f} | "
-                f"total_loss={total_loss_val:.4f} | "
-                f"mAP={val_map:.4f}"
+                f"box_loss={box_loss:.4f} | "
+                f"cls_loss={cls_loss:.4f} | "
+                f"dfl_loss={dfl_loss:.4f} | "
+                f"total_loss={total_loss:.4f} | "
+                f"mAP={val_map:.4f} | "
+                f"csv_valid={csv_valid}"
             )
             
             # DET_DETAIL 로그 (confidence는 0.0으로 설정, 나중에 tuner가 덮어쓸 수 있음)
@@ -595,23 +711,28 @@ if hasattr(results, 'metrics'):
             )
             
             return {
-                'detection_loss': total_loss if total_loss is not None else 0.0,
-                'detection_box_loss': box_loss_val,
-                'detection_cls_loss': cls_loss_val,
-                'detection_dfl_loss': dfl_loss_val,
+                'detection_loss': total_loss,
+                'detection_box_loss': box_loss,
+                'detection_cls_loss': cls_loss,
+                'detection_dfl_loss': dfl_loss,
                 'detection_map': val_map,
                 'detection_precision': precision,
                 'detection_recall': recall
             }
             
         except Exception as e:
-            self.logger.warning(f"Detection 학습 에러 - 손상된 파일이나 일시적 문제로 스킵: {e}")
+            import traceback
+            self.logger.error(f"Detection 학습 에러: {e}")
+            self.logger.error(f"Traceback:\n{traceback.format_exc()}")
+            
             # 에러 유형별 처리
             error_msg = str(e).lower()
             if any(keyword in error_msg for keyword in ['truncated', 'corrupt', 'bad image', 'decode']):
                 self.logger.info("이미지 파일 관련 에러 - 다음 epoch에서 자동으로 스킵됩니다")
             elif 'cuda' in error_msg or 'memory' in error_msg:
                 self.logger.warning("GPU 메모리 부족 - 배치 크기를 줄여보세요")
+            elif 'nonetype' in error_msg:
+                self.logger.error("NoneType 비교 에러 - Detection 코드 버그!")
             else:
                 self.logger.warning(f"기타 Detection 에러: {error_msg}")
             
@@ -706,11 +827,33 @@ if hasattr(results, 'metrics'):
         if skipped_count > 0:
             self.logger.info(f"손상되거나 문제있는 파일 {skipped_count}개 스킵됨")
         
+        # train.txt, val.txt 파일 생성 (이미지 절대경로 리스트)
+        all_images = list(yolo_images_dir.glob('*.png'))
+        
+        # 80:20 분할 (shuffle 없이 순차적)
+        split_idx = int(len(all_images) * 0.8)
+        train_images = all_images[:split_idx]
+        val_images = all_images[split_idx:]
+        
+        # train.txt 생성
+        train_txt = config_dir / "train.txt"
+        with open(train_txt, 'w') as f:
+            for img in train_images:
+                f.write(f"{img.absolute()}\n")
+        
+        # val.txt 생성
+        val_txt = config_dir / "val.txt"
+        with open(val_txt, 'w') as f:
+            for img in val_images:
+                f.write(f"{img.absolute()}\n")
+        
+        self.logger.info(f"YOLO_DATASET | train_images={len(train_images)} | val_images={len(val_images)}")
+        
         # YOLO 데이터셋 설정
         config = {
             'path': str(yolo_dataset_root),  # YOLO 데이터셋 루트
-            'train': 'images',  # 이미지 디렉토리 (상대 경로)
-            'val': 'images',    # 검증 이미지 디렉토리 (같은 경로 사용)
+            'train': str(train_txt),  # train.txt 절대 경로
+            'val': str(val_txt),    # val.txt 절대 경로
             'names': {0: 'pill'},  # 클래스 이름
             'nc': 1  # 클래스 개수
         }
@@ -853,19 +996,25 @@ if hasattr(results, 'metrics'):
             # 최고 성능 업데이트 (epsilon 기준 적용)
             BEST_EPS = 0.001  # 0.1% 이상 개선 시 저장
             
-            # Classification best 업데이트
-            if val_results['val_classification_accuracy'] > self.best_classification_accuracy + BEST_EPS:
-                self.best_classification_accuracy = val_results['val_classification_accuracy']
-                self.best_classification_top5_accuracy = val_results['val_classification_top5_accuracy']
+            # Classification best 업데이트 (안전한 float 비교)
+            current_classification_acc = safe_float(val_results.get('val_classification_accuracy', 0), 0.0)
+            best_classification_acc = safe_float(self.best_classification_accuracy, 0.0)
+            
+            if current_classification_acc > best_classification_acc + BEST_EPS:
+                self.best_classification_accuracy = current_classification_acc
+                self.best_classification_top5_accuracy = safe_float(val_results.get('val_classification_top5_accuracy', 0), 0.0)
                 self.save_checkpoint('classification', 'best')
                 self.logger.info(f"✅ NEW BEST Classification: {self.best_classification_accuracy:.4f}")
                 self.cls_patience_counter = 0  # Patience 초기화
             else:
                 self.cls_patience_counter += 1
             
-            # Detection best 업데이트
-            if val_results['val_detection_map'] > self.best_detection_map + BEST_EPS:
-                self.best_detection_map = val_results['val_detection_map']
+            # Detection best 업데이트 (안전한 float 비교)
+            current_detection_map = safe_float(val_results.get('val_detection_map'), 0.0)
+            best_detection_map = safe_float(self.best_detection_map, 0.0)
+            
+            if current_detection_map > best_detection_map + BEST_EPS:
+                self.best_detection_map = current_detection_map
                 self.save_checkpoint('detection', 'best')
                 self.logger.info(f"✅ NEW BEST Detection mAP: {self.best_detection_map:.4f}")
                 self.det_patience_counter = 0  # Patience 초기화
@@ -940,9 +1089,13 @@ if hasattr(results, 'metrics'):
                 f"DET_SUMMARY | epoch={epoch} | map50={val_results['val_detection_map']:.4f}"
             )
             
-            # 목표 달성 체크
-            if (val_results['val_classification_accuracy'] >= self.training_config.target_classification_accuracy and 
-                val_results['val_detection_map'] >= self.training_config.target_detection_map):
+            # 목표 달성 체크 (안전한 float 비교)
+            current_cls_acc = safe_float(val_results.get('val_classification_accuracy', 0), 0.0)
+            current_det_map = safe_float(val_results.get('val_detection_map', 0), 0.0)
+            target_cls_acc = safe_float(self.training_config.target_classification_accuracy, 0.85)
+            target_det_map = safe_float(self.training_config.target_detection_map, 0.30)
+            
+            if (current_cls_acc >= target_cls_acc and current_det_map >= target_det_map):
                 self.logger.info("목표 성능 달성! 학습 조기 종료")
                 break
             
@@ -959,8 +1112,8 @@ if hasattr(results, 'metrics'):
             'best_detection_map': self.best_detection_map,
             'epochs_completed': getattr(self, 'current_epoch', start_epoch),
             'target_achieved': {
-                'classification': self.best_classification_accuracy >= self.training_config.target_classification_accuracy,
-                'detection': self.best_detection_map >= self.training_config.target_detection_map
+                'classification': safe_float(self.best_classification_accuracy, 0.0) >= safe_float(self.training_config.target_classification_accuracy, 0.85),
+                'detection': safe_float(self.best_detection_map, 0.0) >= safe_float(self.training_config.target_detection_map, 0.30)
             }
         }
         
